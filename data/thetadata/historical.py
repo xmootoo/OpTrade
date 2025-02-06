@@ -87,67 +87,82 @@ def get_historical_data(
         # Make datetime the first column
         quote_df = quote_df[['datetime'] + [col for col in quote_df.columns if col != 'datetime']]
 
-        # Save to csv
-        quote_df.to_csv(os.path.join(save_dir,f'{root}_{start_date}_{end_date}_quote.csv'), index=False)
+        # Save with mode='a' (append) after the first write
+        quote_file_path = os.path.join(save_dir, f'{root}_{start_date}_{end_date}_quote.csv')
+        if quote_url == BASE_URL + '/hist/option/quote':
+            quote_df.to_csv(quote_file_path, index=False) # Save first batch as .csv
+        else:
+            quote_df.to_csv(quote_file_path, mode='a', header=False, index=False) # Update .csv for subsequent batches
 
         # check the Next-Page header to see if we have more data
         if 'Next-Page' in quote_response.headers and quote_response.headers['Next-Page'] != "null":
             quote_url = quote_response.headers['Next-Page']
             params = None
+            print(f"Paginating to {quote_url}")
         else:
             quote_url = None
 
+    # Redefine params for OHLC data (as it will set to None)
+    params = {
+    'root': root,
+    'exp': exp,
+    'strike': strike,
+    'right': right,
+    'start_date': start_date,
+    'end_date': end_date,
+    'use_csv': 'true',
+    'ivl': intervals,
+    }
 
     # <-- OHLC data -->
     ohlc_url = BASE_URL + '/hist/option/ohlc'
 
     while ohlc_url is not None:
-        ohlc_response = httpx.get(ohlc_url, params=params, timeout=10)  # make the request
-        ohlc_response.raise_for_status()  # make sure the request worked
+        ohlc_response = httpx.get(ohlc_url, params=params, timeout=10)
+        ohlc_response.raise_for_status()
 
         # read the entire response, and parse it as CSV
         csv_reader = csv.reader(ohlc_response.text.split("\n"))
+        ohlc_df = pd.DataFrame(list(csv_reader)[1:],
+                        columns=next(csv.reader(ohlc_response.text.split("\n"))))
 
-        ohlc_df = pd.DataFrame(list(csv_reader)[1:],  # Skip the first row and use it as columns
-                        columns=next(csv.reader(ohlc_response.text.split("\n"))))  # Use first row as column names
-
-        # Save to csv
-        ohlc_df.to_csv(os.path.join(save_dir,f'{root}_{start_date}_{end_date}_ohlc.csv'), index=False)
-
-        # Create a datetime column in standard format in 'YYYY-MM-DD HH:MM:SS' (e.g., 2022-09-27 18:00:00)
-        # First get time of day in HH:MM:SS format from ms_of_day
+        # Create datetime column
         time_of_day = pd.to_datetime(pd.to_numeric(ohlc_df['ms_of_day']), unit='ms').dt.time
-
-        # Then get the date in YYYY-MM-DD format
         date = pd.to_datetime(ohlc_df['date'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
-
-        # Then concatenate the date and time_of_day
         ohlc_df['datetime'] = pd.to_datetime(date + ' ' + time_of_day.astype(str))
 
-        # Remove duplicate columns already in quote_df (e.g., date, ms_of_day)
+        # Remove redundant columns
         ohlc_df = ohlc_df.drop(columns=['date', 'ms_of_day'])
 
-        # Save to csv
-        ohlc_df.to_csv(os.path.join(save_dir,f'{root}_{start_date}_{end_date}_ohlc.csv'), index=False)
+        # Save with mode='a' (append) after the first write
+        ohlc_file_path = os.path.join(save_dir, f'{root}_{start_date}_{end_date}_ohlc.csv')
+        if ohlc_url == BASE_URL + '/hist/option/ohlc':
+            ohlc_df.to_csv(ohlc_file_path, index=False) # Save first batch as .csv
+        else:
+            ohlc_df.to_csv(ohlc_file_path, mode='a', header=False, index=False) # Update .csv for subsequent batches
 
-        # Drop datetime from ohlc_df
-        ohlc_df = ohlc_df.drop(columns=['datetime'])
-
-        # Load the quote_df from location and concatenate with ohlc_df
-        quote_df = pd.read_csv(os.path.join(save_dir,f'{root}_{start_date}_{end_date}_quote.csv'))
-
-        # Merge quote_df and ohlc_df on datetime
-        merged_df = pd.concat([quote_df, ohlc_df], axis=1)
-
-        # Save to csv (override the previous file)
-        merged_df.to_csv(os.path.join(save_dir,f'{root}_{start_date}_{end_date}_total.csv'), index=False)
-
-        # check the Next-Page header to see if we have more data
+        # Check for next page
         if 'Next-Page' in ohlc_response.headers and ohlc_response.headers['Next-Page'] != "null":
             ohlc_url = ohlc_response.headers['Next-Page']
             params = None
+            print(f"Paginating to {ohlc_url}")
         else:
             ohlc_url = None
+
+    # After both loops are complete, merge the data
+    # Load the complete quote and OHLC data
+    quote_df = pd.read_csv(os.path.join(save_dir, f'{root}_{start_date}_{end_date}_quote.csv'))
+    ohlc_df = pd.read_csv(os.path.join(save_dir, f'{root}_{start_date}_{end_date}_ohlc.csv'))
+
+    # Drop datetime from ohlc_df as it's already in quote_df
+    ohlc_df = ohlc_df.drop(columns=['datetime'])
+
+    # Merge quote_df and ohlc_df
+    merged_df = pd.concat([quote_df, ohlc_df], axis=1)
+
+    # Save merged data
+    merged_df.to_csv(os.path.join(save_dir, f'{root}_{start_date}_{end_date}_total.csv'), index=False)
+
 
 
 if __name__ == "__main__":
