@@ -1,2 +1,4 @@
-data/historical_data/
+optrade/data/historical_data/
 __pycache__/
+.ropeproject/
+optrade.egg-info/
