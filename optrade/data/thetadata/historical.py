@@ -2,12 +2,14 @@ import httpx  # install via pip install httpx
 import csv
 import pandas as pd
 import os
+from typing import Optional
 
 def get_historical_data(
     root: str="AAPL",
-    start_date: str="20241107",
-    end_date: str="20241108",
-    exp: str="20250117",
+    start_date: str="20231107",
+    end_date: str="20231108",
+    tte: Optional[int]=-1,
+    exp: Optional[str]="20250117",
     strike: int=225,
     interval_min: int=1,
     right: str="C",
@@ -25,7 +27,8 @@ def get_historical_data(
         root (str): The root symbol of the underlying security.
         start_date (str): The start date of the data in YYYYMMDD format.
         end_date (str): The end date of the data in YYYYMMDD format.
-        exp (str): The expiration date of the option in YYYYMMDD format.
+        exp (Optional[str]): The expiration date of the option in YYYYMMDD format.
+        tte (Optional[int]): The time to expiration of the option in days.
         strike (int): The strike price of the option in dollars.
         interval_min (int): The interval in minutes between data points.
         right (str): The type of option, either 'C' for call or 'P' for put.
@@ -38,6 +41,17 @@ def get_historical_data(
 
     intervals = str(interval_min * 60000) # Convert minutes to milliseconds
     strike = str(strike * 1000) # Converts dollars to 1/10th cents
+
+    # # If Time to Expiration is provided, calculate expiration date by adding tte days to start_date
+    if tte != -1:
+        exp = pd.to_datetime(start_date, format='%Y%m%d') + pd.DateOffset(days=tte)
+        exp = exp.strftime('%Y%m%d')
+        # end_date = exp
+
+    # Define query parameters
+    # print(start_date)
+    # print(exp)
+    # print(end_date)
 
     params = {
     'root': root,
@@ -158,15 +172,60 @@ def get_historical_data(
     # Drop datetime from ohlc_df as it's already in quote_df
     ohlc_df = ohlc_df.drop(columns=['datetime'])
 
-
     # Merge quote_df and ohlc_df
     merged_df = pd.concat([quote_df, ohlc_df], axis=1)
 
     # Save merged data
     merged_df.to_csv(os.path.join(base_dir, f'{root}_{start_date}_{end_date}_total.csv'), index=False)
 
+    return merged_df
 
+
+# TODO: Check if this function works, for finding contract with closests TTE to target_tte
+# for rolling contract window data splits.
+def find_nearest_monthly_expiry(start_date, target_tte=30, tolerance=(25, 35)):
+    """
+    Find the nearest valid monthly expiry that falls within your TTE tolerance
+
+    Args:
+        start_date: str, format 'YYYYMMDD'
+        target_tte: int, desired days to expiry (e.g., 30)
+        tolerance: tuple, (min_days, max_days) acceptable range
+    """
+    start = pd.Timestamp(start_date)
+    min_tte, max_tte = tolerance
+
+    # Look at next 2-3 monthly expiries
+    potential_expiries = []
+    current = start
+
+    for _ in range(3):  # Check next 3 monthly expiries
+        # Get next monthly expiry
+        first_of_month = (current + pd.offsets.MonthEnd(0) + pd.Timedelta(days=1))
+        third_friday = first_of_month + pd.offsets.Week(weekday=4) * 2
+
+        # Calculate TTE
+        tte = (third_friday - start).days
+
+        if min_tte <= tte <= max_tte:
+            potential_expiries.append((tte, third_friday))
+
+        current = third_friday
+
+    if not potential_expiries:
+        raise ValueError(f"No expiries found within {min_tte}-{max_tte} days")
+
+    # Find closest to target_tte
+    closest_expiry = min(potential_expiries, key=lambda x: abs(x[0] - target_tte))
+
+    return closest_expiry[1].strftime('%Y%m%d'), closest_expiry[0]
 
 if __name__ == "__main__":
     # TODO: Add pydantic args here
-    get_historical_data()
+
+    for i in range(35):
+        try:
+            get_historical_data(tte=i)
+            print(f"Worked for TTE = {i}")
+        except:
+            pass
