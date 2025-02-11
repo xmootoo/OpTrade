@@ -2,3 +2,4 @@ optrade/data/historical_data/
 __pycache__/
 .ropeproject/
 optrade.egg-info/
+test.py
