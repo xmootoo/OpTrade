@@ -1,19 +1,19 @@
-import httpx  # install via pip install httpx
+import httpx
 import csv
 import pandas as pd
 import os
 from typing import Optional, Tuple
 
-def get_historical_data(
+def get_option_data(
     root: str="AAPL",
-    start_date: str="20231107",
-    end_date: str="20231108",
+    start_date: str="20241107",
+    end_date: str="20241107",
     tte: Optional[int]=-1,
     exp: Optional[str]="20250117",
     strike: int=225,
     interval_min: int=1,
     right: str="C",
-    save_dir: str="../historical_data",
+    save_dir: str="../historical_data/options",
 ) -> None:
 
     """
@@ -60,7 +60,7 @@ def get_historical_data(
 
     # Create subfolder in save_dir with root symbol
     save_dir = os.path.join(save_dir, root)
-    base_dir = os.path.join(save_dir, f'{root}_{start_date}_{end_date}')
+    base_dir = os.path.join(save_dir, f'{start_date}_{end_date}')
     os.makedirs(base_dir, exist_ok=True)
 
     # <-- Quote data -->
@@ -76,6 +76,10 @@ def get_historical_data(
         # Convert to pandas dataframe (eliminate [0,1,2,...] row of indices from ThetaData)
         quote_df = pd.DataFrame(list(csv_reader)[1:],  # Skip the first row and use it as columns
                         columns=next(csv.reader(quote_response.text.split("\n"))))  # Use first row as column names
+
+        # Convert to float64
+        numeric_columns = quote_df.columns.difference(['date'])
+        quote_df[numeric_columns] = quote_df[numeric_columns].astype('float64')
 
         # Create a datetime column in standard format in 'YYYY-MM-DD HH:MM:SS' (e.g., 2022-09-27 18:00:00)
         # First get time of day in HH:MM:SS format from ms_of_day
@@ -97,7 +101,7 @@ def get_historical_data(
         quote_df = quote_df[['datetime'] + [col for col in quote_df.columns if col != 'datetime']]
 
         # Save with mode='a' (append) after the first write
-        quote_file_path = os.path.join(base_dir, f'{root}_{start_date}_{end_date}_quote.csv')
+        quote_file_path = os.path.join(base_dir, 'quote.csv')
         if quote_url == BASE_URL + '/hist/option/quote':
             quote_df.to_csv(quote_file_path, index=False) # Save first batch as .csv
         else:
@@ -135,6 +139,10 @@ def get_historical_data(
         ohlc_df = pd.DataFrame(list(csv_reader)[1:],
                         columns=next(csv.reader(ohlc_response.text.split("\n"))))
 
+        # Convert to float64
+        numeric_columns = ohlc_df.columns.difference(['date'])
+        ohlc_df[numeric_columns] = ohlc_df[numeric_columns].astype('float64')
+
         # Create datetime column
         time_of_day = pd.to_datetime(pd.to_numeric(ohlc_df['ms_of_day']), unit='ms').dt.time
         date = pd.to_datetime(ohlc_df['date'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
@@ -144,7 +152,7 @@ def get_historical_data(
         ohlc_df = ohlc_df.drop(columns=['date', 'ms_of_day'])
 
         # Save with mode='a' (append) after the first write
-        ohlc_file_path = os.path.join(base_dir, f'{root}_{start_date}_{end_date}_ohlc.csv')
+        ohlc_file_path = os.path.join(base_dir, 'ohlc.csv')
         if ohlc_url == BASE_URL + '/hist/option/ohlc':
             ohlc_df.to_csv(ohlc_file_path, index=False) # Save first batch as .csv
         else:
@@ -160,8 +168,8 @@ def get_historical_data(
 
     # After both loops are complete, merge the data
     # Load the complete quote and OHLC data
-    quote_df = pd.read_csv(os.path.join(base_dir, f'{root}_{start_date}_{end_date}_quote.csv'))
-    ohlc_df = pd.read_csv(os.path.join(base_dir, f'{root}_{start_date}_{end_date}_ohlc.csv'))
+    quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'))
+    ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'))
 
     # Drop datetime from ohlc_df as it's already in quote_df
     ohlc_df = ohlc_df.drop(columns=['datetime'])
@@ -170,17 +178,10 @@ def get_historical_data(
     merged_df = pd.concat([quote_df, ohlc_df], axis=1)
 
     # Save merged data
-    merged_df.to_csv(os.path.join(base_dir, f'{root}_{start_date}_{end_date}_total.csv'), index=False)
+    merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
 
     return merged_df
 
 
 if __name__ == "__main__":
-    # TODO: Add pydantic args here
-
-    for i in range(35):
-        try:
-            get_historical_data(start_date="20240407", tte=i, interval_min=1)
-            print(f"Worked for TTE = {i}")
-        except:
-            pass
+    get_option_data()
