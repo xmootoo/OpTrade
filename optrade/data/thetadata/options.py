@@ -42,10 +42,16 @@ def get_option_data(
     intervals = str(interval_min * 60000) # Convert minutes to milliseconds
     strike = str(strike * 1000) # Converts dollars to 1/10th cents
 
-    # # If Time to Expiration is provided, calculate expiration date by adding tte days to start_date
+    # If Time to Expiration is provided, calculate expiration date by adding tte days to start_date
     if tte != -1:
         exp = pd.to_datetime(start_date, format='%Y%m%d') + pd.DateOffset(days=tte)
         exp = exp.strftime('%Y%m%d')
+
+        # Set end_date = start_date + tte - 1 (in days)
+        end_date = (pd.to_datetime(start_date, format='%Y%m%d') +
+                    pd.DateOffset(days=tte-1)).strftime('%Y%m%d')
+
+    print(f"Start date: {start_date}, End date: {end_date}, Expiration date: {exp}")
 
     params = {
     'root': root,
@@ -59,8 +65,7 @@ def get_option_data(
     }
 
     # Create subfolder in save_dir with root symbol
-    save_dir = os.path.join(save_dir, root)
-    base_dir = os.path.join(save_dir, f'{start_date}_{end_date}')
+    base_dir = os.path.join(save_dir, root, right, f"{start_date}_{end_date}", f"{strike}strike_{exp}exp")
     os.makedirs(base_dir, exist_ok=True)
 
     # <-- Quote data -->
@@ -180,8 +185,17 @@ def get_option_data(
     # Save merged data
     merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
 
+    # Remove last row (NaN)
+    merged_df = merged_df.dropna()
+
     return merged_df
 
 
 if __name__ == "__main__":
-    get_option_data()
+
+    for i in range(15, 35):
+        try:
+            get_option_data(tte=i)
+            print(f"Worked for TTE: {i}")
+        except:
+            pass
