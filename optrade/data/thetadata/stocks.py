@@ -166,6 +166,9 @@ def get_stock_data(
     # Save merged data
     merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
 
+    # Remove last row (NaN)
+    merged_df = merged_df.dropna()
+
     return merged_df
 
 
