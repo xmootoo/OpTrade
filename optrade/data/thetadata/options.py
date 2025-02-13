@@ -14,7 +14,7 @@ def get_option_data(
     interval_min: int=1,
     right: str="C",
     save_dir: str="../historical_data/options",
-) -> None:
+) -> pd.DataFrame:
 
     """
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for

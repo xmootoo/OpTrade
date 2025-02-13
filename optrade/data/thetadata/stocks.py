@@ -11,7 +11,7 @@ def get_stock_data(
     end_date: str="20231107",
     interval_min: int=1,
     save_dir: str="../historical_data/stocks",
-) -> None:
+) -> pd.DataFrame:
 
     """
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for
