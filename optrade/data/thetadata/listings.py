@@ -58,8 +58,8 @@ def get_expirations(
 
 def get_strikes(
     root: str = 'AAPL',
-    save_dir: str = '../historical_data/strikes',
     exp: str="20250117",
+    save_dir: str = '../historical_data/strikes',
 ) -> pd.DataFrame:
     """
     Fetch option strike prices for a given root symbol and expiration, saving to CSV.

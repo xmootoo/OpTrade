@@ -26,7 +26,7 @@ from torch.utils.data import DataLoader
 
 # Custom Modules
 from optrade.src.utils.train.early_stopping import EarlyStopping
-from sss.utils.dataloading import get_loaders
+from optrade.src.utils.data.dataloading import get_loaders
 from sss.utils.models import get_criterion, \
                              get_model, \
                              get_optim, \
