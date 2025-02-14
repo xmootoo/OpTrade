@@ -72,7 +72,7 @@ def get_option_data(
     quote_url = BASE_URL + '/hist/option/quote'
 
     while quote_url is not None:
-        quote_response = httpx.get(quote_url, params=params, timeout=10)  # make the request
+        quote_response = httpx.get(quote_url, params=params, timeout=1000)  # make the request
         quote_response.raise_for_status()  # make sure the request worked
 
         # read the entire quote_response, and parse it as CSV
@@ -136,7 +136,7 @@ def get_option_data(
     ohlc_url = BASE_URL + '/hist/option/ohlc'
 
     while ohlc_url is not None:
-        ohlc_response = httpx.get(ohlc_url, params=params, timeout=10)
+        ohlc_response = httpx.get(ohlc_url, params=params, timeout=1000)
         ohlc_response.raise_for_status()
 
         # read the entire response, and parse it as CSV
