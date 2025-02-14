@@ -5,21 +5,21 @@ import os
 
 def get_expirations(
     root: str = 'AAPL',
-    base_dir: str = '../historical_data/expirations'
+    save_dir: str = '../historical_data/expirations'
 ) -> pd.DataFrame:
     """
     Fetch option expiration dates for a given root symbol and save to CSV.
 
     Args:
         root (str): The root symbol to get expirations for (default: 'AAPL')
-        base_dir (str): Directory to save the CSV file (default: current directory)
+        save_dir (str): Directory to save the CSV file (default: current directory)
     """
     BASE_URL = "http://127.0.0.1:25510/v2"
     url = BASE_URL + '/list/expirations'
     params = {'root': root}
 
-    base_dir = os.path.join(base_dir, root)
-    os.makedirs(base_dir, exist_ok=True)
+    save_dir = os.path.join(save_dir, root)
+    os.makedirs(save_dir, exist_ok=True)
 
     while url is not None:
         # Make the request
@@ -37,7 +37,7 @@ def get_expirations(
         df = pd.DataFrame.from_records(data_rows)
 
         # Save to CSV with appropriate mode
-        expiry_file_path = os.path.join(base_dir, 'expirations.csv')
+        expiry_file_path = os.path.join(save_dir, 'expirations.csv')
         if url == BASE_URL + '/list/expirations':
             df.to_csv(expiry_file_path, index=False)  # Save first batch as .csv
         else:
@@ -52,13 +52,13 @@ def get_expirations(
             url = None
 
     # Load the CSV into pandas dataframe
-    df = pd.read_csv(os.path.join(base_dir, 'expirations.csv'))
+    df = pd.read_csv(os.path.join(save_dir, 'expirations.csv'))
 
     return df
 
 def get_strikes(
     root: str = 'AAPL',
-    base_dir: str = '../historical_data/strikes',
+    save_dir: str = '../historical_data/strikes',
     exp: str="20250117",
 ) -> pd.DataFrame:
     """
@@ -67,14 +67,14 @@ def get_strikes(
     Args:
         root (str): The root symbol to get expirations for (default: 'AAPL')
         exp (str): The expiration date to get strikes for (default: '20250117')
-        base_dir (str): Directory to save the CSV file (default: current directory)
+        save_dir (str): Directory to save the CSV file (default: current directory)
     """
     BASE_URL = "http://127.0.0.1:25510/v2"
     url = BASE_URL + '/list/strikes'
     params = {'root': root, 'exp': exp}
 
-    base_dir = os.path.join(base_dir, root, exp)
-    os.makedirs(base_dir, exist_ok=True)
+    save_dir = os.path.join(save_dir, root, exp)
+    os.makedirs(save_dir, exist_ok=True)
 
     while url is not None:
         # Make the request
@@ -95,7 +95,7 @@ def get_strikes(
         df['strike'] = df['strike'].astype(float) / 1000
 
         # Save to CSV with appropriate mode
-        expiry_file_path = os.path.join(base_dir, 'strikes.csv')
+        expiry_file_path = os.path.join(save_dir, 'strikes.csv')
         if url == BASE_URL + '/list/strikes':
             df.to_csv(expiry_file_path, index=False)  # Save first batch as .csv
         else:
@@ -110,7 +110,7 @@ def get_strikes(
             url = None
 
     # Load the CSV into pandas dataframe
-    df = pd.read_csv(os.path.join(base_dir, 'strikes.csv'))
+    df = pd.read_csv(os.path.join(save_dir, 'strikes.csv'))
 
     return df
 
