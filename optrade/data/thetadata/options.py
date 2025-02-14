@@ -188,6 +188,8 @@ def get_option_data(
     # Remove last row (NaN)
     merged_df = merged_df.dropna()
 
+    print(merged_df.head())
+
     return merged_df
 
 
