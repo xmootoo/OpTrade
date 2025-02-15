@@ -171,7 +171,6 @@ def get_option_data(
         else:
             ohlc_url = None
 
-    # After both loops are complete, merge the data
     # Read CSVs with datetime parsing
     quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'), parse_dates=['datetime'])
     ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'), parse_dates=['datetime'])
