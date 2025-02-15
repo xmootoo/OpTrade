@@ -70,6 +70,7 @@ def get_data(
     # Rename columns of options df according to the dictionary
     base_columns = [
         "datetime",
+        "mid_price",
         "bid_size",
         "bid_exchange",
         "bid",
