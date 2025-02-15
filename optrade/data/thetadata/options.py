@@ -54,14 +54,14 @@ def get_option_data(
     print(f"Start date: {start_date}, End date: {end_date}, Expiration date: {exp}")
 
     params = {
-    'root': root,
-    'exp': exp,
-    'strike': strike,
-    'right': right,
-    'start_date': start_date,
-    'end_date': end_date,
-    'use_csv': 'true',
-    'ivl': intervals,
+        'root': root,
+        'exp': exp,
+        'strike': strike,
+        'right': right,
+        'start_date': start_date,
+        'end_date': end_date,
+        'use_csv': 'true',
+        'ivl': intervals,
     }
 
     # Create subfolder in save_dir with root symbol
@@ -122,14 +122,14 @@ def get_option_data(
 
     # Redefine params for OHLC data (as it will set to None)
     params = {
-    'root': root,
-    'exp': exp,
-    'strike': strike,
-    'right': right,
-    'start_date': start_date,
-    'end_date': end_date,
-    'use_csv': 'true',
-    'ivl': intervals,
+        'root': root,
+        'exp': exp,
+        'strike': strike,
+        'right': right,
+        'start_date': start_date,
+        'end_date': end_date,
+        'use_csv': 'true',
+        'ivl': intervals,
     }
 
     # <-- OHLC data -->
@@ -172,23 +172,39 @@ def get_option_data(
             ohlc_url = None
 
     # After both loops are complete, merge the data
-    # Load the complete quote and OHLC data
-    quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'))
-    ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'))
+    # Read CSVs with datetime parsing
+    quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'), parse_dates=['datetime'])
+    ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'), parse_dates=['datetime'])
 
-    # Drop datetime from ohlc_df as it's already in quote_df
-    ohlc_df = ohlc_df.drop(columns=['datetime'])
+    # Merge on datetime to ensure proper alignment
+    merged_df = pd.merge(quote_df, ohlc_df, on='datetime', how='inner')
 
-    # Merge quote_df and ohlc_df
-    merged_df = pd.concat([quote_df, ohlc_df], axis=1)
-
-    # Save merged data
-    merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
+    # Remove any duplicate columns that might exist in both dataframes
+    duplicate_cols = merged_df.columns.duplicated()
+    merged_df = merged_df.loc[:, ~duplicate_cols]
 
     # Remove last row (NaN)
     merged_df = merged_df.dropna()
 
-    print(merged_df.head())
+    # Calculate regular mid prices
+    merged_df["mid_price"] = (merged_df["bid"] + merged_df["ask"]) / 2
+
+    # Convert datetime to pandas datetime if it isn't already
+    if not pd.api.types.is_datetime64_ns_dtype(merged_df['datetime']):
+        merged_df['datetime'] = pd.to_datetime(merged_df['datetime'])
+
+    # Handle market open midprices (9:30 AM) separately using OHLC data
+    market_open_mask = ((merged_df['datetime'].dt.hour == 9) &
+                       (merged_df['datetime'].dt.minute == 30) &
+                       (merged_df['datetime'].dt.second == 0))
+
+    merged_df.loc[market_open_mask, 'mid_price'] = (
+        merged_df.loc[market_open_mask, ['open', 'close']]
+        .mean(axis=1)
+    )
+
+    # Save merged data
+    merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
 
     return merged_df
 
@@ -197,7 +213,8 @@ if __name__ == "__main__":
 
     for i in range(15, 35):
         try:
-            get_option_data(tte=i)
+            df = get_option_data(tte=i)
             print(f"Worked for TTE: {i}")
+            print(df.head())
         except:
             pass
