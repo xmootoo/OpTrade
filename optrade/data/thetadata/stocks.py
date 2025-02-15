@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 
 def get_stock_data(
     root: str="AAPL",
-    start_date: str="20221107",
+    start_date: str="20231107",
     end_date: str="20231107",
     interval_min: int=1,
     save_dir: str="../historical_data/stocks",
@@ -39,12 +39,12 @@ def get_stock_data(
     intervals = str(interval_min * 60000) # Convert minutes to milliseconds
 
     params = {
-    'root': root,
-    'start_date': start_date,
-    'end_date': end_date,
-    'use_csv': 'true',
-    'ivl': intervals,
-    'venue': "utp_cta", # Merged UTP & CTA data
+        'root': root,
+        'start_date': start_date,
+        'end_date': end_date,
+        'use_csv': 'true',
+        'ivl': intervals,
+        'venue': "utp_cta", # Merged UTP & CTA data
     }
 
     # Create subfolder in save_dir with root symbol
@@ -106,12 +106,12 @@ def get_stock_data(
 
     # Redefine params for OHLC data (as it will set to None)
     params = {
-    'root': root,
-    'start_date': start_date,
-    'end_date': end_date,
-    'use_csv': 'true',
-    'ivl': intervals,
-    'venue': "utp_cta", # Merged UTP & CTA data
+        'root': root,
+        'start_date': start_date,
+        'end_date': end_date,
+        'use_csv': 'true',
+        'ivl': intervals,
+        'venue': "utp_cta", # Merged UTP & CTA data
     }
 
     # <-- OHLC data -->
@@ -153,24 +153,29 @@ def get_stock_data(
         else:
             ohlc_url = None
 
-    # Load the complete quote and OHLC data
-    quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'))
-    ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'))
+    # Read CSVs with datetime parsing
+    quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'), parse_dates=['datetime'])
+    ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'), parse_dates=['datetime'])
 
-    # Drop datetime from ohlc_df as it's already in quote_df
-    ohlc_df = ohlc_df.drop(columns=['datetime'])
+    # Merge on datetime to ensure proper alignment
+    merged_df = pd.merge(quote_df, ohlc_df, on='datetime', how='inner')
 
-    # Merge quote_df and ohlc_df
-    merged_df = pd.concat([quote_df, ohlc_df], axis=1)
-
-    # Save merged data
-    merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
+    # Remove any duplicate columns that might exist in both dataframes
+    duplicate_cols = merged_df.columns.duplicated()
+    merged_df = merged_df.loc[:, ~duplicate_cols]
 
     # Remove last row (NaN)
     merged_df = merged_df.dropna()
+
+    # Calculate regular mid prices
+    merged_df["mid_price"] = (merged_df["bid"] + merged_df["ask"]) / 2
+
+    # Save merged data
+    merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
 
     return merged_df
 
 
 if __name__ == "__main__":
-    get_stock_data()
+    df = get_stock_data()
+    print(df.head())
