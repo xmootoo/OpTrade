@@ -4,9 +4,6 @@ import pandas as pd
 import os
 from typing import Optional, Tuple
 
-from decimal import Decimal
-
-
 def get_option_data(
     root: str="AAPL",
     start_date: str="20241107",
@@ -203,17 +200,29 @@ def get_option_data(
         .mean(axis=1)
     )
 
+    # Catch any remaining zeroes at market open if open and close are also zero
+    # by backfilling with the next non-zero value
+    zero_mask = merged_df['mid_price'] == 0
+    zero_indices = zero_mask[zero_mask].index
+
+    # For each zero, take the next non-zero value
+    for idx in zero_indices:
+        # Get next index
+        next_idx = idx + 1
+        # Use the next value to fill the zero
+        merged_df.loc[idx, 'mid_price'] = merged_df.loc[next_idx, 'mid_price']
+
+    # Verify fix
+    remaining_zeros = merged_df[merged_df['mid_price'] == 0]
+    if not remaining_zeros.empty:
+        print("Still have zeros at:", remaining_zeros.index)
+
     # Save merged data
     merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
 
 
-    # Report any zeros in the mid_price column and report the dates where it is zero
-    zero_mask = merged_df['mid_price'] == 0
-    zero_dates = merged_df.loc[zero_mask, 'datetime']
-    if zero_mask.any():
-        print(f"Found zero mid_prices on the following dates: {zero_dates}")
 
-    # Do the same for open and close
+    # Check proportion of zeros for open and close (do not backfill/interpolate these)
     zero_mask_open = merged_df['open'] == 0
     print(f"Number of zeros in the open: {zero_mask_open.sum() / len(merged_df)}")
 
@@ -231,6 +240,16 @@ def get_option_data(
     return merged_df
 
 
+
+def fill_open_zeros(group):
+    if group.iloc[0]['mid_price'] == 0:
+        first_nonzero = group[
+            (group['mid_price'] != 0) &
+            (group['datetime'].dt.time <= pd.Timestamp('09:35').time())
+        ]['mid_price'].iloc[0]
+        group.loc[group['mid_price'] == 0, 'mid_price'] = first_nonzero
+    return group
+
 if __name__ == "__main__":
 
     get_option_data(
@@ -240,4 +259,4 @@ if __name__ == "__main__":
         right="C",
         exp="20240419",
         strike=400,
-        interval_min=15)
+        interval_min=1)
