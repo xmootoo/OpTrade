@@ -224,18 +224,18 @@ def get_option_data(
 
     # Check proportion of zeros for open and close (do not backfill/interpolate these)
     zero_mask_open = merged_df['open'] == 0
-    print(f"Number of zeros in the open: {zero_mask_open.sum() / len(merged_df)}")
+    print(f"Proportion of zeros in the open: {zero_mask_open.sum() / len(merged_df)}")
 
     zero_mask_close = merged_df['close'] == 0
-    print(f"Number of zeros in the close: {zero_mask_close.sum() / len(merged_df)}")
+    print(f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df)}")
 
 
     # Print proportion of zeros to total dates
     zero_mask_high = merged_df['high'] == 0
-    print(f"Number of zeros in the high: {zero_mask_high.sum() / len(merged_df)}")
+    print(f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df)}")
 
     zero_mask_low = merged_df['low'] == 0
-    print(f"Number of zeros in the low: {zero_mask_low.sum() / len(merged_df)}")
+    print(f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df)}")
 
     return merged_df
 
