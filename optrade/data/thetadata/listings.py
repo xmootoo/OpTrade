@@ -3,6 +3,46 @@ import csv
 import pandas as pd
 import os
 
+
+# TODO: Add saving feature
+def get_roots(
+    sec: str="option",
+    save_dir: str = '../historical_data/roots'
+) -> None:
+    """
+    Fetches all root symbols for a given security type.
+
+    Args:
+        sec (str): The security type. Options: 'option', 'stock', 'index'.
+    """
+
+    BASE_URL = "http://127.0.0.1:25510/v2"  # all endpoints use this URL base
+
+    # set params
+    params = {
+      'use_csv': 'true',
+    }
+    url = BASE_URL + f'/list/roots/{sec}'
+
+    while url is not None:
+        response = httpx.get(url, params=params, timeout=10)  # make the request
+        response.raise_for_status()  # make sure the request worked
+
+        # read the entire response, and parse it as CSV
+        csv_reader = csv.reader(response.text.split("\n"))
+
+        for row in csv_reader:
+            print(row)  # do something with the data
+
+        # check the Next-Page header to see if we have more data
+        if 'Next-Page' in response.headers and response.headers['Next-Page'] != "null":
+            url = response.headers['Next-Page']
+            params = None
+        else:
+            url = None
+
+
+
 def get_expirations(
     root: str = 'AAPL',
     save_dir: str = '../historical_data/expirations'
@@ -116,5 +156,7 @@ def get_strikes(
 
 if __name__ == '__main__':
     # get_expirations()
-    get_strikes()
-    get_expirations()
+
+    get_strikes(exp="20240419", root="MSFT")
+    # get_expirations(root="MSFT")
+    # get_roots()
