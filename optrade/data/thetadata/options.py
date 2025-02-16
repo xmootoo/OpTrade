@@ -4,6 +4,9 @@ import pandas as pd
 import os
 from typing import Optional, Tuple
 
+from decimal import Decimal
+
+
 def get_option_data(
     root: str="AAPL",
     start_date: str="20241107",
@@ -50,8 +53,6 @@ def get_option_data(
         # Set end_date = start_date + tte - 1 (in days)
         end_date = (pd.to_datetime(start_date, format='%Y%m%d') +
                     pd.DateOffset(days=tte-1)).strftime('%Y%m%d')
-
-    print(f"Start date: {start_date}, End date: {end_date}, Expiration date: {exp}")
 
     params = {
         'root': root,
@@ -205,15 +206,38 @@ def get_option_data(
     # Save merged data
     merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
 
+
+    # Report any zeros in the mid_price column and report the dates where it is zero
+    zero_mask = merged_df['mid_price'] == 0
+    zero_dates = merged_df.loc[zero_mask, 'datetime']
+    if zero_mask.any():
+        print(f"Found zero mid_prices on the following dates: {zero_dates}")
+
+    # Do the same for open and close
+    zero_mask_open = merged_df['open'] == 0
+    print(f"Number of zeros in the open: {zero_mask_open.sum() / len(merged_df)}")
+
+    zero_mask_close = merged_df['close'] == 0
+    print(f"Number of zeros in the close: {zero_mask_close.sum() / len(merged_df)}")
+
+
+    # Print proportion of zeros to total dates
+    zero_mask_high = merged_df['high'] == 0
+    print(f"Number of zeros in the high: {zero_mask_high.sum() / len(merged_df)}")
+
+    zero_mask_low = merged_df['low'] == 0
+    print(f"Number of zeros in the low: {zero_mask_low.sum() / len(merged_df)}")
+
     return merged_df
 
 
 if __name__ == "__main__":
 
-    for i in range(15, 35):
-        try:
-            df = get_option_data(tte=i)
-            print(f"Worked for TTE: {i}")
-            print(df.head())
-        except:
-            pass
+    get_option_data(
+        root="MSFT",
+        start_date="20240105",
+        end_date="20240419",
+        right="C",
+        exp="20240419",
+        strike=400,
+        interval_min=15)
