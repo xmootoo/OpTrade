@@ -3,6 +3,7 @@ import csv
 import pandas as pd
 import os
 from typing import Optional, Tuple
+from rich.console import Console
 
 def get_option_data(
     root: str="AAPL",
@@ -36,6 +37,8 @@ def get_option_data(
     Saves a 3 CSV files into the save_dir: quote-level data, OHLC data, and merged data (concatenation of both
     quote-level and OHLC data). Data is stored by default in data/historical_data/ directory.
     """
+
+    console = Console()
 
     BASE_URL = "http://127.0.0.1:25510/v2"  # all endpoints use this URL base
 
@@ -114,7 +117,7 @@ def get_option_data(
         if 'Next-Page' in quote_response.headers and quote_response.headers['Next-Page'] != "null":
             quote_url = quote_response.headers['Next-Page']
             params = None
-            print(f"Paginating to {quote_url}")
+            console.log(f"Paginating to {quote_url}")
         else:
             quote_url = None
 
@@ -165,7 +168,7 @@ def get_option_data(
         if 'Next-Page' in ohlc_response.headers and ohlc_response.headers['Next-Page'] != "null":
             ohlc_url = ohlc_response.headers['Next-Page']
             params = None
-            print(f"Paginating to {ohlc_url}")
+            console.log(f"Paginating to {ohlc_url}")
         else:
             ohlc_url = None
 
@@ -215,7 +218,7 @@ def get_option_data(
     # Verify fix
     remaining_zeros = merged_df[merged_df['mid_price'] == 0]
     if not remaining_zeros.empty:
-        print("Still have zeros at:", remaining_zeros.index)
+        console.log("Still have zeros at:", remaining_zeros.index)
 
     # Save merged data
     merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
@@ -224,18 +227,18 @@ def get_option_data(
 
     # Check proportion of zeros for open and close (do not backfill/interpolate these)
     zero_mask_open = merged_df['open'] == 0
-    print(f"Proportion of zeros in the open: {zero_mask_open.sum() / len(merged_df)}")
+    console.log(f"Proportion of zeros in the open: {zero_mask_open.sum() / len(merged_df):.2f}")
 
     zero_mask_close = merged_df['close'] == 0
-    print(f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df)}")
+    console.log(f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df):.2f}")
 
 
-    # Print proportion of zeros to total dates
+    # console.log proportion of zeros to total dates
     zero_mask_high = merged_df['high'] == 0
-    print(f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df)}")
+    console.log(f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df):.2f}")
 
     zero_mask_low = merged_df['low'] == 0
-    print(f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df)}")
+    console.log(f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df):.2f}")
 
     return merged_df
 
