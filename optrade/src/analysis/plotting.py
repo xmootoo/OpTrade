@@ -161,35 +161,23 @@ def analyze_time_series(
         plt.close()
 
 
-def convert_iso_format(date_string, include_time=True):
+def format_dates(dates):
     """
-    Convert ISO-like date string (YYYY-MM-DD HH:MM:SS) to formatted output.
+    Convert pandas datetime objects to 'MMM YYYY, H:MM{AM/PM}' format with capitalized months
 
     Args:
-        date_string (str): Date string in 'YYYY-MM-DD HH:MM:SS' format
-        include_time (bool): Whether to include time in output (default: True)
+        dates (pd.Series): Series of pandas datetime objects
 
     Returns:
-        str: Formatted date string like "December 25th, 2023 - 2:30pm"
-
-    Raises:
-        ValueError: If date_string is not in the correct format
+        list: Formatted date strings
     """
-    try:
-        date_obj = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
-    except ValueError:
-        raise ValueError(f"Date string '{date_string}' must be in 'YYYY-MM-DD HH:MM:SS' format")
+    # Use %B for full month name, then take first 3 letters to capitalize
+    formatted_dates = [d.strftime('%B %Y, %I:%M%p').replace(' 0', ' ') for d in dates]
+    # Capitalize month and keep AM/PM uppercase
+    formatted_dates = [f"{d[:3]} {d[3:]}" for d in formatted_dates]
+    return formatted_dates
 
-    # Format the date part
-    date_part = date_obj.strftime("%B %d").replace(' 0', ' ')  # Remove leading zero in day
-    date_part += "th" if 11 <= date_obj.day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(date_obj.day % 10, "th")
-    date_part += f", {date_obj.year}"
 
-    # Add time if requested
-    if include_time:
-        time_part = date_obj.strftime("%I:%M%p").lstrip('0').lower()
-        return f"{date_part} - {time_part}"
-    return date_part
 
 
 # Example usage
@@ -260,9 +248,8 @@ if __name__ == "__main__":
 
     dates = df["datetime"].values
 
-    # # If multiple dates, remove time from x-axis
-    # if args.start_date != args.end_date:
-    #     dates = np.array([convert_iso_format(date) for date in dates])
+    # In your main code, replace the ... with:
+    dates = format_dates(df["datetime"])
 
     analyze_time_series(
         data_list=data_list,
