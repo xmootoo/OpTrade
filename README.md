@@ -34,14 +34,17 @@ The National Best Bid and Offer (NBBO) data represents the optimal available bid
  - `ask_exchange`: Exchange identifier
  - `ask_condition`: Quote condition code
 
-For more details on the quote data format, see [`hist/options/quote`](https://http-docs.thetadata.us/operations/get-hist-option-quote.html).
+Note: If `exp` < `end_date`, data will be provided until the option expires (i.e. `exp`). For more details on the quote data format, see [`hist/options/quote`](https://http-docs.thetadata.us/operations/get-hist-option-quote.html).
 
 ### OHLCVC Data
 Trade-based statistics filtered according to Securities Information Processor (SIP) rules to exclude misleading trades:
 - `open`, `high`, `low`, `close`: Price metrics for the interval
 - `volume`: Contract volume from eligible trades
 - `count`: Total number of eligible trades
-For more details on the OHLCVC data format, see [`hist/options/ohlc`](https://http-docs.thetadata.us/operations/get-hist-option-ohlc.html).
+
+
+
+Note: For shorter intervals (e.g., `interval_min`=1), a significant portion of OHLCVC data may contain zeroes, i.e. no eligible trades ocurred within the time period. Increasing `interval_min` will reduce this issue, but will not eliminate it (even for more liquid options). For more details on the OHLCVC data format, see [`hist/options/ohlc`](https://http-docs.thetadata.us/operations/get-hist-option-ohlc.html).
 To acquire both quote data and OHLCVC data for options, see `optrade/data/thetadata/options.py`.
 
 ## Underlying Asset Data
