@@ -238,6 +238,8 @@ if __name__ == "__main__":
         right=args.right,
         save_dir="../../data/historical_data/merged")
 
+    print(df.tail())
+
     data_list = []
     volume_list = []
     info_list = []
