@@ -125,18 +125,40 @@ def analyze_time_series(
         # Set tick size for y-axis
         plt.yticks(fontsize=26)
 
-        # Set up ticks
+        # # Set up ticks
+        # num_ticks = 5
+        # step = max(len(x_indices) // num_ticks, 1)
+        # selected_indices = x_indices[::step]
+        # selected_dates = [dates[i] for i in selected_indices]
+        # ax.set_xticks(selected_indices)
+        # ax.set_xticklabels(selected_dates, fontsize=26, color='black')
+
+        # # Common styling for both cases
+        # # Center align the date labels
+        # for tick in ax.get_xticklabels():
+        #     tick.set_ha('center')
+
         num_ticks = 5
         step = max(len(x_indices) // num_ticks, 1)
         selected_indices = x_indices[::step]
         selected_dates = [dates[i] for i in selected_indices]
-        ax.set_xticks(selected_indices)
-        ax.set_xticklabels(selected_dates, fontsize=26, color='black')
 
-        # Common styling for both cases
-        # Center align the date labels
+        # Create axis with adjusted parameters
+        ax.set_xticks(selected_indices)
+        ax.set_xticklabels(selected_dates, fontsize=26, color='black', rotation=0)
+
+        # Enhance bottom spine visibility
+        ax.spines['bottom'].set_color('black')
+        ax.spines['bottom'].set_linewidth(1.5)
+
+        # Adjust margins to prevent cutoff
+        plt.subplots_adjust(bottom=0.2, right=0.95)
+
+        # Properly align tick labels
         for tick in ax.get_xticklabels():
             tick.set_ha('center')
+            tick.set_va('top')
+
 
         # Style the spines
         for spine in ax.spines.values():
@@ -163,21 +185,31 @@ def analyze_time_series(
 
 def format_dates(dates):
     """
-    Convert pandas datetime objects to 'MMM YYYY, H:MM{AM/PM}' format with capitalized months
+    Convert pandas datetime objects to 'MMM DD, YYYY (H:MMam)' format
+    Example: Dec 06, 2023 (9:30am)
 
     Args:
         dates (pd.Series): Series of pandas datetime objects
-
     Returns:
-        list: Formatted date strings
+        np.ndarray: Formatted date strings
     """
-    # Use %B for full month name, then take first 3 letters to capitalize
-    formatted_dates = [d.strftime('%B %Y, %I:%M%p').replace(' 0', ' ') for d in dates]
-    # Capitalize month and keep AM/PM uppercase
-    formatted_dates = [f"{d[:3]} {d[3:]}" for d in formatted_dates]
-    return formatted_dates
+    # Create initial format with leading zeros
+    formatted_dates = [d.strftime('%b %d, %Y (%I:%M%p)').replace(' 0', ' ').lower() for d in dates]
 
+    # Capitalize month and handle day leading zeros
+    capitalized = []
+    for d in formatted_dates:
+        # Split into parts
+        month_part = d[:3].capitalize()  # First 3 chars are month
+        rest = d[3:]  # Rest of the string
 
+        # If day starts with 0, remove it (but keep it for single digit days)
+        if rest.startswith(' 0'):
+            rest = ' ' + rest[2:]
+
+        capitalized.append(month_part + rest)
+
+    return np.array(capitalized)
 
 
 # Example usage
