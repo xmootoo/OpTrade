@@ -60,14 +60,15 @@ def get_stock_data(
         save_dir = temp_dir
 
     # Set up directory structure
-    save_dir = os.path.join(save_dir, root)
-    base_dir = os.path.join(save_dir, f'{start_date}_{end_date}')
-    os.makedirs(base_dir, exist_ok=True)
+    save_dir = os.path.join(save_dir, root, f'{start_date}_{end_date}')
+    os.makedirs(save_dir, exist_ok=True)
 
     # Define file paths
-    quote_file_path = os.path.join(base_dir, 'quote.csv')
-    ohlc_file_path = os.path.join(base_dir, 'ohlc.csv')
-    merged_file_path = os.path.join(base_dir, 'merged.csv')
+    quote_file_path = os.path.join(save_dir, 'quote.csv')
+    ohlc_file_path = os.path.join(save_dir, 'ohlc.csv')
+    merged_file_path = os.path.join(save_dir, 'merged.csv')
+
+    print(f"Merge file path: {merged_file_path}")
 
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
@@ -179,8 +180,8 @@ def get_stock_data(
             ohlc_url = None
 
     # Read CSVs with datetime parsing
-    quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'), parse_dates=['datetime'])
-    ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'), parse_dates=['datetime'])
+    quote_df = pd.read_csv(quote_file_path, parse_dates=['datetime'])
+    ohlc_df = pd.read_csv(ohlc_file_path, parse_dates=['datetime'])
 
     # Merge on datetime to ensure proper alignment
     merged_df = pd.merge(quote_df, ohlc_df, on='datetime', how='inner')
