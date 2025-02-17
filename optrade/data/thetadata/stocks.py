@@ -8,8 +8,6 @@ from pathlib import Path
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
 
-# TODO: Add cleanup of historical data directories
-# TODO: Add assertions and checks that if clean_up then use /temp folder NOT historical data
 def get_stock_data(
     root: str="AAPL",
     start_date: str="20231107",
@@ -73,7 +71,7 @@ def get_stock_data(
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
         try:
-            return pd.read_csv(merged_file_path)
+            return pd.read_csv(merged_file_path, parse_dates=['datetime'])
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"No offline data found at {merged_file_path}. "

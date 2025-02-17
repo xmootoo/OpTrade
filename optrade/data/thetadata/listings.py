@@ -184,6 +184,8 @@ def get_strikes(
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, 'strikes.csv')
 
+    print(f"File path: {file_path}")
+
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
         try:
