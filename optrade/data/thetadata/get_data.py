@@ -11,12 +11,13 @@ def get_data(
     root: str="AAPL",
     start_date: str="20241107",
     end_date: str="20241107",
-    tte: Optional[int]=-1,
     exp: Optional[str]="20250117",
     strike: int=225,
     interval_min: int=1,
     right: str="C",
-    save_dir: str="../historical_data/merged"
+    save_dir: str="../historical_data/merged",
+    clean_up: bool=False,
+    offline: bool=False,
 ) -> pd.DataFrame:
     """
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for
@@ -30,33 +31,34 @@ def get_data(
         start_date (str): The start date of the data in YYYYMMDD format.
         end_date (str): The end date of the data in YYYYMMDD format.
         exp (Optional[str]): The expiration date of the option in YYYYMMDD format.
-        tte (Optional[int]): The time to expiration of the option in days.
         strike (int): The strike price of the option in dollars.
         interval_min (int): The interval in minutes between data points.
         right (str): The type of option, either 'C' for call or 'P' for put.
+        save_dir (str): The directory to save the data.
+        clean_up (bool): Whether to clean up the CSV files after merging. If True, the CSV files are
+                         saved in a temp folder and then subsequently deleted before returning the df.
+        offline (bool): Whether to use offline (already saved) data instead of calling ThetaData API directly (default: False).
 
     Returns:
         DataFrame: The merged quote-level and OHLC data.
     """
 
-    script_dir = Path(__file__).parent  # Get the directory containing the current script
-    options_dir = script_dir.parent / "historical_data/options"  # Go up one level and add the subdirectories
-    stocks_dir = script_dir.parent / "historical_data/stocks"
-
-    if tte!=-1:
-        exp = pd.to_datetime(start_date, format='%Y%m%d') + pd.DateOffset(days=tte)
-        exp = exp.strftime('%Y%m%d')
+    # Directory setup
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    options_dir = os.path.join(os.path.dirname(script_dir), "historical_data", "options")
+    stocks_dir = os.path.join(os.path.dirname(script_dir), "historical_data", "stocks")
 
     options_df = get_option_data(
         root=root,
         start_date=start_date,
         end_date=end_date,
-        tte=tte,
         exp=exp,
         strike=strike,
         interval_min=interval_min,
         right=right,
         save_dir=options_dir,
+        clean_up=clean_up,
+        offline=offline,
     )
 
     stock_df = get_stock_data(
@@ -65,6 +67,8 @@ def get_data(
         end_date=end_date,
         interval_min=interval_min,
         save_dir=stocks_dir,
+        clean_up=clean_up,
+        offline=offline,
     )
 
     # Rename columns of options df according to the dictionary
@@ -107,4 +111,5 @@ def get_data(
     return merged_df
 
 if __name__ == "__main__":
-    merged_df = get_data()
+    merged_df = get_data(clean_up=True, offline=True)
+    print(merged_df.head())
