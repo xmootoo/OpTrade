@@ -4,12 +4,14 @@ import pandas as pd
 import os
 
 # Custom modules
-from optrade.src.utils.data.clean_up import clean_up_file
+from optrade.src.utils.data.clean_up import clean_up_dir
 
+# TODO: Add assertions and checks that if clean_up then use /temp folder NOT historical data
 def get_roots(
     sec: str="option",
     save_dir: str='../historical_data/roots',
     clean_up: bool=False,
+    offline: bool=False,
 ) -> pd.DataFrame:
     """
     Fetches all root symbols for a given security type.
@@ -24,9 +26,25 @@ def get_roots(
       'use_csv': 'true',
     }
 
+    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
+    if clean_up and not offline:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "roots")
+        save_dir = temp_dir
+
     save_dir = os.path.join(save_dir, sec)
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, 'roots.csv')
+
+    # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
+    if offline:
+        try:
+            return pd.read_csv(file_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"No offline data found at {file_path}. "
+                "Please run with offline=False and clean_up=False first to download the required data."
+            )
 
     while url is not None:
         response = httpx.get(url, params=params, timeout=10)  # make the request
@@ -43,10 +61,8 @@ def get_roots(
         # Save to CSV with appropriate mode
         if url == BASE_URL + f'/list/roots/{sec}':
             df.to_csv(file_path, index=False)  # Save first batch as .csv
-            print(f"Saving to {file_path}")
         else:
             df.to_csv(file_path, mode='a', header=False, index=False)  # Append subsequent batches
-            print(f"Appending to {file_path}")
 
         # check the Next-Page header to see if we have more data
         if 'Next-Page' in response.headers and response.headers['Next-Page'] != "null":
@@ -60,7 +76,7 @@ def get_roots(
 
     # Clean up the file if requested
     if clean_up:
-        clean_up_file(file_path)
+        clean_up_dir(temp_dir)
 
     return df
 
@@ -68,6 +84,7 @@ def get_expirations(
     root: str='AAPL',
     save_dir: str='../historical_data/expirations',
     clean_up: bool=False,
+    offline: bool=False,
 ) -> pd.DataFrame:
     """
     Fetch option expiration dates for a given root symbol and save to CSV.
@@ -80,9 +97,25 @@ def get_expirations(
     url = BASE_URL + '/list/expirations'
     params = {'root': root}
 
+    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
+    if clean_up and not offline:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "expirations")
+        save_dir = temp_dir
+
     save_dir = os.path.join(save_dir, root)
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, 'expirations.csv')
+
+    # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
+    if offline:
+        try:
+            return pd.read_csv(file_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"No offline data found at {file_path}. "
+                "Please run with offline=False and clean_up=False first to download the required data."
+            )
 
     while url is not None:
         # Make the request
@@ -118,7 +151,7 @@ def get_expirations(
 
     # Clean up the file if requested
     if clean_up:
-        clean_up_file(file_path)
+        clean_up_dir(temp_dir)
 
     return df
 
@@ -127,6 +160,7 @@ def get_strikes(
     exp: str="20250117",
     save_dir: str='../historical_data/strikes',
     clean_up: bool=False,
+    offline: bool=False,
 ) -> pd.DataFrame:
     """
     Fetch option strike prices for a given root symbol and expiration, saving to CSV.
@@ -140,9 +174,25 @@ def get_strikes(
     url = BASE_URL + '/list/strikes'
     params = {'root': root, 'exp': exp}
 
+    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
+    if clean_up and not offline:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "strikes")
+        save_dir = temp_dir
+
     save_dir = os.path.join(save_dir, root, exp)
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, 'strikes.csv')
+
+    # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
+    if offline:
+        try:
+            return pd.read_csv(file_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"No offline data found at {file_path}. "
+                "Please run with offline=False and clean_up=False first to download the required data."
+            )
 
     while url is not None:
         # Make the request
@@ -181,11 +231,18 @@ def get_strikes(
 
     # Clean up the file if requested
     if clean_up:
-        clean_up_file(file_path)
+        clean_up_dir(temp_dir)
 
     return df
 
 if __name__ == '__main__':
-    get_strikes(exp="20240419", root="MSFT")
-    get_expirations(root="MSFT", clean_up=True)
-    get_roots(clean_up=False)
+    clean_up = False
+    offline = True
+
+    df1 = get_strikes(exp="20240419", root="MSFT", clean_up=clean_up, offline=offline)
+    df2 = get_expirations(root="MSFT", clean_up=clean_up, offline=offline)
+    df3 = get_roots(clean_up=clean_up, offline=offline)
+
+    print(df1.head())
+    print(df2.head())
+    print(df3.head())
