@@ -10,8 +10,7 @@ def find_optimal_exp(
     root: str="AAPL",
     start_date: str="20230407",
     target_tte: int=30,
-    tolerance: Tuple[int, int]=(25, 35),
-    save_dir: str="../temp"
+    tte_tolerance: Tuple[int, int]=(25, 35),
 ) -> Tuple[Optional[str], Optional[int]]:
     """
     Returns the closest valid TTE to target_tte within tolerance range and its expiration date.
@@ -20,7 +19,7 @@ def find_optimal_exp(
         root: The root symbol of the underlying security
         start_date: The start date in YYYYMMDD format
         target_tte: Desired days to expiry (e.g., 30)
-        tolerance: (min_tte, max_tte) acceptable range
+        tte_tolerance: (min_tte, max_tte) acceptable range
         save_dir: Directory to save the data files
 
     Returns:
@@ -28,12 +27,13 @@ def find_optimal_exp(
     """
     script_dir = Path(__file__).parent  # Get the directory containing the current script
     expirations_dir = script_dir.parent / "historical_data/expirations"
-    min_tte, max_tte = tolerance
+    min_tte, max_tte = tte_tolerance
 
     # Get expirations and convert to list of strings
     expirations = get_expirations(
         root=root,
         save_dir=expirations_dir,
+        clean_up=True
     ).values.squeeze()
 
     # Convert start_date to datetime
@@ -59,7 +59,7 @@ def find_optimal_exp(
         return str(optimal_exp), optimal_tte
     else:
         raise ValueError(
-            f"No valid TTE found within tolerance range {tolerance}. "
+            f"No valid TTE found within tolerance range {tte_tolerance}. "
             "Please try a wider tolerance band."
         )
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     try:
         optimal_exp, optimal_tte = find_optimal_exp(
             start_date="20241107",
-            tolerance=(20, 40),
+            tte_tolerance=(20, 40),
             target_tte=37,
         )
         print(f"Found valid TTE: {optimal_tte}")
