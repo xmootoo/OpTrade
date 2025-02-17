@@ -5,6 +5,7 @@ import os
 from typing import Optional
 from rich.console import Console
 
+# Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
 
 def get_option_data(
@@ -65,14 +66,13 @@ def get_option_data(
         save_dir = temp_dir
 
     # Set up directory structure
-    save_dir = os.path.join(save_dir, root)
-    base_dir = os.path.join(save_dir, root, right, f"{start_date}_{end_date}", f"{strike}strike_{exp}exp")
-    os.makedirs(base_dir, exist_ok=True)
+    save_dir = os.path.join(save_dir, root, right, f"{start_date}_{end_date}", f"{strike}strike_{exp}exp")
+    os.makedirs(save_dir, exist_ok=True)
 
     # Define file paths
-    quote_file_path = os.path.join(base_dir, 'quote.csv')
-    ohlc_file_path = os.path.join(base_dir, 'ohlc.csv')
-    merged_file_path = os.path.join(base_dir, 'merged.csv')
+    quote_file_path = os.path.join(save_dir, 'quote.csv')
+    ohlc_file_path = os.path.join(save_dir, 'ohlc.csv')
+    merged_file_path = os.path.join(save_dir, 'merged.csv')
 
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
@@ -186,8 +186,8 @@ def get_option_data(
             ohlc_url = None
 
     # Read CSVs with datetime parsing
-    quote_df = pd.read_csv(os.path.join(base_dir, 'quote.csv'), parse_dates=['datetime'])
-    ohlc_df = pd.read_csv(os.path.join(base_dir, 'ohlc.csv'), parse_dates=['datetime'])
+    quote_df = pd.read_csv(quote_file_path, parse_dates=['datetime'])
+    ohlc_df = pd.read_csv(ohlc_file_path, parse_dates=['datetime'])
 
     # Merge on datetime to ensure proper alignment
     merged_df = pd.merge(quote_df, ohlc_df, on='datetime', how='inner')
