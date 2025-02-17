@@ -2,19 +2,22 @@ import httpx
 import csv
 import pandas as pd
 import os
-from typing import Optional, Tuple
+from typing import Optional
 from rich.console import Console
+
+from optrade.src.utils.data.clean_up import clean_up_dir
 
 def get_option_data(
     root: str="AAPL",
     start_date: str="20241107",
     end_date: str="20241107",
-    tte: Optional[int]=-1,
     exp: Optional[str]="20250117",
     strike: int=225,
     interval_min: int=1,
     right: str="C",
     save_dir: str="../historical_data/options",
+    clean_up: bool=False,
+    offline: bool=False,
 ) -> pd.DataFrame:
 
     """
@@ -29,7 +32,6 @@ def get_option_data(
         start_date (str): The start date of the data in YYYYMMDD format.
         end_date (str): The end date of the data in YYYYMMDD format.
         exp (Optional[str]): The expiration date of the option in YYYYMMDD format.
-        tte (Optional[int]): The time to expiration of the option in days.
         strike (int): The strike price of the option in dollars.
         interval_min (int): The interval in minutes between data points.
         right (str): The type of option, either 'C' for call or 'P' for put.
@@ -45,15 +47,6 @@ def get_option_data(
     intervals = str(interval_min * 60000) # Convert minutes to milliseconds
     strike = str(strike * 1000) # Converts dollars to 1/10th cents
 
-    # If Time to Expiration is provided, calculate expiration date by adding tte days to start_date
-    if tte != -1:
-        exp = pd.to_datetime(start_date, format='%Y%m%d') + pd.DateOffset(days=tte)
-        exp = exp.strftime('%Y%m%d')
-
-        # Set end_date = start_date + tte - 1 (in days)
-        end_date = (pd.to_datetime(start_date, format='%Y%m%d') +
-                    pd.DateOffset(days=tte-1)).strftime('%Y%m%d')
-
     params = {
         'root': root,
         'exp': exp,
@@ -65,9 +58,31 @@ def get_option_data(
         'ivl': intervals,
     }
 
-    # Create subfolder in save_dir with root symbol
+    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
+    if clean_up:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "options")
+        save_dir = temp_dir
+
+    # Set up directory structure
+    save_dir = os.path.join(save_dir, root)
     base_dir = os.path.join(save_dir, root, right, f"{start_date}_{end_date}", f"{strike}strike_{exp}exp")
     os.makedirs(base_dir, exist_ok=True)
+
+    # Define file paths
+    quote_file_path = os.path.join(base_dir, 'quote.csv')
+    ohlc_file_path = os.path.join(base_dir, 'ohlc.csv')
+    merged_file_path = os.path.join(base_dir, 'merged.csv')
+
+    # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
+    if offline:
+        try:
+            return pd.read_csv(merged_file_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"No offline data found at {merged_file_path}. "
+                "Please run with offline=False and clean_up=False first to download the required data."
+            )
 
     # <-- Quote data -->
     quote_url = BASE_URL + '/hist/option/quote'
@@ -107,7 +122,6 @@ def get_option_data(
         quote_df = quote_df[['datetime'] + [col for col in quote_df.columns if col != 'datetime']]
 
         # Save with mode='a' (append) after the first write
-        quote_file_path = os.path.join(base_dir, 'quote.csv')
         if quote_url == BASE_URL + '/hist/option/quote':
             quote_df.to_csv(quote_file_path, index=False) # Save first batch as .csv
         else:
@@ -158,7 +172,6 @@ def get_option_data(
         ohlc_df = ohlc_df.drop(columns=['date', 'ms_of_day'])
 
         # Save with mode='a' (append) after the first write
-        ohlc_file_path = os.path.join(base_dir, 'ohlc.csv')
         if ohlc_url == BASE_URL + '/hist/option/ohlc':
             ohlc_df.to_csv(ohlc_file_path, index=False) # Save first batch as .csv
         else:
@@ -220,10 +233,6 @@ def get_option_data(
     if not remaining_zeros.empty:
         console.log("Still have zeros at:", remaining_zeros.index)
 
-    # Save merged data
-    merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
-
-
 
     # Check proportion of zeros for open and close (do not backfill/interpolate these)
     zero_mask_open = merged_df['open'] == 0
@@ -232,7 +241,6 @@ def get_option_data(
     zero_mask_close = merged_df['close'] == 0
     console.log(f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df):.2f}")
 
-
     # console.log proportion of zeros to total dates
     zero_mask_high = merged_df['high'] == 0
     console.log(f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df):.2f}")
@@ -240,8 +248,15 @@ def get_option_data(
     zero_mask_low = merged_df['low'] == 0
     console.log(f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df):.2f}")
 
-    return merged_df
+    # Clean up the entire temp_dir
+    if clean_up:
+        clean_up_dir(temp_dir)
+        print(f"Deleted temp directory: {temp_dir}")
+    else:
+        # Save merged data
+        merged_df.to_csv(merged_file_path, index=False)
 
+    return merged_df
 
 
 def fill_open_zeros(group):
@@ -255,11 +270,15 @@ def fill_open_zeros(group):
 
 if __name__ == "__main__":
 
-    get_option_data(
+    df = get_option_data(
         root="MSFT",
         start_date="20240105",
-        end_date="20240419",
+        end_date="20240205",
         right="C",
         exp="20240419",
         strike=400,
-        interval_min=1)
+        interval_min=1,
+        clean_up=False,
+        offline=False
+    )
+    print(df.head())
