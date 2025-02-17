@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 from typing import Optional
-from pathlib import Path
 
 # Custom modules
 from optrade.data.thetadata.options import get_option_data
