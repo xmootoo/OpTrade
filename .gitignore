@@ -1,4 +1,5 @@
 optrade/data/historical_data/
+optrade/data/temp/
 __pycache__/
 .ropeproject/
 optrade.egg-info/
