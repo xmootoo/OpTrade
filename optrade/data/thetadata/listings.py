@@ -3,6 +3,9 @@ import csv
 import pandas as pd
 import os
 
+# Custom modules
+from optrade.src.utils.data.clean_up import clean_up_file
+
 def get_roots(
     sec: str="option",
     save_dir: str='../historical_data/roots',
@@ -57,10 +60,7 @@ def get_roots(
 
     # Clean up the file if requested
     if clean_up:
-        try:
-            os.remove(file_path)
-        except OSError as e:
-            print(f"Warning: Could not delete file {file_path}: {e}")
+        clean_up_file(file_path)
 
     return df
 
@@ -118,10 +118,7 @@ def get_expirations(
 
     # Clean up the file if requested
     if clean_up:
-        try:
-            os.remove(file_path)
-        except OSError as e:
-            print(f"Warning: Could not delete file {file_path}: {e}")
+        clean_up_file(file_path)
 
     return df
 
@@ -184,11 +181,7 @@ def get_strikes(
 
     # Clean up the file if requested
     if clean_up:
-        try:
-            os.remove(file_path)
-            print(f"Deleted file {file_path}")
-        except OSError as e:
-            print(f"Warning: Could not delete file {file_path}: {e}")
+        clean_up_file(file_path)
 
     return df
 
