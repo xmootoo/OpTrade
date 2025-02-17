@@ -59,7 +59,7 @@ def get_option_data(
     }
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
-    if clean_up:
+    if clean_up and not offline:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "options")
         save_dir = temp_dir

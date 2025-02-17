@@ -54,7 +54,7 @@ def get_stock_data(
     }
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
-    if clean_up:
+    if clean_up and not offline:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "stocks")
         save_dir = temp_dir
@@ -195,13 +195,13 @@ def get_stock_data(
     # Calculate regular mid prices
     merged_df["mid_price"] = (merged_df["bid"] + merged_df["ask"]) / 2
 
-    # Save merged data
-    merged_df.to_csv(merged_file_path, index=False)
-
     # Clean up the entire temp_dir
     if clean_up:
         clean_up_dir(temp_dir)
         print(f"Deleted temp directory: {temp_dir}")
+    else:
+        # Save merged data
+        merged_df.to_csv(merged_file_path, index=False)
 
     return merged_df
 
