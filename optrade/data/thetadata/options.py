@@ -77,7 +77,7 @@ def get_option_data(
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
         try:
-            return pd.read_csv(merged_file_path)
+            return pd.read_csv(merged_file_path, parse_dates=['datetime'])
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"No offline data found at {merged_file_path}. "

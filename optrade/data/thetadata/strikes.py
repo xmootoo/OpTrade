@@ -1,14 +1,15 @@
 from typing import Tuple, Optional
-from pathlib import Path
 import numpy as np
 import pandas as pd
-import random
+import os
 
 # Custom modules
 from optrade.data.thetadata.listings import get_strikes
 from optrade.data.thetadata.stocks import get_stock_data
 from optrade.src.utils.data.volatility import get_historical_volatility
 
+# TODO: Add cleanup of historical data directories
+# TODO: Add assertions and checks that if clean_up then use /temp folder NOT historical data
 def find_optimal_strike(
     root: str="AAPL",
     start_date: str="20241107",
@@ -21,7 +22,9 @@ def find_optimal_strike(
     volatility_scaled: bool=True,
     volatility_scalar: float=1.0,
     volatility_window: float=0.8,
-    deterministic: Optional[bool] = True,
+    clean_up: bool=False,
+    offline: bool=False,
+    deterministic: Optional[bool] = True, # TODO: Implement deterministic algorithm or random selection
 ) -> Tuple[float, str]:
     """
     Finds the optimal strike price for option return forecasting, prioritizing strikes
@@ -39,6 +42,8 @@ def find_optimal_strike(
         volatility_scaled: Whether to adjust target_band based on historical volatility
         volatility_scalar: The number of standard deviations to scale the target_band by.
         volatility_window: Proportion of data to use for historical volatility calculation (best practices: use training + validation data portion)
+        clean_up (bool): Whether to clean up temporary data directories
+        offline (bool): Whether to use offline data (saved in historical_data directory).
         deterministic: Use deterministic algorithm for strike selection
     Returns:
         Tuple of (optimal_strike, option_symbol)
@@ -51,9 +56,14 @@ def find_optimal_strike(
         - For OTM options, ensures strikes aren't too far OTM to maintain sufficient
           price movement for modeling
     """
-    script_dir = Path(__file__).parent
-    strikes_dir = script_dir.parent / "historical_data/strikes"
-    stocks_dir = script_dir.parent / "historical_data/stocks"
+    # script_dir = Path(__file__).parent
+    # strikes_dir = script_dir.parent / "historical_data/strikes"
+    # stocks_dir = script_dir.parent / "historical_data/stocks"
+
+    # Directory setup
+    # script_dir = os.path.dirname(os.path.abspath(__file__))
+    # strikes_dir = os.path.join(os.path.dirname(script_dir), "historical_data", "strikes")
+    # stocks_dir = os.path.join(os.path.dirname(script_dir), "historical_data", "stocks")
 
     # Get current price and available strikes
     stock_data = get_stock_data(
@@ -61,14 +71,22 @@ def find_optimal_strike(
         start_date=start_date,
         end_date=start_date,
         interval_min=interval_min,
-        save_dir=stocks_dir
+        # save_dir=stocks_dir,
+        clean_up=clean_up,
+        offline=offline,
     )
 
     # Get the average midprice for the day to use as the current price
     current_price = stock_data["mid_price"].mean()
 
     # Get all available strikes for a given expiration
-    strikes = get_strikes(root=root, exp=exp, save_dir=strikes_dir).values.squeeze()
+    strikes = get_strikes(
+        root=root,
+        exp=exp,
+        # save_dir=strikes_dir,
+        clean_up=clean_up,
+        offline=offline
+    ).values.squeeze()
 
     # Calculate the target strike band
     if moneyness in ["ITM", "OTM"]:
@@ -81,14 +99,14 @@ def find_optimal_strike(
             num_vol_days = int(volatility_window * total_days)
             vol_end_date = (pd.to_datetime(start_date, format='%Y%m%d') + pd.Timedelta(days=num_vol_days)).strftime('%Y%m%d')
 
-            print(f"Start date {start_date}, end date {vol_end_date} for volatility window.")
-
             stock_data = get_stock_data(
                 root=root,
                 start_date=start_date,
                 end_date=vol_end_date,
                 interval_min=interval_min,
-                save_dir=stocks_dir,
+                # save_dir=stocks_dir,
+                clean_up=clean_up,
+                offline=offline,
             )
 
             # Calculate historical volatility
@@ -97,8 +115,6 @@ def find_optimal_strike(
             # Scale target band based on volatility
             scaled_vol = volatility_scalar * hist_vol # (SD) * (num_SDs)
             strike_band = np.array([current_price - current_price*scaled_vol, current_price + current_price*scaled_vol])
-
-            print(f"Current price: {current_price}, scaled volatility: {scaled_vol}, strike band: {strike_band}")
         else:
             strike_band = np.array([current_price - target_band*current_price, current_price + target_band*current_price])
 
@@ -136,7 +152,9 @@ if __name__ == "__main__":
         volatility_type="period",
         volatility_scaled=True,
         volatility_scalar=2.0,
-        volatility_window=0.8)
+        volatility_window=0.8,
+        clean_up=False,
+        offline=True,)
 
     from rich.console import Console
 
