@@ -3,11 +3,11 @@ import csv
 import pandas as pd
 import os
 
-
-# TODO: Add saving feature
+# TODO: Add saving feature and add return of df or list of symbols
+# TODO: Add cleanup of historical data directories
 def get_roots(
     sec: str="option",
-    save_dir: str = '../historical_data/roots'
+    save_dir: str='../historical_data/roots'
 ) -> None:
     """
     Fetches all root symbols for a given security type.
@@ -41,11 +41,10 @@ def get_roots(
         else:
             url = None
 
-
-
 def get_expirations(
-    root: str = 'AAPL',
-    save_dir: str = '../historical_data/expirations'
+    root: str='AAPL',
+    save_dir: str='../historical_data/expirations',
+    clean_up: bool=True,
 ) -> pd.DataFrame:
     """
     Fetch option expiration dates for a given root symbol and save to CSV.
@@ -92,14 +91,23 @@ def get_expirations(
             url = None
 
     # Load the CSV into pandas dataframe
-    df = pd.read_csv(os.path.join(save_dir, 'expirations.csv'))
+    file_path = os.path.join(save_dir, 'expirations.csv')
+    df = pd.read_csv(file_path)
+
+    # Clean up the file if requested
+    if clean_up:
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            print(f"Warning: Could not delete file {file_path}: {e}")
 
     return df
 
 def get_strikes(
-    root: str = 'AAPL',
+    root: str='AAPL',
     exp: str="20250117",
-    save_dir: str = '../historical_data/strikes',
+    save_dir: str='../historical_data/strikes',
+    clean_up: bool=True,
 ) -> pd.DataFrame:
     """
     Fetch option strike prices for a given root symbol and expiration, saving to CSV.
@@ -150,13 +158,20 @@ def get_strikes(
             url = None
 
     # Load the CSV into pandas dataframe
-    df = pd.read_csv(os.path.join(save_dir, 'strikes.csv'))
+    file_path = os.path.join(save_dir, 'strikes.csv')
+    df = pd.read_csv(file_path)
+
+    # Clean up the file if requested
+    if clean_up:
+        try:
+            os.remove(file_path)
+            print(f"Deleted file {file_path}")
+        except OSError as e:
+            print(f"Warning: Could not delete file {file_path}: {e}")
 
     return df
 
 if __name__ == '__main__':
-    # get_expirations()
-
     get_strikes(exp="20240419", root="MSFT")
-    # get_expirations(root="MSFT")
+    get_expirations(root="MSFT", clean_up=True)
     # get_roots()
