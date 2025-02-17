@@ -3,12 +3,11 @@ import csv
 import pandas as pd
 import os
 
-# TODO: Add saving feature and add return of df or list of symbols
-# TODO: Add cleanup of historical data directories
 def get_roots(
     sec: str="option",
-    save_dir: str='../historical_data/roots'
-) -> None:
+    save_dir: str='../historical_data/roots',
+    clean_up: bool=False,
+) -> pd.DataFrame:
     """
     Fetches all root symbols for a given security type.
 
@@ -16,23 +15,35 @@ def get_roots(
         sec (str): The security type. Options: 'option', 'stock', 'index'.
     """
 
-    BASE_URL = "http://127.0.0.1:25510/v2"  # all endpoints use this URL base
-
-    # set params
+    BASE_URL = "http://127.0.0.1:25510/v2"
+    url = BASE_URL + f'/list/roots/{sec}'
     params = {
       'use_csv': 'true',
     }
-    url = BASE_URL + f'/list/roots/{sec}'
+
+    save_dir = os.path.join(save_dir, sec)
+    os.makedirs(save_dir, exist_ok=True)
+    file_path = os.path.join(save_dir, 'roots.csv')
 
     while url is not None:
         response = httpx.get(url, params=params, timeout=10)  # make the request
         response.raise_for_status()  # make sure the request worked
 
-        # read the entire response, and parse it as CSV
+        # Parse CSV and create DataFrame, skipping empty rows
         csv_reader = csv.reader(response.text.split("\n"))
+        rows = [row for row in csv_reader if row]  # Skip empty rows
 
-        for row in csv_reader:
-            print(row)  # do something with the data
+        # Create DataFrame with column name
+        df = pd.DataFrame(rows[1:], columns=['root'])  # Skip header row and name column
+        print(df.head())
+
+        # Save to CSV with appropriate mode
+        if url == BASE_URL + f'/list/roots/{sec}':
+            df.to_csv(file_path, index=False)  # Save first batch as .csv
+            print(f"Saving to {file_path}")
+        else:
+            df.to_csv(file_path, mode='a', header=False, index=False)  # Append subsequent batches
+            print(f"Appending to {file_path}")
 
         # check the Next-Page header to see if we have more data
         if 'Next-Page' in response.headers and response.headers['Next-Page'] != "null":
@@ -41,10 +52,22 @@ def get_roots(
         else:
             url = None
 
+    # Load the CSV into pandas dataframe
+    df = pd.read_csv(file_path)
+
+    # Clean up the file if requested
+    if clean_up:
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            print(f"Warning: Could not delete file {file_path}: {e}")
+
+    return df
+
 def get_expirations(
     root: str='AAPL',
     save_dir: str='../historical_data/expirations',
-    clean_up: bool=True,
+    clean_up: bool=False,
 ) -> pd.DataFrame:
     """
     Fetch option expiration dates for a given root symbol and save to CSV.
@@ -59,6 +82,7 @@ def get_expirations(
 
     save_dir = os.path.join(save_dir, root)
     os.makedirs(save_dir, exist_ok=True)
+    file_path = os.path.join(save_dir, 'expirations.csv')
 
     while url is not None:
         # Make the request
@@ -76,11 +100,10 @@ def get_expirations(
         df = pd.DataFrame.from_records(data_rows)
 
         # Save to CSV with appropriate mode
-        expiry_file_path = os.path.join(save_dir, 'expirations.csv')
         if url == BASE_URL + '/list/expirations':
-            df.to_csv(expiry_file_path, index=False)  # Save first batch as .csv
+            df.to_csv(file_path, index=False)  # Save first batch as .csv
         else:
-            df.to_csv(expiry_file_path, mode='a', header=False, index=False)  # Append subsequent batches
+            df.to_csv(file_path, mode='a', header=False, index=False)  # Append subsequent batches
 
         # Check for next page
         if 'Next-Page' in response.headers and response.headers['Next-Page'] != "null":
@@ -91,7 +114,6 @@ def get_expirations(
             url = None
 
     # Load the CSV into pandas dataframe
-    file_path = os.path.join(save_dir, 'expirations.csv')
     df = pd.read_csv(file_path)
 
     # Clean up the file if requested
@@ -107,7 +129,7 @@ def get_strikes(
     root: str='AAPL',
     exp: str="20250117",
     save_dir: str='../historical_data/strikes',
-    clean_up: bool=True,
+    clean_up: bool=False,
 ) -> pd.DataFrame:
     """
     Fetch option strike prices for a given root symbol and expiration, saving to CSV.
@@ -123,6 +145,7 @@ def get_strikes(
 
     save_dir = os.path.join(save_dir, root, exp)
     os.makedirs(save_dir, exist_ok=True)
+    file_path = os.path.join(save_dir, 'strikes.csv')
 
     while url is not None:
         # Make the request
@@ -143,11 +166,10 @@ def get_strikes(
         df['strike'] = df['strike'].astype(float) / 1000
 
         # Save to CSV with appropriate mode
-        expiry_file_path = os.path.join(save_dir, 'strikes.csv')
         if url == BASE_URL + '/list/strikes':
-            df.to_csv(expiry_file_path, index=False)  # Save first batch as .csv
+            df.to_csv(file_path, index=False)  # Save first batch as .csv
         else:
-            df.to_csv(expiry_file_path, mode='a', header=False, index=False)  # Append subsequent batches
+            df.to_csv(file_path, mode='a', header=False, index=False)  # Append subsequent batches
 
         # Check for next page
         if 'Next-Page' in response.headers and response.headers['Next-Page'] != "null":
@@ -158,7 +180,6 @@ def get_strikes(
             url = None
 
     # Load the CSV into pandas dataframe
-    file_path = os.path.join(save_dir, 'strikes.csv')
     df = pd.read_csv(file_path)
 
     # Clean up the file if requested
@@ -174,4 +195,4 @@ def get_strikes(
 if __name__ == '__main__':
     get_strikes(exp="20240419", root="MSFT")
     get_expirations(root="MSFT", clean_up=True)
-    # get_roots()
+    get_roots(clean_up=False)
