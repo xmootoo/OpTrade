@@ -1,16 +1,23 @@
-# TODO: Add quote and OHLCVC stock data retrieval functions from ThetaData API.
 import httpx
 import csv
 import pandas as pd
 import os
 from typing import Optional, Tuple
+from pathlib import Path
 
+# Custom modules
+from optrade.src.utils.data.clean_up import clean_up_dir
+
+# TODO: Add cleanup of historical data directories
+# TODO: Add assertions and checks that if clean_up then use /temp folder NOT historical data
 def get_stock_data(
     root: str="AAPL",
     start_date: str="20231107",
     end_date: str="20231107",
     interval_min: int=1,
     save_dir: str="../historical_data/stocks",
+    clean_up: bool=False,
+    offline: bool=False,
 ) -> pd.DataFrame:
 
     """
@@ -24,14 +31,13 @@ def get_stock_data(
         root (str): The root symbol of the underlying security.
         start_date (str): The start date of the data in YYYYMMDD format.
         end_date (str): The end date of the data in YYYYMMDD format.
-        exp (Optional[str]): The expiration date of the option in YYYYMMDD format.
-        tte (Optional[int]): The time to expiration of the option in days.
-        strike (int): The strike price of the option in dollars.
         interval_min (int): The interval in minutes between data points.
-        right (str): The type of option, either 'C' for call or 'P' for put.
+        save_dir (str): The directory to save the data.
+        clean_up (bool): Whether to clean up the CSV files after merging. If True, the CSV files are
+                         saved in a temp folder and then subsequently deleted before returning the df.
 
-    Saves a 3 CSV files into the save_dir: quote-level data, OHLC data, and merged data (concatenation of both
-    quote-level and OHLC data). Data is stored by default in data/historical_data/ directory.
+    Returns:
+        DataFrame: The merged quote-level and OHLC data.
     """
 
     BASE_URL = "http://127.0.0.1:25510/v2"  # all endpoints use this URL base
@@ -47,10 +53,31 @@ def get_stock_data(
         'venue': "utp_cta", # Merged UTP & CTA data
     }
 
-    # Create subfolder in save_dir with root symbol
+    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
+    if clean_up:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "stocks")
+        save_dir = temp_dir
+
+    # Set up directory structure
     save_dir = os.path.join(save_dir, root)
     base_dir = os.path.join(save_dir, f'{start_date}_{end_date}')
     os.makedirs(base_dir, exist_ok=True)
+
+    # Define file paths
+    quote_file_path = os.path.join(base_dir, 'quote.csv')
+    ohlc_file_path = os.path.join(base_dir, 'ohlc.csv')
+    merged_file_path = os.path.join(base_dir, 'merged.csv')
+
+    # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
+    if offline:
+        try:
+            return pd.read_csv(merged_file_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"No offline data found at {merged_file_path}. "
+                "Please run with offline=False and clean_up=False first to download the required data."
+            )
 
     # <-- Quote data -->
     quote_url = BASE_URL + '/hist/stock/quote'
@@ -90,7 +117,6 @@ def get_stock_data(
         quote_df = quote_df.reindex(columns=['datetime'] + list(quote_df.columns.drop('datetime')))
 
         # Save with mode='a' (append) after the first write
-        quote_file_path = os.path.join(base_dir, 'quote.csv')
         if quote_url == BASE_URL + '/hist/stock/quote':
             quote_df.to_csv(quote_file_path, index=False) # Save first batch as .csv.
         else:
@@ -139,7 +165,6 @@ def get_stock_data(
         ohlc_df = ohlc_df.drop(columns=['date', 'ms_of_day'])
 
         # Save with mode='a' (append) after the first write
-        ohlc_file_path = os.path.join(base_dir, 'ohlc.csv')
         if ohlc_url == BASE_URL + '/hist/stock/ohlc':
             ohlc_df.to_csv(ohlc_file_path, index=False) # Save first batch as .csv
         else:
@@ -171,11 +196,16 @@ def get_stock_data(
     merged_df["mid_price"] = (merged_df["bid"] + merged_df["ask"]) / 2
 
     # Save merged data
-    merged_df.to_csv(os.path.join(base_dir, 'merged.csv'), index=False)
+    merged_df.to_csv(merged_file_path, index=False)
+
+    # Clean up the entire temp_dir
+    if clean_up:
+        clean_up_dir(temp_dir)
+        print(f"Deleted temp directory: {temp_dir}")
 
     return merged_df
 
 
 if __name__ == "__main__":
-    df = get_stock_data()
+    df = get_stock_data(clean_up=False, offline=False)
     print(df.head())
