@@ -10,17 +10,17 @@ from optrade.data.thetadata.stocks import get_stock_data
 from optrade.src.utils.data.volatility import get_historical_volatility
 
 def find_optimal_strike(
-    root: str = "AAPL",
-    start_date: str = "20241107",
-    exp: str = "20241213",
-    right: str = "C",
+    root: str="AAPL",
+    start_date: str="20241107",
+    exp: str="20241213",
+    right: str="C",
     interval_min: int=1,
-    moneyness: str = "OTM",
-    target_band: float = 0.05,
-    volatility_type: str = "period",
-    volatility_scaled: bool = True,
-    volatility_scalar: float = 1.0,
-    volatility_window: float = 0.8,
+    moneyness: str="OTM",
+    target_band: float=0.05,
+    volatility_type: str="period",
+    volatility_scaled: bool=True,
+    volatility_scalar: float=1.0,
+    volatility_window: float=0.8,
     deterministic: Optional[bool] = True,
 ) -> Tuple[float, str]:
     """
