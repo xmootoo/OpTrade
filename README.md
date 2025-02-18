@@ -1,6 +1,6 @@
 # OpTrade
-OpTrade is a framework designed for high-frequency forecasting of alpha term structures in American options markets. The framework leverages state-of-the-art deep learning architectures specialized in time series prediction. The project has two primary objectives: (I) utilizing alpha term structures to analyze market microstructure dynamics across various options contracts, and (II) translating these insights into actionable trading signals.
-Currently, the project is focused on completing objective (I), with objective (II) planned for implementation upon successful completion of the microstructure analysis framework.
+OpTrade is a framework designed for high-frequency forecasting of alpha term structures in American options markets. The framework leverages state-of-the-art deep learning architectures specialized for time series forecasting. This project has two objectives: $(\textbf{I})$ discovering alpha term structures to analyze market microstructure dynamics across various options contracts via forecasting, and $(\textbf{II})$ translating these insights into actionable trading signals.
+Currently, the project is focused on completing objective $(\textbf{I})$, with objective $(\textbf{II})$ planned for implementation upon successful completion of the microstructure analysis framework.
 
 ## Table of Contents
 1. [Market Data](#market-data)
