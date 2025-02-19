@@ -8,6 +8,8 @@ from rich.console import Console
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def get_option_data(
     root: str="AAPL",
     start_date: str="20241107",
@@ -61,8 +63,7 @@ def get_option_data(
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "options")
+        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "options")
         save_dir = temp_dir
 
     # Set up directory structure
@@ -257,7 +258,6 @@ def get_option_data(
         merged_df.to_csv(merged_file_path, index=False)
 
     return merged_df
-
 
 def fill_open_zeros(group):
     if group.iloc[0]['mid_price'] == 0:

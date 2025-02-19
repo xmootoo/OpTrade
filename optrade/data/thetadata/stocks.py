@@ -7,6 +7,7 @@ from pathlib import Path
 
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_stock_data(
     root: str="AAPL",
@@ -53,8 +54,7 @@ def get_stock_data(
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "stocks")
+        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "stocks")
         save_dir = temp_dir
 
     # Set up directory structure
