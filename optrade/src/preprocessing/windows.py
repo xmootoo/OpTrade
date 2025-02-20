@@ -21,7 +21,8 @@ def get_windows(
                          into separate trading days before creating individual windows that cannot crossover
                          between days. Otherwise, the function will create windows that can span multiple days.
     Returns:
-        input (np.ndarray): Array of input windows of shape (num_windows, seq_len, num_features).
+        input (np.ndarray): Array of input windows of shape (num_windows, seq_len, num_features) where num_features
+                            is the number of columns in the DataFrame (removing datetime but adding returns).
         target (np.ndarray): Array of target windows of shape (num_windows, pred_len, 1).
                              Target contains only returns for the 'option_mid_price'.
     """
