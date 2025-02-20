@@ -5,26 +5,18 @@ import matplotlib.pyplot as plt
 from datetime import datetime, time
 import matplotlib.dates as mdates
 
-# TODO: Implement day of week
+# TODO: Implement sin/cos day of week
 def get_datetime_features(
     df: pd.DataFrame,
     feats: List=[
         "minuteofday",
-        "near_market_open",
-        "near_market_close",
         "sin_timeofday",
         "cos_timeofday",
         "dayofweek",
-        "sin_dayofweek",
-        "cos_dayofweek",
-        "is_opex_week"
     ],
-    dt_col: Optional[str] = None,
+    dt_col: Optional[str] = "datetime",
     market_open_time: str = "09:30:00",
     market_close_time: str = "16:00:00",
-    near_open_minutes: int = 15,
-    near_close_minutes: int = 15,
-    opex_day: int = 3,  # Friday = 4, so 3 = Thursday
 ) -> pd.DataFrame:
     """
     Generates optimized datetime features for short-term options forecasting.
@@ -36,20 +28,12 @@ def get_datetime_features(
         df (pd.DataFrame): DataFrame containing a datetime column
         feats (List): List of datetime features to generate. Options include:
             - "minuteofday": Minute of trading day (0-389 for standard session)
-            - "near_market_open": Boolean if time is within near_open_minutes of market open
-            - "near_market_close": Boolean if time is within near_close_minutes of market close
             - "sin_timeofday": Sine transformation of time of day (continuous circular feature)
             - "cos_timeofday": Cosine transformation of time of day (continuous circular feature)
             - "dayofweek": Day of week (0=Monday, 4=Friday)
-            - "sin_dayofweek": Sine transformation of day of week
-            - "cos_dayofweek": Cosine transformation of day of week
-            - "is_opex_week": Boolean if the week contains monthly options expiration
         dt_col (Optional[str]): Name of datetime column. If None, will attempt to detect it.
-        market_open_time (str): Market opening time in format "HH:MM:SS"
-        market_close_time (str): Market closing time in format "HH:MM:SS"
-        near_open_minutes (int): Minutes threshold to define "near market open"
-        near_close_minutes (int): Minutes threshold to define "near market close"
-        opex_day (int): Day of week for options expiration (3=Thursday, 4=Friday)
+        market_open_time (str): Market open time in HH:MM:SS format
+        market_close_time (str): Market close time in HH:MM:SS format
 
     Returns:
         pd.DataFrame: Original DataFrame with additional datetime feature columns
