@@ -22,6 +22,7 @@ def get_features(
 
     Core features options:
         - "datetime"
+        - f"{asset}_returns"
         - f"{asset}_mid_price"
         - f"{asset}_bid_size"
         - f"{asset}_bid_exchange"
@@ -60,11 +61,21 @@ def get_features(
     df = get_datetime_features(df=df, feats=datetime_feats)
     df = get_tte_features(df=df, feats=tte_feats)
 
-    # Get column names
+    if "option_returns" in core_feats:
+        # Calculate returns and add to dataframe
+        prices = df['option_mid_price'].to_numpy()
+        returns = np.zeros_like(prices)
+        returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
+        df['option_returns'] = returns
+
+        # Drop the first market open (return=0)
+        first_time = df['datetime'].iloc[0].time()
+        if first_time.hour == 9 and first_time.minute == 30:
+            df = df.iloc[1:].reset_index(drop=True)
+
+    # Select features
     tte_index = ["tte_" + tte_feats[i] for i in range(len(tte_feats))]
     datetime_index = ["dt_" + datetime_feats[i] for i in range(len(datetime_feats))]
-
-    # Return selected features
     selected_feats = core_feats + tte_index + datetime_index
 
     return df[selected_feats]
@@ -96,6 +107,7 @@ if __name__ == "__main__":
 
     # Select features
     core_feats = [
+        "option_returns",
         "option_mid_price",
         "option_bid_size",
         "option_bid",
@@ -120,3 +132,5 @@ if __name__ == "__main__":
     )
 
     print(df.columns == core_feats + [f"tte_{f}" for f in tte_feats] + [f"dt_{f}" for f in datetime_feats])
+
+    print(df.head())
