@@ -1,16 +1,17 @@
 import os
 import pandas as pd
 from typing import Optional
-
+from datetime import datetime
 # Custom modules
 from optrade.data.thetadata.options import get_option_data
 from optrade.data.thetadata.stocks import get_stock_data
 
 def get_data(
+    start_date: datetime,
+    end_date: datetime,
+    /, 
+    exp: Optional[str] = None,
     root: str="AAPL",
-    start_date: str="20241107",
-    end_date: str="20241107",
-    exp: Optional[str]="20250117",
     strike: int=225,
     interval_min: int=1,
     right: str="C",
