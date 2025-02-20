@@ -1,24 +1,21 @@
+import pickle
+import json
+import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
-from typing import Tuple, Iterator
+from typing import List, Tuple, Iterator, Dict, Any, Optional
 from datetime import datetime, timedelta
+from pydantic import BaseModel, Field
+from rich.console import Console
 
 from optrade.data.thetadata.stocks import get_stock_data
 from optrade.data.thetadata.contracts import Contract
 from optrade.src.preprocessing.data.volatility import get_historical_volatility
 
-from typing import List, Tuple, Iterator, Dict, Any, Optional
-from datetime import datetime, timedelta
-import pickle
-import json
-import os
-from pydantic import BaseModel, Field
-
-
-from rich.console import Console
 
 class ContractDataset:
     """
@@ -184,132 +181,135 @@ class ContractDataset:
         """Iterate through contracts."""
         return iter(self.contracts)
 
-    # def save(self, filepath: str, format: str = 'pickle') -> None:
-    #     """
-    #     Save the dataset to a file.
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the dataset to a dictionary suitable for serialization.
+        Separates initialization parameters from computed attributes.
+        """
+        return {
+            "params": {
+                "root": self.root,
+                "total_start_date": self.total_start_date,
+                "total_end_date": self.total_end_date,
+                "contract_stride": self.contract_stride,
+                "interval_min": self.interval_min,
+                "right": self.right,
+                "target_tte": self.target_tte,
+                "tte_tolerance": self.tte_tolerance,
+                "moneyness": self.moneyness,
+                "target_band": self.target_band,
+                "volatility_type": self.volatility_type,
+                "volatility_scaled": self.volatility_scaled,
+                "volatility_scalar": self.volatility_scalar,
+                "volatility_window": self.volatility_window,
+            },
+            "computed": {
+                "hist_vol": self.hist_vol
+            },
+            "contracts": [contract.model_dump() for contract in self.contracts]  # Updated to use model_dump
+        }
 
-    #     Args:
-    #         filepath: Path where the dataset will be saved
-    #         format: File format ('pickle' or 'json')
-    #     """
-    #     if format.lower() == 'pickle':
-    #         with open(filepath, 'wb') as f:
-    #             pickle.dump(self, f)
-    #     elif format.lower() == 'json':
-    #         # Convert contracts to dictionaries
-    #         contract_dicts = [
-    #             contract.dict() if hasattr(contract, 'dict') else contract.__dict__
-    #             for contract in self.contracts
-    #         ]
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ContractDataset":
+        """
+        Create a new dataset instance from a dictionary.
+        Handles both initialization parameters and computed attributes.
+        """
+        # Create instance with initialization parameters
+        instance = cls(**data["params"])
 
-    #         # Create serializable representation
-    #         data = {
-    #             'parameters': {
-    #                 'root': self.root,
-    #                 'total_start_date': self.total_start_date,
-    #                 'total_end_date': self.total_end_date,
-    #                 'contract_stride': self.contract_stride,
-    #                 'interval_min': self.interval_min,
-    #                 'right': self.right,
-    #                 'target_tte': self.target_tte,
-    #                 'tte_tolerance': self.tte_tolerance,
-    #                 'moneyness': self.moneyness,
-    #                 'target_band': self.target_band,
-    #                 'volatility_type': self.volatility_type,
-    #                 'volatility_scaled': self.volatility_scaled,
-    #                 'volatility_scalar': self.volatility_scalar,
-    #                 'volatility_window': self.volatility_window,
-    #             },
-    #             'contracts': contract_dicts
-    #         }
+        # Restore computed attributes
+        instance.hist_vol = data["computed"]["hist_vol"]
 
-    #         with open(filepath, 'w') as f:
-    #             json.dump(data, f, indent=2)
-    #     else:
-    #         raise ValueError(f"Unsupported format: {format}. Use 'pickle' or 'json'.")
+        # Restore contracts
+        instance.contracts = [Contract(**contract_dict) for contract_dict in data["contracts"]]
 
-    # @classmethod
-    # def load(cls, filepath: str, format: Optional[str] = None) -> 'ContractDataset':
-    #     """
-    #     Load a dataset from a file.
+        return instance
 
-    #     Args:
-    #         filepath: Path to the saved dataset
-    #         format: File format ('pickle' or 'json'). If None, determined from file extension.
+    def save(self, filepath: Optional[str] = None) -> str:
+        """
+        Save the dataset to a pickle file.
 
-    #     Returns:
-    #         Loaded ContractDataset instance
-    #     """
-    #     # Determine format from file extension if not specified
-    #     if format is None:
-    #         _, ext = os.path.splitext(filepath)
-    #         if ext.lower() in ['.pkl', '.pickle']:
-    #             format = 'pickle'
-    #         elif ext.lower() == '.json':
-    #             format = 'json'
-    #         else:
-    #             raise ValueError(f"Cannot determine format from extension '{ext}'. "
-    #                              f"Please specify format='pickle' or format='json'.")
+        Args:
+            filepath: Optional custom filepath. If None, generates default name
 
-    #     if format.lower() == 'pickle':
-    #         with open(filepath, 'rb') as f:
-    #             return pickle.load(f)
-    #     elif format.lower() == 'json':
-    #         with open(filepath, 'r') as f:
-    #             data = json.load(f)
+        Returns:
+            str: Path where the pickle file was saved
+        """
+        if filepath is None:
+            # Generate default filename using dataset parameters
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{self.root}_contracts_{self.total_start_date}_{self.total_end_date}_{timestamp}.pkl"
+            filepath = Path("contract_data") / filename
 
-    #         # Create instance with saved parameters
-    #         instance = cls(**data['parameters'])
+        # Ensure directory exists
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 
-    #         # If Contract is a Pydantic model
-    #         try:
-    #             from pydantic import parse_obj_as
-    #             instance.contracts = [
-    #                 Contract(**contract_dict) for contract_dict in data['contracts']
-    #             ]
-    #         except (ImportError, TypeError):
-    #             # Fallback if not using Pydantic or if Contract init is different
-    #             instance.contracts = []
-    #             for contract_dict in data['contracts']:
-    #                 contract = Contract.find_optimal(
-    #                     root=contract_dict.get('root', instance.root),
-    #                     start_date=contract_dict.get('start_date'),
-    #                     interval_min=contract_dict.get('interval_min', instance.interval_min),
-    #                     right=contract_dict.get('right', instance.right),
-    #                     target_tte=instance.target_tte,
-    #                     tte_tolerance=instance.tte_tolerance,
-    #                     moneyness=instance.moneyness,
-    #                     target_band=instance.target_band,
-    #                     volatility_scaled=instance.volatility_scaled,
-    #                     volatility_scalar=instance.volatility_scalar,
-    #                     hist_vol=instance.hist_vol,
-    #                 )
-    #                 # Override with saved values for exp and strike
-    #                 contract.exp = contract_dict.get('exp')
-    #                 contract.strike = contract_dict.get('strike')
-    #                 instance.contracts.append(contract)
+        # Convert to dictionary and save
+        data = self.to_dict()
+        with open(filepath, 'wb') as f:
+            pickle.dump(data, f)
 
-    #         return instance
-    #     else:
-    #         raise ValueError(f"Unsupported format: {format}. Use 'pickle' or 'json'.")
+        self.ctx.log(f"Dataset saved to {filepath}")
+        return str(filepath)
 
+    @classmethod
+    def load(cls, filepath: str) -> "ContractDataset":
+        """
+        Load a dataset from a pickle file.
+
+        Args:
+            filepath: Path to the pickle file
+
+        Returns:
+            ContractDataset: Reconstructed dataset with all contracts
+        """
+        with open(filepath, 'rb') as f:
+            data = pickle.load(f)
+
+        instance = cls.from_dict(data)
+        instance.ctx.log(f"Dataset loaded from {filepath}")
+        return instance
 
 
 if __name__=="__main__":
-    contracts = ContractDataset(root="TSLA",
-    total_start_date="20231001",
-    total_end_date="20241001",
-    contract_stride=30,
+    contracts = ContractDataset(root="AMZN",
+    total_start_date="20220101",
+    total_end_date="20220301",
+    contract_stride=15,
     interval_min=1,
-    right="C",
-    target_tte=45,
-    tte_tolerance= (35, 55),
+    right="P",
+    target_tte=3,
+    tte_tolerance= (1, 10),
     moneyness="ITM",
     target_band=0.05,
     volatility_type= "period",
     volatility_scaled= True,
     volatility_scalar= 1.0,
     volatility_window= 0.8,)
+
+    contracts.save("contracts.pkl")
+
+    dataset = ContractDataset.load('contracts.pkl')
+
+
+    # Print out attributes
+    print(f"Root: {contracts.root}")
+    print(f"Total start date: {contracts.total_start_date}")
+    print(f"Total end date: {contracts.total_end_date}")
+    print(f"Contract stride: {contracts.contract_stride}")
+    print(f"Interval min: {contracts.interval_min}")
+    print(f"Right: {contracts.right}")
+    print(f"Target TTE: {contracts.target_tte}")
+    print(f"TTE tolerance: {contracts.tte_tolerance}")
+    print(f"Moneyness: {contracts.moneyness}")
+    print(f"Target band: {contracts.target_band}")
+    print(f"Volatility type: {contracts.volatility_type}")
+    print(f"Volatility scaled: {contracts.volatility_scaled}")
+    print(f"Volatility scalar: {contracts.volatility_scalar}")
+    print(f"Volatility window: {contracts.volatility_window}")
+    print(f"Number of contracts: {len(contracts)}")
+    print(f"First contract: {contracts[0]}")
 
     # contracts.save("contracts.pkl")
 
