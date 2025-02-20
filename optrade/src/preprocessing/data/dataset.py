@@ -16,7 +16,6 @@ from optrade.data.thetadata.stocks import get_stock_data
 from optrade.data.thetadata.contracts import Contract
 from optrade.src.preprocessing.data.volatility import get_historical_volatility
 
-
 class ContractDataset:
     """
     A dataset containing options contracts generated with consistent parameters.
@@ -79,10 +78,8 @@ class ContractDataset:
 
         self.ctx = Console()
         self.contracts = []
-        self._get_hist_vol()
-        self._generate_contracts()
 
-    def _get_hist_vol(self):
+    def get_hist_vol(self):
         # Calculate number of days to use for historical volatility
         total_days = (pd.to_datetime(self.total_end_date, format='%Y%m%d') - pd.to_datetime(self.total_start_date, format='%Y%m%d')).days
         num_vol_days = int(self.volatility_window * total_days)
@@ -103,7 +100,7 @@ class ContractDataset:
         self.hist_vol = get_historical_volatility(stock_data, self.volatility_type)
         self.ctx.log(f"Historical volatility from {self.total_start_date} to {vol_end_date}: {self.hist_vol}")
 
-    def _generate_contracts(self):
+    def generate_contracts(self):
         """
         Generate all contracts in the dataset based on configuration parameters.
         """
@@ -206,7 +203,7 @@ class ContractDataset:
             "computed": {
                 "hist_vol": self.hist_vol
             },
-            "contracts": [contract.model_dump() for contract in self.contracts]  # Updated to use model_dump
+            "contracts": [contract.model_dump() for contract in self.contracts]
         }
 
     @classmethod
@@ -288,9 +285,15 @@ if __name__=="__main__":
     volatility_scalar= 1.0,
     volatility_window= 0.8,)
 
+    # Generate contracts
+    contracts.get_hist_vol()
+    contracts.generate_contracts()
+
+    # Save the contracts
     contracts.save("contracts.pkl")
 
-    dataset = ContractDataset.load('contracts.pkl')
+    # Load the generated contracts into a fresh dataset
+    dataset = ContractDataset.load("contracts.pkl")
 
 
     # Print out attributes
