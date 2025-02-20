@@ -28,6 +28,9 @@ def get_tte_features(
                      feature will be added with a prefix 'tte_' (e.g., 'tte_inverse').
                      All TTE features are guaranteed to be float64 type.
     """
+    if feats==[]:
+        return df
+
     # Create a copy to avoid modifying the original
     result_df = df.copy()
 
