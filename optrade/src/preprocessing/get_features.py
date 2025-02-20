@@ -70,17 +70,6 @@ def get_features(
     return df[selected_feats]
 
 
-def create_windows(
-    array: np.ndarray,
-    seq_len: int,
-    pred_len: int,
-    window_stride: int,
-    intraday: bool=False,
-) -> np.ndarray:
-
-    return array
-
-
 if __name__ == "__main__":
     from optrade.data.thetadata.get_data import get_data
     from rich.console import Console
