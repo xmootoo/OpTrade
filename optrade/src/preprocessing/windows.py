@@ -1,4 +1,3 @@
-from re import split
 import numpy as np
 import pandas as pd
 
@@ -22,55 +21,75 @@ def get_windows(
                          into separate trading days before creating individual windows that cannot crossover
                          between days. Otherwise, the function will create windows that can span multiple days.
     Returns:
-        input (np.ndarray): Array of input windows.
-        target (np.ndarray): Array of target windows.
+        input (np.ndarray): Array of input windows of shape (num_windows, seq_len, num_features).
+        target (np.ndarray): Array of target windows of shape (num_windows, pred_len, 1).
+                             Target contains only returns for the 'option_mid_price'.
     """
-
     datetime = df["datetime"]
-    data = df.drop(columns=["datetime"]).to_numpy()
+    df_copy = df.copy()
 
-    inputs = []
-    targets = []
+    # Calculate returns and add to dataframe
+    prices = df_copy['option_mid_price'].values
+    returns = np.zeros_like(prices)
+
+    returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
+    df_copy['returns'] = returns
+
+    # Define input features (all columns except datetime)
+    feature_columns = [col for col in df_copy.columns if col != 'datetime']
+    inputs, targets = [], []
 
     if intraday:
-        # Get unique days from datetime column
+        # Get all unique days
         days = datetime.dt.date.unique()
 
-        for day_idx, day in enumerate(days):
-            # Get indices for this day
+        # Iterate through each day independently
+        for day in days:
             day_mask = datetime.dt.date == day
-            day_indices = np.where(day_mask)[0]
+            day_data = df_copy.loc[day_mask].copy()
 
+            print(f"Length of data: {len(day_data)}")
 
-            if len(day_indices) < seq_len + pred_len:
-                print(f"[DEBUG] Skipping day {day} - insufficient data points ({len(day_indices)} < {seq_len + pred_len})")
-                continue
+            # Since returns will be part of the input features but don't exist for 9:30am
+            # we remove the market open (9:30am) of each day
+            first_time = day_data['datetime'].iloc[0].time()
+            if first_time.hour == 9 and first_time.minute == 30:
+                day_data = day_data.iloc[1:].reset_index(drop=True)
+                print(f"Day data after removing 9:30am: {day_data.tail()}")
 
-            day_windows = 0
-            # Create windows for this day
-            for i in range(0, len(day_indices) - seq_len - pred_len + 1, window_stride):
-                start_idx = day_indices[i]
-                input_end_idx = start_idx + seq_len
-                target_end_idx = input_end_idx + pred_len
+            # Raise an error if the length of the day is less than the sum of seq_len+pred_len
+            if len(day_data) < seq_len + pred_len:
+                raise ValueError(
+                    f"seq_len + pred_len = {seq_len + pred_len} exceeds the length of the day. \
+                    Either set intraday=False or reduce seq_len and/or pred_len."
+                )
 
-                # Ensure we don't cross day boundaries
-                if target_end_idx <= day_indices[-1] + 1:
-                    inputs.append(data[start_idx:input_end_idx])
-                    targets.append(data[input_end_idx:target_end_idx])
-                    day_windows += 1
+            # Get input features and targets, convert to NumPy arrays
+            day_features = day_data[feature_columns].to_numpy()
+            day_targets = day_data['returns'].to_numpy().reshape(-1, 1)
+
+            # Apply the sliding window technique to obtain windows for inputs and targets
+            for i in range(0, len(day_data) - seq_len - pred_len + 1, window_stride):
+                inputs.append(day_features[i:i+seq_len])
+                targets.append(day_targets[i+seq_len:i+seq_len+pred_len])
     else:
-        # Create windows across the entire dataset
-        window_count = 0
-        for i in range(0, len(data) - seq_len - pred_len + 1, window_stride):
-            inputs.append(data[i:i + seq_len])
-            targets.append(data[i + seq_len:i + seq_len + pred_len])
-            window_count += 1
+        # Since returns will be part of the input features but don't exist for first market open
+        # i.e. 9:30am on the first day, we remove it
+        first_time = datetime.iloc[0].time()
+        if first_time.hour == 9 and first_time.minute == 30:
+            df_copy = df_copy.iloc[1:].reset_index(drop=True)
 
-    input_array = np.array(inputs)
-    target_array = np.array(targets)
+        # Extract features and targets
+        features = df_copy[feature_columns].to_numpy()
+        targets_data = df_copy['returns'].to_numpy().reshape(-1, 1)
 
-    return input_array, target_array
+        # Create windows
+        for i in range(0, len(df_copy) - seq_len - pred_len + 1, window_stride):
+            inputs.append(features[i:i+seq_len])
+            targets.append(targets_data[i+seq_len:i+seq_len+pred_len])
 
+    # Convert to numpy arrays
+    return np.array(inputs), np.array(targets)
 
 if __name__ == "__main__":
     from optrade.data.thetadata.get_data import get_data
@@ -125,8 +144,10 @@ if __name__ == "__main__":
 
     x, y = get_windows(
         df=df,
-        seq_len=10,
-        pred_len=5,
+        seq_len=30,
+        pred_len=6,
         window_stride=1,
-        intraday=True
+        intraday=False
     )
+
+    print(x.shape, y.shape)
