@@ -134,3 +134,4 @@ if __name__ == "__main__":
     print(df.columns == core_feats + [f"tte_{f}" for f in tte_feats] + [f"dt_{f}" for f in datetime_feats])
 
     print(df.head())
+    print(df.to_numpy().shape)

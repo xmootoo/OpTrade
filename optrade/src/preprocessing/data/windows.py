@@ -12,6 +12,11 @@ def get_windows(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generates rolling windows of data for a given DataFrame.
+
+    *NOTE: Should be primarily used for intraday ease of use, otherwise it is recommended to directly
+           convert time series features into a ForecastingDataset found in datasets.py for computational
+           efficiency.
+
     Args:
         df (pd.DataFrame): DataFrame containing the data.
         seq_len (int): Length of the input sequence.
@@ -87,7 +92,7 @@ def get_windows(
 
 if __name__ == "__main__":
     from optrade.data.thetadata.get_data import get_data
-    from optrade.src.preprocessing.get_features import get_features
+    from optrade.src.preprocessing.features.get_features import get_features
     from rich.console import Console
     console = Console()
 
@@ -112,6 +117,7 @@ if __name__ == "__main__":
 
     # Select features
     core_feats = [
+        "option_returns",
         "datetime",
         "option_mid_price",
         "option_bid_size",
