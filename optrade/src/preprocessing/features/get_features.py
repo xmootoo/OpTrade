@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 
-from optrade.src.preprocessing.datetime_features import get_datetime_features
-from optrade.src.preprocessing.tte_features import get_tte_features
+from optrade.src.preprocessing.features.datetime_features import get_datetime_features
+from optrade.src.preprocessing.features.tte_features import get_tte_features
 
 def get_features(
     df: pd.DataFrame,
