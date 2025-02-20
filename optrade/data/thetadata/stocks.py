@@ -66,8 +66,6 @@ def get_stock_data(
     ohlc_file_path = os.path.join(save_dir, 'ohlc.csv')
     merged_file_path = os.path.join(save_dir, 'merged.csv')
 
-    print(f"Merge file path: {merged_file_path}")
-
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
         try:
