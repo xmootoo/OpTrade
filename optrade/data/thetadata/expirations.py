@@ -25,14 +25,11 @@ def find_optimal_exp(
     Returns:
         Tuple of (Expiration date string 'YYYYMMDD', Optimal TTE) if found, (None, None) otherwise
     """
-    script_dir = Path(__file__).parent  # Get the directory containing the current script
-    expirations_dir = script_dir.parent / "historical_data/expirations"
     min_tte, max_tte = tte_tolerance
 
     # Get expirations and convert to list of strings
     expirations = get_expirations(
         root=root,
-        save_dir=expirations_dir,
         clean_up=True
     ).values.squeeze()
 
