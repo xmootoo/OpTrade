@@ -29,13 +29,6 @@ def get_windows(
     datetime = df["datetime"]
     df_copy = df.copy()
 
-    # Calculate returns and add to dataframe
-    prices = df_copy['option_mid_price'].values
-    returns = np.zeros_like(prices)
-
-    returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
-    df_copy['returns'] = returns
-
     # Define input features (all columns except datetime)
     feature_columns = [col for col in df_copy.columns if col != 'datetime']
     inputs, targets = [], []
@@ -67,7 +60,7 @@ def get_windows(
 
             # Get input features and targets, convert to NumPy arrays
             day_features = day_data[feature_columns].to_numpy()
-            day_targets = day_data['returns'].to_numpy().reshape(-1, 1)
+            day_targets = day_data['option_returns'].to_numpy().reshape(-1, 1)
 
             # Apply the sliding window technique to obtain windows for inputs and targets
             for i in range(0, len(day_data) - seq_len - pred_len + 1, window_stride):
@@ -82,7 +75,7 @@ def get_windows(
 
         # Extract features and targets
         features = df_copy[feature_columns].to_numpy()
-        targets_data = df_copy['returns'].to_numpy().reshape(-1, 1)
+        targets_data = df_copy['option_returns'].to_numpy().reshape(-1, 1)
 
         # Create windows
         for i in range(0, len(df_copy) - seq_len - pred_len + 1, window_stride):
