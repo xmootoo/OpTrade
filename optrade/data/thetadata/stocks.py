@@ -197,7 +197,6 @@ def get_stock_data(
     # Clean up the entire temp_dir
     if clean_up:
         clean_up_dir(temp_dir)
-        print(f"Deleted temp directory: {temp_dir}")
     else:
         # Save merged data
         merged_df.to_csv(merged_file_path, index=False)

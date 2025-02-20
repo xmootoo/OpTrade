@@ -10,8 +10,6 @@ from optrade.src.utils.data.clean_up import clean_up_dir
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-print(f"Sript Dir: ")
-
 def get_data(
     root: str="AAPL",
     start_date: str="20241107",
@@ -133,7 +131,6 @@ def get_data(
     # Clean up temp files
     if clean_up:
         clean_up_dir(temp_dir)
-        print(f"Deleted temp directory: {temp_dir}")
     else:
         # Save combined data
         df.to_csv(combined_file_path, index=False)
@@ -141,5 +138,5 @@ def get_data(
     return df
 
 if __name__ == "__main__":
-    combined_df = get_data(clean_up=True, offline=False)
+    combined_df = get_data(clean_up=False, offline=False)
     print(combined_df.head())
