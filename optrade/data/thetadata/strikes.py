@@ -6,7 +6,6 @@ import os
 # Custom modules
 from optrade.data.thetadata.listings import get_strikes
 from optrade.data.thetadata.stocks import get_stock_data
-from optrade.src.preprocessing.data.volatility import get_historical_volatility
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -57,14 +56,30 @@ def find_optimal_strike(
     """
 
     # Get current price and available strikes
-    stock_data = get_stock_data(
-        root=root,
-        start_date=start_date,
-        end_date=start_date,
-        interval_min=interval_min,
-        clean_up=clean_up,
-        offline=offline,
-    )
+
+    print(f"Stock params: root={root}, start_date={start_date}, end_date={start_date}, interval_min={interval_min}, clean_up={clean_up}, offline={offline}")
+
+    try:
+        stock_data = get_stock_data(
+            root=root,
+            start_date=start_date,
+            end_date=start_date,
+            interval_min=interval_min,
+            clean_up=clean_up,
+            offline=offline,
+        )
+    except:
+        # Shift start_date by 1 day if no data is found
+        new_start_date = (pd.to_datetime(start_date, format='%Y%m%d') + pd.Timedelta(days=1)).strftime('%Y%m%d')
+        stock_data = get_stock_data(
+            root=root,
+            start_date=new_start_date,
+            end_date=new_start_date,
+            interval_min=interval_min,
+            clean_up=clean_up,
+            offline=offline,
+        )
+        print(f"Stock data not found for {start_date}, shifting to {new_start_date}")
 
     # Get the average midprice for the day to use as the current price
     current_price = stock_data["mid_price"].mean()
