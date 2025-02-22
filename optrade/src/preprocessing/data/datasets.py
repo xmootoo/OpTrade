@@ -14,7 +14,7 @@ from optrade.data.thetadata.stocks import get_stock_data
 from optrade.data.thetadata.contracts import Contract
 from optrade.src.preprocessing.data.volatility import get_historical_volatility
 
-class ContractDataset:
+class ContractsDataset:
     """
     A dataset containing options contracts generated with consistent parameters.
 
@@ -35,13 +35,12 @@ class ContractDataset:
         tte_tolerance: Tuple[int, int] = (25, 35),
         moneyness: str = "OTM",
         target_band: float = 0.05,
-        volatility_type: str = "period",
         volatility_scaled: bool = True,
         volatility_scalar: float = 1.0,
-        volatility_window: float = 0.8,
+        hist_vol: Optional[float] = None,
     ):
         """
-        Initialize the ContractDataset with the specified parameters.
+        Initialize the ContractsDataset with the specified parameters.
 
         Args:
             root: The security root symbol
@@ -69,34 +68,12 @@ class ContractDataset:
         self.tte_tolerance = tte_tolerance
         self.moneyness = moneyness
         self.target_band = target_band
-        self.volatility_type = volatility_type
         self.volatility_scaled = volatility_scaled
         self.volatility_scalar = volatility_scalar
-        self.volatility_window = volatility_window
+        self.hist_vol = hist_vol
 
         self.ctx = Console()
         self.contracts = []
-
-    def get_hist_vol(self):
-        # Calculate number of days to use for historical volatility
-        total_days = (pd.to_datetime(self.total_end_date, format='%Y%m%d') - pd.to_datetime(self.total_start_date, format='%Y%m%d')).days
-        num_vol_days = int(self.volatility_window * total_days)
-        vol_end_date = (pd.to_datetime(self.total_start_date, format='%Y%m%d') + pd.Timedelta(days=num_vol_days)).strftime('%Y%m%d')
-
-        stock_data = get_stock_data(
-            root=self.root,
-            start_date=self.total_start_date,
-            end_date=self.total_end_date,
-            interval_min=self.interval_min,
-            clean_up=True,
-        )
-
-        # Select only the first num_vol_days for calculating volatility
-        stock_data = stock_data.loc[stock_data['datetime'] <= vol_end_date]
-
-        # Calculate historical volatility
-        self.hist_vol = get_historical_volatility(stock_data, self.volatility_type)
-        self.ctx.log(f"Historical volatility from {self.total_start_date} to {vol_end_date}: {self.hist_vol}")
 
     def generate_contracts(self):
         """
@@ -193,28 +170,21 @@ class ContractDataset:
                 "tte_tolerance": self.tte_tolerance,
                 "moneyness": self.moneyness,
                 "target_band": self.target_band,
-                "volatility_type": self.volatility_type,
                 "volatility_scaled": self.volatility_scaled,
                 "volatility_scalar": self.volatility_scalar,
-                "volatility_window": self.volatility_window,
-            },
-            "computed": {
                 "hist_vol": self.hist_vol
             },
             "contracts": [contract.model_dump() for contract in self.contracts]
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ContractDataset":
+    def from_dict(cls, data: Dict[str, Any]) -> "ContractsDataset":
         """
         Create a new dataset instance from a dictionary.
         Handles both initialization parameters and computed attributes.
         """
         # Create instance with initialization parameters
         instance = cls(**data["params"])
-
-        # Restore computed attributes
-        instance.hist_vol = data["computed"]["hist_vol"]
 
         # Restore contracts
         instance.contracts = [Contract(**contract_dict) for contract_dict in data["contracts"]]
@@ -249,7 +219,7 @@ class ContractDataset:
         return str(filepath)
 
     @classmethod
-    def load(cls, filepath: str) -> "ContractDataset":
+    def load(cls, filepath: str) -> "ContractsDataset":
         """
         Load a dataset from a pickle file.
 
@@ -257,7 +227,7 @@ class ContractDataset:
             filepath: Path to the pickle file
 
         Returns:
-            ContractDataset: Reconstructed dataset with all contracts
+            ContractsDataset: Reconstructed dataset with all contracts
         """
         with open(filepath, 'rb') as f:
             data = pickle.load(f)
@@ -345,9 +315,17 @@ class IntradayForecastingDataset(Dataset):
 
 
 if __name__=="__main__":
-    contracts = ContractDataset(root="AMZN",
-    total_start_date="20220101",
-    total_end_date="20220301",
+
+    # Define the parameters for the dataset
+    root="AMZN"
+    total_start_date="20220101"
+    total_end_date="20220301"
+    hist_vol = 0.1
+
+
+    contracts = ContractsDataset(root=root,
+    total_start_date=total_start_date,
+    total_end_date=total_end_date,
     contract_stride=15,
     interval_min=1,
     right="P",
@@ -355,20 +333,18 @@ if __name__=="__main__":
     tte_tolerance= (1, 10),
     moneyness="ITM",
     target_band=0.05,
-    volatility_type= "period",
     volatility_scaled= True,
     volatility_scalar= 1.0,
-    volatility_window= 0.8,)
+    hist_vol=hist_vol)
 
     # Generate contracts
-    contracts.get_hist_vol()
     contracts.generate_contracts()
 
     # Save the contracts
     contracts.save("contracts.pkl")
 
     # Load the generated contracts into a fresh dataset
-    dataset = ContractDataset.load("contracts.pkl")
+    dataset = ContractsDataset.load("contracts.pkl")
 
 
     # Print out attributes
@@ -382,175 +358,8 @@ if __name__=="__main__":
     print(f"TTE tolerance: {contracts.tte_tolerance}")
     print(f"Moneyness: {contracts.moneyness}")
     print(f"Target band: {contracts.target_band}")
-    print(f"Volatility type: {contracts.volatility_type}")
     print(f"Volatility scaled: {contracts.volatility_scaled}")
     print(f"Volatility scalar: {contracts.volatility_scalar}")
-    print(f"Volatility window: {contracts.volatility_window}")
+    print(f"Historical volatility: {contracts.hist_vol}")
     print(f"Number of contracts: {len(contracts)}")
     print(f"First contract: {contracts[0]}")
-
-    # contracts.save("contracts.pkl")
-
-    # dataset = ContractDataset.load('contracts.pkl')
-
-    # print(len(contracts))
-    # print(dataset[1])
-
-
-
-
-# class ForecastingDataset(Dataset):
-#     """
-#     A standard forecasting dataset class for PyTorch.
-
-#     Args:
-#         data (torch.Tensor): The time series data in a tensor of shape (num_channels, num_time_steps).
-#         seq_len (int): The length of the input window.
-#         pred_len (int): The length of the forecast window.
-#         target_channels (list): The channels to forecast. If None, all channels are forecasted.
-#         dtype (str): The datatype of the tensor.
-
-#     __getitem__ method:
-
-#         Args:
-#             idx (int): The index of the input window in the time series.
-#         Returns:
-#             input_data (torch.Tensor): The lookback window of length seq_len for the given index.
-#             target_data (torch.Tensor): The forecast window for the given index (continuation of input_data
-#                                         shifted by pred_len)
-
-#     """
-
-#     def __init__(self, data, seq_len, pred_len, target_channels=None, dtype="float32"):
-
-#         # Convert the data to a tensor and set the datatype
-#         dtype = eval("torch." + dtype)
-#         if not torch.is_tensor(data):
-#             self.data = torch.from_numpy(data).type(dtype)
-#         else:
-#             self.data = data.type(dtype)
-#         self.seq_len = seq_len
-#         self.pred_len = pred_len
-
-#         if target_channels:
-#             self.target_channels = target_channels
-#         else:
-#             self.target_channels = list(range(self.data.shape[0]))
-
-#     def __len__(self):
-#         return self.data.shape[1] - self.seq_len - self.pred_len
-
-#     def __getitem__(self, idx):
-#         input_data = self.data[:, idx:idx+self.seq_len]
-#         # target_data = self.data[:, idx+self.seq_len:idx+self.seq_len+self.pred_len]
-#         target_data = self.data[self.target_channels, idx+self.seq_len:idx+self.seq_len+self.pred_len]
-#         return input_data, target_data
-
-# class UnivariateForecastingDataset(Dataset):
-#     """
-#     A standard forecasting dataset class for PyTorch.
-
-#     Args:
-#         data_x (torch.Tensor): The time series data in a tensor of shape (num_windows, seq_len).
-#         data_y (torch.Tensor): The time series data in a tensor of shape (num_windows, pred_len).
-
-#     __getitem__ method: Returns the input and target data for a given index, where the target window follows
-#                         immediately after the input window in the time series.
-
-#     """
-
-#     def __init__(self, x, y, dtype="float32"):
-
-#         # Convert the data to a tensor and set the datatype
-#         dtype = eval("torch." + dtype)
-
-#         if not torch.is_tensor(x):
-#             self.x = torch.from_numpy(x).type(dtype)
-#             self.y = torch.from_numpy(y).type(dtype)
-#         else:
-#             self.x = x.type(dtype)
-#             self.y = y.type(dtype)
-
-#             print(f"x: {self.x.shape}, y: {self.y.shape}")
-
-#     def __len__(self):
-#         return self.x.shape[0]
-
-#     def __getitem__(self, idx):
-#         return self.x[idx], self.y[idx]
-
-# class ClassificationDataset(Dataset):
-#     """
-#     A classification dataset class for time series.
-
-#     Args:
-#         x (torch.Tensor): The input data in a tensor of shape (num_windows, seq_len).
-#         y (torch.Tensor): The target data in a tensor of shape (num_windows).
-#         ch_ids (torch.Tensor): The channel IDs in a tensor of shape (num_windows).
-#         t (torch.Tensor): The time indices in a tensor of shape (num_windows).
-
-#     """
-
-#     def __init__(self, x, y, ch_ids=None, task="binary", full_channels=False):
-
-#         # Data
-#         self.x = x
-#         self.y = torch.tensor(y) if isinstance(y, list) else y
-#         ch_ids = torch.tensor(ch_ids) if isinstance(ch_ids, list) else ch_ids
-#         self.ch_ids = ch_ids
-#         self.full_channels = full_channels
-
-
-#         # Parameters
-#         self.task = task
-#         self.len = x.size(0)
-#         self.num_classes = len(torch.unique(self.y))
-
-#         # Channel IDs
-#         if not full_channels:
-#             self.unique_ch_ids = torch.unique(ch_ids, sorted=True).tolist()
-#             label_indices = torch.tensor([torch.where(ch_ids == unique_id)[0][0] for unique_id in self.unique_ch_ids])
-#             self.unique_ch_labels = self.y[label_indices].tolist()
-#             self.ch_labels = dict()
-#             for i, ch_id in enumerate(self.unique_ch_ids):
-#                 self.ch_labels[ch_id] = int(self.unique_ch_labels[i])
-
-#         if ch_ids is not None and not full_channels:
-#             unique_ch_ids, indices = torch.unique(ch_ids, sorted=True, return_inverse=True)
-
-#             self.ch_id_list = unique_ch_ids.tolist()
-#             self.num_channels = len(unique_ch_ids)
-#             self.ch_targets = torch.zeros(self.num_channels)
-
-#             # Get the unique labels for each channel
-#             for i, ch_id in enumerate(unique_ch_ids):
-#                 matching_indices = torch.where(ch_ids == ch_id)
-#                 label = self.y[matching_indices][0]
-#                 self.ch_targets[i] = label
-
-#     def __len__(self):
-#         return self.len
-
-#     def __getitem__(self, idx):
-#         """
-#         In a dataloader it returns appropriate tensors for CrossEntropy loss.
-#             x: (batch_size, 1, seq_len)
-#             y: (batch_size,)
-#             ch_ids: (batch_size,)
-#         """
-
-#         output = []
-
-#         if self.task=="multi":
-#             label = self.y[idx].long()
-#         elif self.task=="binary":
-#             label = self.y[idx].float()
-#         else:
-#             raise ValueError("Task must be either 'binary' or 'multi'.")
-
-#         if self.ch_ids is not None and not self.full_channels:
-#             output += [self.x[idx].unsqueeze(0), label, self.ch_ids[idx]]
-#         else:
-#             output += [self.x[idx].unsqueeze(0), label]
-
-#         return tuple(output)
