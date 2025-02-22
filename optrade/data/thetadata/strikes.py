@@ -57,7 +57,6 @@ def find_optimal_strike(
 
     # Get current price and available strikes
 
-    print(f"Stock params: root={root}, start_date={start_date}, end_date={start_date}, interval_min={interval_min}, clean_up={clean_up}, offline={offline}")
 
     try:
         stock_data = get_stock_data(
