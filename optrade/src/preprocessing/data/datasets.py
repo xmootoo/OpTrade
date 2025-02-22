@@ -10,11 +10,9 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 from rich.console import Console
 
-from optrade.data.thetadata.stocks import get_stock_data
 from optrade.data.thetadata.contracts import Contract
-from optrade.src.preprocessing.data.volatility import get_historical_volatility
 
-class ContractsDataset:
+class ContractDataset:
     """
     A dataset containing options contracts generated with consistent parameters.
 
@@ -38,9 +36,9 @@ class ContractsDataset:
         volatility_scaled: bool = True,
         volatility_scalar: float = 1.0,
         hist_vol: Optional[float] = None,
-    ):
+    ) -> None:
         """
-        Initialize the ContractsDataset with the specified parameters.
+        Initialize the ContractDataset with the specified parameters.
 
         Args:
             root: The security root symbol
@@ -75,7 +73,7 @@ class ContractsDataset:
         self.ctx = Console()
         self.contracts = []
 
-    def generate_contracts(self):
+    def generate_contracts(self) -> "ContractDataset":
         """
         Generate all contracts in the dataset based on configuration parameters.
         """
@@ -89,12 +87,12 @@ class ContractsDataset:
 
         # Generate contracts
         current_date = start_date
-        self.ctx.log(f"Current start date: {current_date}")
+        # self.ctx.log(f"Current start date: {current_date}")
 
         while current_date <= latest_start:
             # Format initial date string
             date_str = current_date.strftime("%Y%m%d")
-            self.ctx.log(f"Finding optimal contract for {date_str}")
+            # self.ctx.log(f"Finding optimal contract for {date_str}")
             attempt_date = current_date
             contract = None
 
@@ -141,11 +139,13 @@ class ContractsDataset:
 
             self.ctx.log(f"Next start date: {current_date}")
 
+        return self
+
     def __len__(self) -> int:
         """Get the number of contracts in the dataset."""
         return len(self.contracts)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> Contract:
         """Get a contract by index."""
         return self.contracts[idx]
 
@@ -178,7 +178,7 @@ class ContractsDataset:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ContractsDataset":
+    def from_dict(cls, data: Dict[str, Any]) -> "ContractDataset":
         """
         Create a new dataset instance from a dictionary.
         Handles both initialization parameters and computed attributes.
@@ -215,11 +215,11 @@ class ContractsDataset:
         with open(filepath, 'wb') as f:
             pickle.dump(data, f)
 
-        self.ctx.log(f"Dataset saved to {filepath}")
+        self.ctx.log(f"Contract dataset saved to \"{filepath}\"")
         return str(filepath)
 
     @classmethod
-    def load(cls, filepath: str) -> "ContractsDataset":
+    def load(cls, filepath: str) -> "ContractDataset":
         """
         Load a dataset from a pickle file.
 
@@ -227,7 +227,7 @@ class ContractsDataset:
             filepath: Path to the pickle file
 
         Returns:
-            ContractsDataset: Reconstructed dataset with all contracts
+            ContractDataset: Reconstructed dataset with all contracts
         """
         with open(filepath, 'rb') as f:
             data = pickle.load(f)
@@ -323,7 +323,7 @@ if __name__=="__main__":
     hist_vol = 0.1
 
 
-    contracts = ContractsDataset(root=root,
+    contracts = ContractDataset(root=root,
     total_start_date=total_start_date,
     total_end_date=total_end_date,
     contract_stride=15,
@@ -344,8 +344,7 @@ if __name__=="__main__":
     contracts.save("contracts.pkl")
 
     # Load the generated contracts into a fresh dataset
-    dataset = ContractsDataset.load("contracts.pkl")
-
+    dataset = ContractDataset.load("contracts.pkl")
 
     # Print out attributes
     print(f"Root: {contracts.root}")
