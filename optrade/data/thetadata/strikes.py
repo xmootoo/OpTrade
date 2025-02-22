@@ -17,7 +17,7 @@ def find_optimal_strike(
     interval_min: int=1,
     moneyness: str="OTM",
     target_band: float=0.05,
-    hist_vol: Optional[float]=None,
+    hist_vol: float=None,
     volatility_scaled: bool=True,
     volatility_scalar: float=1.0,
     clean_up: bool=False,
@@ -97,24 +97,6 @@ def find_optimal_strike(
 
         # Get historical prices and calculate volatility
         if volatility_scaled:
-
-            # # Calculate number of days to use for historical volatility
-            # total_days = (pd.to_datetime(exp, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
-            # num_vol_days = int(volatility_window * total_days)
-            # vol_end_date = (pd.to_datetime(start_date, format='%Y%m%d') + pd.Timedelta(days=num_vol_days)).strftime('%Y%m%d')
-
-            # stock_data = get_stock_data(
-            #     root=root,
-            #     start_date=start_date,
-            #     end_date=vol_end_date,
-            #     interval_min=interval_min,
-            #     clean_up=clean_up,
-            #     offline=offline,
-            # )
-
-            # # Calculate historical volatility
-            # hist_vol = get_historical_volatility(stock_data, volatility_type)
-
             # Scale target band based on volatility
             scaled_vol = volatility_scalar * hist_vol # (SD) * (num_SDs)
             strike_band = np.array([current_price - current_price*scaled_vol, current_price + current_price*scaled_vol])
