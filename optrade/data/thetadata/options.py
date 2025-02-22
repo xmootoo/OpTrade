@@ -7,7 +7,6 @@ from rich.console import Console
 
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_option_data(
