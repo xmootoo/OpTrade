@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Tuple
+from typing import Tuple, Optional
 
 # Custom modules
 from optrade.data.thetadata.expirations import find_optimal_exp
@@ -32,7 +32,7 @@ class Contract(BaseModel):
         tte_tolerance: Tuple[int, int] = (25, 35),
         moneyness: str = "OTM",
         target_band: float = 0.05,
-        hist_vol: float = None,
+        hist_vol: Optional[float] = None,
         volatility_scaled: bool = True,
         volatility_scalar: float = 1.0,
     ) -> "Contract":
