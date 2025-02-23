@@ -1,23 +1,18 @@
 import os
 import pandas as pd
 from typing import Optional
+from pathlib import Path
 
 # Custom modules
+from optrade.data.thetadata.contracts import Contract
 from optrade.data.thetadata.options import get_option_data
 from optrade.data.thetadata.stocks import get_stock_data
-
 from optrade.src.utils.data.clean_up import clean_up_dir
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 def get_data(
-    root: str="AAPL",
-    start_date: str="20241107",
-    end_date: str="20241107",
-    exp: Optional[str]="20250117",
-    strike: int=225,
-    interval_min: int=1,
-    right: str="C",
+    contract: Contract,
     save_dir: str="../historical_data/combined",
     clean_up: bool=False,
     offline: bool=False,
@@ -30,13 +25,13 @@ def get_data(
     remove all rows with 16:00:00 in datetime from quote data, before merging quote and OHLC data.
 
     Args:
-        root (str): The root symbol of the underlying security.
-        start_date (str): The start date of the data in YYYYMMDD format.
-        end_date (str): The end date of the data in YYYYMMDD format.
-        exp (Optional[str]): The expiration date of the option in YYYYMMDD format.
-        strike (int): The strike price of the option in dollars.
-        interval_min (int): The interval in minutes between data points.
-        right (str): The type of option, either 'C' for call or 'P' for put.
+        contract (Contract): A Pydantic model representing an options contract. Attributes:
+            - contract.root (str): The root symbol of the underlying security.
+            - contract.start_date (str): The start date of the data in YYYYMMDD format.
+            - contract.exp (Optional[str]): The expiration date of the option in YYYYMMDD format.
+            - contract.strike (int): The strike price of the option in dollars.
+            - contract.interval_min (int): The interval in minutes between data points.
+            - contract.right (str): The type of option, either 'C' for call or 'P' for put.
         save_dir (str): The directory to save the data.
         clean_up (bool): Whether to clean up the CSV files after merging. If True, the CSV files are
                          saved in a temp folder and then subsequently deleted before returning the df.
@@ -47,19 +42,27 @@ def get_data(
     """
 
     # Directory setup
-    options_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "historical_data", "options")
-    stocks_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "historical_data", "stocks")
+    options_dir = SCRIPT_DIR.parent / "historical_data" / "options"
+    stocks_dir = SCRIPT_DIR.parent / "historical_data" / "stocks"
+    save_dir = Path(save_dir)
 
     if clean_up and not offline:
-        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "combined")
-        save_dir = temp_dir
+        temp_dir = SCRIPT_DIR.parent / "temp" / "combined"
+        save_dir = Path(temp_dir)
 
     # Set up directory structure
-    save_dir = os.path.join(save_dir, root, right, f"{start_date}_{end_date}", f"{strike}strike_{exp}exp")
-    os.makedirs(save_dir, exist_ok=True)
+    save_dir = (
+        save_dir /
+        contract.root /
+        contract.right /
+        f"{contract.start_date}_{contract.exp}" /
+        f"{contract.strike}strike_{contract.exp}exp"
+    )
+
+    save_dir.mkdir(parents=True, exist_ok=True)
 
     # Define file paths
-    combined_file_path = os.path.join(save_dir, 'combined.csv')
+    combined_file_path = save_dir / "combined.csv"
 
     # If offline mode is enabled, read and return the combined data. This assumes data is already saved.
     if offline:
@@ -72,23 +75,23 @@ def get_data(
             )
 
     options_df = get_option_data(
-        root=root,
-        start_date=start_date,
-        end_date=end_date,
-        exp=exp,
-        strike=strike,
-        interval_min=interval_min,
-        right=right,
+        root=contract.root,
+        start_date=contract.start_date,
+        end_date=contract.exp,
+        exp=contract.exp,
+        strike=contract.strike,
+        interval_min=contract.interval_min,
+        right=contract.right,
         save_dir=options_dir,
         clean_up=clean_up,
         offline=offline,
     )
 
     stock_df = get_stock_data(
-        root=root,
-        start_date=start_date,
-        end_date=end_date,
-        interval_min=interval_min,
+        root=contract.root,
+        start_date=contract.start_date,
+        end_date=contract.exp,
+        interval_min=contract.interval_min,
         save_dir=stocks_dir,
         clean_up=clean_up,
         offline=offline,
@@ -138,5 +141,17 @@ def get_data(
     return df
 
 if __name__ == "__main__":
-    combined_df = get_data(clean_up=False, offline=False)
+    from optrade.data.thetadata.contracts import Contract
+
+    contract = Contract(
+        root="AAPL",
+        start_date="20241107",
+        end_date="20241107",
+        exp="20250117",
+        strike=225,
+        interval_min=1,
+        right="C"
+    )
+
+    combined_df = get_data(contract=contract, clean_up=False, offline=False)
     print(combined_df.head())
