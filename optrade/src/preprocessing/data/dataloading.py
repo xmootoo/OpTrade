@@ -212,31 +212,54 @@ if __name__ == "__main__":
     root="AMZN"
     total_start_date="20220101"
     total_end_date="20220301"
+    right="C"
+    interval_min=1
+    contract_stride=15
+    target_tte=10
+    moneyness="ATM"
+    volatility_scaled=True
+    volatility_scalar=1.0
+    volatility_type="period"
+    target_band=0.05
 
     contracts = get_contract_datasets(root=root,
     start_date=total_start_date,
     end_date=total_end_date,
     train_split=0.7,
     val_split=0.1,
-    contract_stride=15,
-    interval_min=1,
-    right="P",
-    target_tte=3,
+    contract_stride=contract_stride,
+    interval_min=interval_min,
+    right=right,
+    target_tte=target_tte,
     tte_tolerance=(5, 15),
-    moneyness="ATM",
-    target_band=0.05,
-    volatility_scaled=True,
-    volatility_scalar=1.0,
-    volatility_type="period",
+    moneyness=moneyness,
+    target_band=target_band,
+    volatility_scaled=volatility_scaled,
+    volatility_scalar=volatility_scalar,
+    volatility_type=volatility_type,
     clean_up=False,
     offline=False,
     )
 
     # TODO: Test loading each dataset
 
-    # file_path = (
-    #     SCRIPT_DIR.parent[2] \
-    #     / "data" \
-    # )
+    save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
+    contract_dir = (
+        save_dir /
+        root /
+        f"{total_start_date}_{total_end_date}" /
+        right /
+        f"contract_stride_{contract_stride}" /
+        f"interval_{interval_min}" /
+        f"target_tte_{target_tte}" /
+        f"moneyness_{moneyness}"
+    )
 
-    # train_contracts = ContractDataset.load()
+    # Add volatility info to path if volatility_scaled is True
+    if volatility_scaled:
+        contract_dir = contract_dir / f"voltype_{volatility_type}_volscalar_{volatility_scalar}"
+    else:
+        contract_dir = contract_dir / f"target_band_{str(target_band).replace('.', 'p')}"
+
+    train_contracts = ContractDataset.load(contract_dir / "train_contracts.pkl")
+    print(train_contracts.contracts)
