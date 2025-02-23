@@ -36,6 +36,7 @@ def get_contract_datasets(
     clean_up: bool = True,
     offline: bool = False,
     save_dir: Optional[Path] = None,
+    verbose: bool=False,
 ) -> Tuple[ContractDataset, ContractDataset, ContractDataset]:
     """
     Returns the training, validation, and test datasets contract datasets. These contain mutually exclusive contracts
@@ -113,7 +114,7 @@ def get_contract_datasets(
     # Create the training, validation, and test contract datasets
     from rich.console import Console
     ctx = Console()
-    ctx.log("------------CREATING TRAINING CONTRACTS------------")
+    ctx.log("------------CREATING TRAINING CONTRACTS------------") if verbose else None
     train_contracts = ContractDataset(
         root=root,
         total_start_date=train_dates[0],
@@ -128,9 +129,10 @@ def get_contract_datasets(
         hist_vol=hist_vol,
         volatility_scaled=volatility_scaled,
         volatility_scalar=volatility_scalar,
+        verbose=verbose,
     ).generate_contracts()
 
-    ctx.log("------------CREATING VALIDATION CONTRACTS------------")
+    ctx.log("------------CREATING VALIDATION CONTRACTS------------") if verbose else None
     val_contracts = ContractDataset(
         root=root,
         total_start_date=val_dates[0],
@@ -145,9 +147,10 @@ def get_contract_datasets(
         hist_vol=hist_vol,
         volatility_scaled=volatility_scaled,
         volatility_scalar=volatility_scalar,
+        verbose=verbose,
     ).generate_contracts()
 
-    ctx.log("------------CREATING TEST CONTRACTS------------")
+    ctx.log("------------CREATING TEST CONTRACTS------------") if verbose else None
     test_contracts = ContractDataset(
         root=root,
         total_start_date=test_dates[0],
@@ -162,6 +165,7 @@ def get_contract_datasets(
         hist_vol=hist_vol,
         volatility_scaled=volatility_scaled,
         volatility_scalar=volatility_scalar,
+        verbose=verbose,
     ).generate_contracts()
 
     if not clean_up:
@@ -182,7 +186,8 @@ def get_hist_vol(
     end_date: str,
     interval_min: int,
     volatility_window: float,
-    volatility_type: str):
+    volatility_type: str) -> pd.DataFrame:
+
     # Calculate number of days to use for historical volatility
     total_days = (pd.to_datetime(end_date, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
     num_vol_days = int(volatility_window * total_days)
@@ -227,11 +232,11 @@ if __name__ == "__main__":
     offline=False,
     )
 
-    # Test loading each dataset
+    # TODO: Test loading each dataset
 
-    file_path = (
-        SCRIPT_DIR.parent[2] \
-        / "data" \
-    )
+    # file_path = (
+    #     SCRIPT_DIR.parent[2] \
+    #     / "data" \
+    # )
 
-    train_contracts = ContractDataset.load()
+    # train_contracts = ContractDataset.load()
