@@ -36,6 +36,7 @@ class ContractDataset:
         volatility_scaled: bool = True,
         volatility_scalar: float = 1.0,
         hist_vol: Optional[float] = None,
+        verbose: bool = False,
     ) -> None:
         """
         Initialize the ContractDataset with the specified parameters.
@@ -69,6 +70,7 @@ class ContractDataset:
         self.volatility_scaled = volatility_scaled
         self.volatility_scalar = volatility_scalar
         self.hist_vol = hist_vol
+        self.verbose = verbose
 
         self.ctx = Console()
         self.contracts = []
@@ -87,12 +89,10 @@ class ContractDataset:
 
         # Generate contracts
         current_date = start_date
-        # self.ctx.log(f"Current start date: {current_date}")
 
         while current_date <= latest_start:
             # Format initial date string
             date_str = current_date.strftime("%Y%m%d")
-            # self.ctx.log(f"Finding optimal contract for {date_str}")
             attempt_date = current_date
             contract = None
 
@@ -115,15 +115,15 @@ class ContractDataset:
                     )
 
                     if attempt_date > current_date:
-                        self.ctx.log(f"Found valid contract at shifted date: {attempt_date_str}")
+                        self.ctx.log(f"Found valid contract at shifted date: {attempt_date_str}") if self.verbose else None
 
                 except Exception as e:
-                    self.ctx.log(f"Failed to find contract for {attempt_date_str}: {str(e)}")
+                    self.ctx.log(f"Failed to find contract for {attempt_date_str}: {str(e)}") if self.verbose else None
                     attempt_date += timedelta(days=1)
 
                     # Check if we've run out of valid dates
                     if attempt_date > latest_start:
-                        self.ctx.log(f"Unable to find valid contract starting from {date_str}")
+                        self.ctx.log(f"Unable to find valid contract starting from {date_str}") if self.verbose else None
                         break
 
                     continue
@@ -131,13 +131,13 @@ class ContractDataset:
             # If we found a valid contract, add it and advance by stride
             if contract is not None:
                 self.contracts.append(contract)
-                self.ctx.log(f"Added contract: {contract}")
+                self.ctx.log(f"Added contract: {contract}") if self.verbose else None
                 current_date = attempt_date + timedelta(days=self.contract_stride)
             else:
                 # If no contract was found, advance by one day to try the next period
                 current_date += timedelta(days=1)
 
-            self.ctx.log(f"Next start date: {current_date}")
+            self.ctx.log(f"Next start date: {current_date}") if self.verbose else None
 
         return self
 
@@ -215,7 +215,7 @@ class ContractDataset:
         with open(filepath, 'wb') as f:
             pickle.dump(data, f)
 
-        self.ctx.log(f"Contract dataset saved to \"{filepath}\"")
+        self.ctx.log(f"Contract dataset saved to \"{filepath}\"") if self.verbose else None
         return str(filepath)
 
     @classmethod
@@ -233,7 +233,7 @@ class ContractDataset:
             data = pickle.load(f)
 
         instance = cls.from_dict(data)
-        instance.ctx.log(f"Dataset loaded from {filepath}")
+        instance.ctx.log(f"Contract dataset loaded from {filepath}") if instance.verbose else None
         return instance
 
 class ForecastingDataset(Dataset):
