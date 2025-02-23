@@ -17,7 +17,7 @@ class Contract(BaseModel):
     root: str = Field(default="AAPL", description="Root symbol of the underlying security")
     start_date: str = Field(default="20241107", description="Start date in YYYYMMDD format")
     exp: str = Field(default="20241206", description="Expiration date in YYYYMMDD format")
-    strike: float = Field(default=225, description="Strike price")
+    strike: int = Field(default=225, description="Strike price")
     interval_min: int = Field(default=1, description="Interval in minutes")
     right: str = Field(default="C", description="Option type (C for call, P for put)")
 
