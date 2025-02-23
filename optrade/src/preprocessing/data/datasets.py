@@ -341,24 +341,24 @@ if __name__=="__main__":
     contracts.generate_contracts()
 
     # Save the contracts
-    contracts.save("contracts.pkl")
+    # contracts.save("contracts.pkl")
 
     # Load the generated contracts into a fresh dataset
-    dataset = ContractDataset.load("contracts.pkl")
+    # dataset = ContractDataset.load("contracts.pkl")
 
-    # Print out attributes
-    print(f"Root: {contracts.root}")
-    print(f"Total start date: {contracts.total_start_date}")
-    print(f"Total end date: {contracts.total_end_date}")
-    print(f"Contract stride: {contracts.contract_stride}")
-    print(f"Interval min: {contracts.interval_min}")
-    print(f"Right: {contracts.right}")
-    print(f"Target TTE: {contracts.target_tte}")
-    print(f"TTE tolerance: {contracts.tte_tolerance}")
-    print(f"Moneyness: {contracts.moneyness}")
-    print(f"Target band: {contracts.target_band}")
-    print(f"Volatility scaled: {contracts.volatility_scaled}")
-    print(f"Volatility scalar: {contracts.volatility_scalar}")
-    print(f"Historical volatility: {contracts.hist_vol}")
-    print(f"Number of contracts: {len(contracts)}")
-    print(f"First contract: {contracts[0]}")
+    # # Print out attributes
+    # print(f"Root: {contracts.root}")
+    # print(f"Total start date: {contracts.total_start_date}")
+    # print(f"Total end date: {contracts.total_end_date}")
+    # print(f"Contract stride: {contracts.contract_stride}")
+    # print(f"Interval min: {contracts.interval_min}")
+    # print(f"Right: {contracts.right}")
+    # print(f"Target TTE: {contracts.target_tte}")
+    # print(f"TTE tolerance: {contracts.tte_tolerance}")
+    # print(f"Moneyness: {contracts.moneyness}")
+    # print(f"Target band: {contracts.target_band}")
+    # print(f"Volatility scaled: {contracts.volatility_scaled}")
+    # print(f"Volatility scalar: {contracts.volatility_scalar}")
+    # print(f"Historical volatility: {contracts.hist_vol}")
+    # print(f"Number of contracts: {len(contracts)}")
+    # print(f"First contract: {contracts[0]}")
