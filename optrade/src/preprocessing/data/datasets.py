@@ -3,11 +3,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset
 from typing import List, Tuple, Iterator, Dict, Any, Optional
 from datetime import datetime, timedelta
-from pydantic import BaseModel, Field
 from rich.console import Console
 
 from optrade.data.thetadata.contracts import Contract
@@ -251,9 +249,9 @@ class ForecastingDataset(Dataset):
     def __init__(self, data, seq_len, pred_len, target_channels=[0], dtype="float32"):
         dtype = eval("torch." + dtype)
         if not torch.is_tensor(data):
-            self.inputs = torch.from_numpy(data).type(dtype)
+            self.data = torch.from_numpy(data).type(dtype)
         else:
-            self.inputs = data.type(dtype)
+            self.data = data.type(dtype)
         self.seq_len = seq_len
         self.pred_len = pred_len
 
@@ -272,6 +270,58 @@ class ForecastingDataset(Dataset):
             target = self.data[idx+self.seq_len:idx+self.seq_len+self.pred_len]
 
         return input, target
+
+class CombinedForecastingDataset(Dataset):
+    """
+    A dataset that combines multiple ForecastingDatasets into a single dataset.
+
+    Args:
+        datasets (List[ForecastingDataset]): List of ForecastingDataset instances to combine
+    """
+    def __init__(self, datasets: List[ForecastingDataset]):
+        self.datasets = datasets
+
+        # Verify all datasets have the same parameters
+        self._validate_datasets()
+
+        # Calculate cumulative lengths for indexing
+        self.cumulative_lengths = self._calculate_cumulative_lengths()
+
+        # Store common parameters from first dataset
+        self.seq_len = datasets[0].seq_len
+        self.pred_len = datasets[0].pred_len
+        self.target_channels = datasets[0].target_channels
+
+    def _validate_datasets(self):
+        """Ensure all datasets have consistent parameters"""
+        first = self.datasets[0]
+        for ds in self.datasets[1:]:
+            assert ds.seq_len == first.seq_len, "All datasets must have the same seq_len"
+            assert ds.pred_len == first.pred_len, "All datasets must have the same pred_len"
+            assert ds.target_channels == first.target_channels, "All datasets must have the same target_channels"
+
+    def _calculate_cumulative_lengths(self):
+        """Calculate cumulative lengths for efficient indexing"""
+        lengths = [len(ds) for ds in self.datasets]
+        cumsum = np.cumsum([0] + lengths)
+        return cumsum
+
+    def __len__(self):
+        """Total length is sum of all individual dataset lengths"""
+        return self.cumulative_lengths[-1]
+
+    def __getitem__(self, idx):
+        """Get item from appropriate dataset based on index"""
+        # Find which dataset the index belongs to
+        dataset_idx = np.searchsorted(self.cumulative_lengths[1:], idx, side='right')
+
+        # Calculate the local index within that dataset
+        local_idx = idx - self.cumulative_lengths[dataset_idx]
+
+        # Return the item from the appropriate dataset
+        return self.datasets[dataset_idx][local_idx]
+
+
 
 
 class IntradayForecastingDataset(Dataset):
