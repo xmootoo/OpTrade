@@ -1,15 +1,21 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, ConcatDataset
 import pandas as pd
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from pathlib import Path
 
-# Stock data
+# Data
 from optrade.data.thetadata.stocks import get_stock_data
+from optrade.data.thetadata.get_data import get_data
+from optrade.data.thetadata.contracts import Contract
 
 # Datasets
 from optrade.src.preprocessing.data.datasets import ContractDataset, ForecastingDataset, IntradayForecastingDataset
+
+# Features
+from optrade.src.preprocessing.features.get_features import get_features
 
 # Historical Volatility
 from optrade.src.preprocessing.data.volatility import get_historical_volatility
@@ -207,6 +213,121 @@ def get_hist_vol(
     # Calculate historical volatility
     return get_historical_volatility(stock_data, volatility_type)
 
+
+def get_loaders(
+    root: str = "AAPL",
+    start_date: str = "20231107",
+    end_date: str = "20241114",
+    contract_stride: int = 5,
+    interval_min: int = 1,
+    right: str = "C",
+    target_tte: int = 30,
+    tte_tolerance: Tuple[int, int] = (25, 35),
+    moneyness: str = "OTM",
+    target_band: float = 0.05,
+    volatility_type: str = "period",
+    volatility_scaled: bool = True,
+    volatility_scalar: float = 1.0,
+    train_split: float = 0.7,
+    val_split: float = 0.1,
+    core_feats: list=["option_returns"],
+    tte_feats: list=["sqrt"],
+    datetime_feats: list=["sin_timeofday"],
+    clean_up: bool = True,
+    offline: bool = False,
+    save_dir: Optional[Path] = None,
+    verbose: bool=False,
+) -> None:
+
+    train_contracts, val_contracts, test_contracts = get_contract_datasets(
+        root=root,
+        start_date=start_date,
+        end_date=end_date,
+        contract_stride=contract_stride,
+        interval_min=interval_min,
+        right=right,
+        target_tte=target_tte,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        target_band=target_band,
+        volatility_type=volatility_type,
+        volatility_scaled=volatility_scaled,
+        volatility_scalar=volatility_scalar,
+        train_split=train_split,
+        val_split=val_split,
+        clean_up=clean_up,
+        offline=offline,
+        save_dir=save_dir,
+        verbose=verbose,
+    )
+
+    # Get the list of numpy arrays for each contract dataset
+    train_dataset = get_combined_dataset(
+        contracts=train_contracts,
+        core_feats=core_feats,
+        tte_feats=tte_feats,
+        datetime_feats=datetime_feats,
+        clean_up=clean_up,
+        offline=offline
+    )
+    val_dataset = get_combined_dataset(
+        contracts=val_contracts,
+        core_feats=core_feats,
+        tte_feats=tte_feats,
+        datetime_feats=datetime_feats,
+        clean_up=clean_up,
+        offline=offline
+    )
+    test_dataset = get_combined_dataset(
+        contracts=test_contracts,
+        core_feats=core_feats,
+        tte_feats=tte_feats,
+        datetime_feats=datetime_feats,
+        clean_up=clean_up,
+        offline=offline
+    )
+
+
+
+def get_combined_dataset(
+    contracts: ContractDataset,
+    core_feats: list,
+    tte_feats: list,
+    datetime_feats: list,
+    clean_up: bool = True,
+    offline: bool = False,
+    intraday: bool = False,
+    target_channels: list=[0],
+    seq_len: int=100,
+    pred_len: int=10,
+    dtype: str="float64",
+) -> Dataset:
+
+    dataset_list = []
+    for contract in contracts.contracts:
+
+        # Get the data for each contract
+        df = get_data(
+            contract=contract,
+            clean_up=clean_up,
+            offline=offline,
+        )
+
+        # Select and add features
+        data = get_features(
+            df=df,
+            core_feats=core_feats,
+            tte_feats=tte_feats,
+            datetime_feats=datetime_feats,
+        ).to_numpy()
+
+        # Convert to PyTorch dataset
+        dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
+        dataset_list.append(dataset)
+
+    # Using torch.utils.data.ConcatDataset, combine all datasets into one,
+    # while maintaining temporal separation between contracts
+    return ConcatDataset(dataset_list)
 
 if __name__ == "__main__":
     root="AMZN"
