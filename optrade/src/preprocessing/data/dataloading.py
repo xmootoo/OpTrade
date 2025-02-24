@@ -58,7 +58,7 @@ def get_contract_datasets(
 
     # Set directories for saving or loading
     if save_dir is None:
-        save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
+        save_dir = SCRIPT_DIR.parents[3] / "data" / "historical_data" / "contracts"
 
     # Create a structured path based on key parameters
     contract_dir = (
@@ -221,6 +221,7 @@ def get_combined_dataset(
     core_feats: list,
     tte_feats: list,
     datetime_feats: list,
+    tte_tolerance: Tuple[int, int],
     clean_up: bool = True,
     offline: bool = False,
     intraday: bool = False,
@@ -245,6 +246,7 @@ def get_combined_dataset(
                     clean_up=clean_up,
                     offline=offline,
                 )
+
                 # Select and add features
                 data = get_features(
                     df=df,
@@ -252,6 +254,7 @@ def get_combined_dataset(
                     tte_feats=tte_feats,
                     datetime_feats=datetime_feats,
                 ).to_numpy()
+
                 # Convert to PyTorch dataset
                 dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
                 dataset_list.append(dataset)
@@ -262,9 +265,15 @@ def get_combined_dataset(
             except DataValidationError as e:
                 if e.error_code == OPTION_DATE_MISMATCH:
                     new_start_date = e.data_str
-                    ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
-                    # Update the contract's start date and retry
-                    contract.start_date = new_start_date
+
+                    # Check if (exp - new_start_date) is within tte_tolerance. If not, move to the next contract
+                    if pd.to_datetime(contract.exp, format='%Y%m%d') - pd.to_datetime(new_start_date, format='%Y%m%d') < pd.Timedelta(days=tte_tolerance[0]):
+                        ctx.log(f"Option contract start date mismatch. New start date {new_start_date} is too close to expiration {contract.exp}. Moving to next contract.")
+                        move_to_next_contract = True
+                    # If tte_tolerance is satisfied, update the contract with the new start date and try again
+                    else:
+                        ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
+                        contract.start_date = new_start_date
                 else:
                     # For other DataValidationError types, move to the next contract
                     ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
@@ -365,6 +374,7 @@ def get_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        tte_tolerance=tte_tolerance,
         clean_up=clean_up,
         offline=offline
     )
@@ -373,6 +383,7 @@ def get_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        tte_tolerance=tte_tolerance,
         clean_up=clean_up,
         offline=offline
     )
@@ -381,6 +392,7 @@ def get_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        tte_tolerance=tte_tolerance,
         clean_up=clean_up,
         offline=offline
     )
@@ -492,44 +504,3 @@ if __name__ == "__main__":
     print(f"Num train examples: {len(train_loader.dataset)}")
     print(f"Num val examples: {len(val_loader.dataset)}")
     print(f"Num test examples: {len(test_loader.dataset)}")
-
-
-    # Testing: get_contract_datasets
-    # contracts = get_contract_datasets(root=root,
-    # start_date=total_start_date,
-    # end_date=total_end_date,
-    # train_split=0.7,
-    # val_split=0.1,
-    # contract_stride=contract_stride,
-    # interval_min=interval_min,
-    # right=right,
-    # target_tte=target_tte,
-    # tte_tolerance=(5, 15),
-    # moneyness=moneyness,
-    # target_band=target_band,
-    # volatility_scaled=volatility_scaled,
-    # volatility_scalar=volatility_scalar,
-    # volatility_type=volatility_type,
-    # clean_up=False,
-    # offline=False,
-    # )
-    # save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
-    # contract_dir = (
-    #     save_dir /
-    #     root /
-    #     f"{total_start_date}_{total_end_date}" /
-    #     right /
-    #     f"contract_stride_{contract_stride}" /
-    #     f"interval_{interval_min}" /
-    #     f"target_tte_{target_tte}" /
-    #     f"moneyness_{moneyness}"
-    # )
-
-    # # Add volatility info to path if volatility_scaled is True
-    # if volatility_scaled:
-    #     contract_dir = contract_dir / f"voltype_{volatility_type}_volscalar_{volatility_scalar}"
-    # else:
-    #     contract_dir = contract_dir / f"target_band_{str(target_band).replace('.', 'p')}"
-
-    # train_contracts = ContractDataset.load(contract_dir / "train_contracts.pkl")
-    # print(train_contracts.contracts)
