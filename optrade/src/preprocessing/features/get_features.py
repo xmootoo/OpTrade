@@ -83,17 +83,18 @@ def get_features(
 
 if __name__ == "__main__":
     from optrade.data.thetadata.get_data import get_data
+    from optrade.data.thetadata.contracts import Contract
     from rich.console import Console
     console = Console()
 
     df = get_data(
-        root="AAPL",
-        start_date="20241107",
-        end_date="20241114",
-        exp="20250117",
-        strike=225,
-        interval_min=1,
-        right="C",
+        # root="AAPL",
+        # start_date="20241107",
+        # end_date="20241114",
+        # exp="20250117",
+        # strike=225,
+        # interval_min=1,
+        # right="C",
         # save_dir="../historical_data/merged",
         clean_up=True,
         offline=False
