@@ -8,7 +8,6 @@ from optrade.src.utils.data.clean_up import clean_up_dir
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_URL = "http://127.0.0.1:25510/v2"
 
-# TODO: Add assertions and checks that if clean_up then use /temp folder NOT historical data
 def get_roots(
     sec: str="option",
     save_dir: str='../historical_data/roots',

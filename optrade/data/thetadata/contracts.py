@@ -45,6 +45,8 @@ class Contract(BaseModel):
             clean_up=True,
         )
 
+        print(f"Historical volatility: {hist_vol}")
+
         strike = find_optimal_strike(
             root=root,
             start_date=start_date,

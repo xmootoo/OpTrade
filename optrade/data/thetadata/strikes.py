@@ -17,7 +17,7 @@ def find_optimal_strike(
     interval_min: int=1,
     moneyness: str="OTM",
     target_band: float=0.05,
-    hist_vol: float=None,
+    hist_vol: Optional[float]=None,
     volatility_scaled: bool=True,
     volatility_scalar: float=1.0,
     clean_up: bool=False,
@@ -93,6 +93,8 @@ def find_optimal_strike(
 
     # Calculate the target strike band
     if moneyness in ["ITM", "OTM"]:
+
+        print(f"Volatility scalar: {volatility_scalar}. Historical volatility: {hist_vol}")
 
         # Get historical prices and calculate volatility
         if volatility_scaled:
