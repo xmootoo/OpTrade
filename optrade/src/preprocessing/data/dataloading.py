@@ -21,6 +21,9 @@ from optrade.src.preprocessing.features.get_features import get_features
 # Historical Volatility
 from optrade.src.preprocessing.data.volatility import get_historical_volatility
 
+# Utils
+from optrade.src.utils.data.error import DataValidationError, OPTION_DATE_MISMATCH
+
 # Get absolute path for this script
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -229,30 +232,75 @@ def get_combined_dataset(
 
     ctx = Console()
     dataset_list = []
+
     for contract in contracts.contracts:
+        # Flag to track if we should try the next contract
+        move_to_next_contract = False
 
-        # Get the data for each contract
-        try:
-            df = get_data(
-                contract=contract,
-                clean_up=clean_up,
-                offline=offline,
-            )
+        # Continue trying the current contract until we succeed or decide to move on
+        while not move_to_next_contract:
+            try:
+                df = get_data(
+                    contract=contract,
+                    clean_up=clean_up,
+                    offline=offline,
+                )
+                # Select and add features
+                data = get_features(
+                    df=df,
+                    core_feats=core_feats,
+                    tte_feats=tte_feats,
+                    datetime_feats=datetime_feats,
+                ).to_numpy()
+                # Convert to PyTorch dataset
+                dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
+                dataset_list.append(dataset)
 
-            # Select and add features
-            data = get_features(
-                df=df,
-                core_feats=core_feats,
-                tte_feats=tte_feats,
-                datetime_feats=datetime_feats,
-            ).to_numpy()
+                # If we get here successfully, move to the next contract
+                move_to_next_contract = True
 
-            # Convert to PyTorch dataset
-            dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
-            dataset_list.append(dataset)
-        except:
-            ctx.log(f"Data request failed for {contract}, attempting next contract.")
-            pass
+            except DataValidationError as e:
+                if e.error_code == OPTION_DATE_MISMATCH:
+                    new_start_date = e.data_str
+                    ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
+                    # Update the contract's start date and retry
+                    contract.start_date = new_start_date
+                else:
+                    # For other DataValidationError types, move to the next contract
+                    ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
+                    move_to_next_contract = True
+            except Exception as e:
+                ctx.log(f"Unknown error for {contract}: {e}. Moving to next contract.")
+                move_to_next_contract = True
+
+    # for contract in contracts.contracts:
+
+    #     # Get the data for each contract
+    #     try:
+    #         df = get_data(
+    #             contract=contract,
+    #             clean_up=clean_up,
+    #             offline=offline,
+    #         )
+
+    #         # Select and add features
+    #         data = get_features(
+    #             df=df,
+    #             core_feats=core_feats,
+    #             tte_feats=tte_feats,
+    #             datetime_feats=datetime_feats,
+    #         ).to_numpy()
+
+    #         # Convert to PyTorch dataset
+    #         dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
+    #         dataset_list.append(dataset)
+    #     except DataValidationError as e:
+    #         if e.error_code == OPTION_DATE_MISMATCH:
+    #             new_start_date = e.data_str
+    #             ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
+    #     except Exception as e:
+    #         ctx.log(f"Data request failed for {contract}, attempting next contract.")
+    #         pass
 
     # Using torch.utils.data.ConcatDataset, combine all datasets into one,
     # while maintaining temporal separation between contracts
