@@ -20,6 +20,7 @@ def get_option_data(
     save_dir: str="../historical_data/options",
     clean_up: bool=False,
     offline: bool=False,
+    count_ohlc_zeros: bool=False,
 ) -> pd.DataFrame:
 
     """
@@ -233,20 +234,20 @@ def get_option_data(
     if not remaining_zeros.empty:
         ctx.log("Still have zeros at:", remaining_zeros.index)
 
+    if count_ohlc_zeros:
+        # Check proportion of zeros for open and close (do not backfill/interpolate these)
+        zero_mask_open = merged_df['open'] == 0
+        ctx.log(f"Proportion of zeros in the open: {zero_mask_open.sum() / len(merged_df):.2f}")
 
-    # Check proportion of zeros for open and close (do not backfill/interpolate these)
-    zero_mask_open = merged_df['open'] == 0
-    ctx.log(f"Proportion of zeros in the open: {zero_mask_open.sum() / len(merged_df):.2f}")
+        zero_mask_close = merged_df['close'] == 0
+        ctx.log(f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df):.2f}")
 
-    zero_mask_close = merged_df['close'] == 0
-    ctx.log(f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df):.2f}")
+        # ctx.log proportion of zeros to total dates
+        zero_mask_high = merged_df['high'] == 0
+        ctx.log(f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df):.2f}")
 
-    # ctx.log proportion of zeros to total dates
-    zero_mask_high = merged_df['high'] == 0
-    ctx.log(f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df):.2f}")
-
-    zero_mask_low = merged_df['low'] == 0
-    ctx.log(f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df):.2f}")
+        zero_mask_low = merged_df['low'] == 0
+        ctx.log(f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df):.2f}")
 
     # Clean up the entire temp_dir
     if clean_up:
