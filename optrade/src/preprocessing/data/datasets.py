@@ -322,8 +322,6 @@ class CombinedForecastingDataset(Dataset):
         return self.datasets[dataset_idx][local_idx]
 
 
-
-
 class IntradayForecastingDataset(Dataset):
     """
     A standard forecasting dataset class for PyTorch.
