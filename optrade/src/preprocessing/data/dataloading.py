@@ -1,10 +1,11 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, ConcatDataset
+from torch.utils.data import DataLoader, Dataset, ConcatDataset
 import pandas as pd
 from typing import Tuple, Optional, List
 from pathlib import Path
+from rich.console import Console
 
 # Data
 from optrade.data.thetadata.stocks import get_stock_data
@@ -12,7 +13,7 @@ from optrade.data.thetadata.get_data import get_data
 from optrade.data.thetadata.contracts import Contract
 
 # Datasets
-from optrade.src.preprocessing.data.datasets import ContractDataset, ForecastingDataset, IntradayForecastingDataset
+from optrade.src.preprocessing.data.datasets import ContractDataset, ForecastingDataset
 
 # Features
 from optrade.src.preprocessing.features.get_features import get_features
@@ -88,7 +89,6 @@ def get_contract_datasets(
         val_contracts = ContractDataset.load(contract_dir / "val_contracts.pkl")
         test_contracts = ContractDataset.load(contract_dir / "test_contracts.pkl")
         return train_contracts, val_contracts, test_contracts
-
 
     # Volatility-based selection of strikes (Optional)
     if volatility_scaled:
@@ -213,6 +213,50 @@ def get_hist_vol(
     # Calculate historical volatility
     return get_historical_volatility(stock_data, volatility_type)
 
+def get_combined_dataset(
+    contracts: ContractDataset,
+    core_feats: list,
+    tte_feats: list,
+    datetime_feats: list,
+    clean_up: bool = True,
+    offline: bool = False,
+    intraday: bool = False,
+    target_channels: list=[0],
+    seq_len: int=100,
+    pred_len: int=10,
+    dtype: str="float64",
+) -> Dataset:
+
+    ctx = Console()
+    dataset_list = []
+    for contract in contracts.contracts:
+
+        # Get the data for each contract
+        try:
+            df = get_data(
+                contract=contract,
+                clean_up=clean_up,
+                offline=offline,
+            )
+
+            # Select and add features
+            data = get_features(
+                df=df,
+                core_feats=core_feats,
+                tte_feats=tte_feats,
+                datetime_feats=datetime_feats,
+            ).to_numpy()
+
+            # Convert to PyTorch dataset
+            dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
+            dataset_list.append(dataset)
+        except:
+            ctx.log(f"Data request failed for {contract}, attempting next contract.")
+            pass
+
+    # Using torch.utils.data.ConcatDataset, combine all datasets into one,
+    # while maintaining temporal separation between contracts
+    return ConcatDataset(dataset_list)
 
 def get_loaders(
     root: str = "AAPL",
@@ -230,14 +274,20 @@ def get_loaders(
     volatility_scalar: float = 1.0,
     train_split: float = 0.7,
     val_split: float = 0.1,
-    core_feats: list=["option_returns"],
-    tte_feats: list=["sqrt"],
-    datetime_feats: list=["sin_timeofday"],
+    core_feats: List[str] = ["option_returns"],
+    tte_feats: List[str] = ["sqrt"],
+    datetime_feats: List[str] = ["sin_timeofday"],
+    batch_size: int = 32,
+    shuffle: bool = True,
+    drop_last: bool = False,
+    num_workers: int = 4,
+    prefetch_factor: int = 2,
+    pin_memory: bool = torch.cuda.is_available(),
     clean_up: bool = True,
     offline: bool = False,
     save_dir: Optional[Path] = None,
     verbose: bool=False,
-) -> None:
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
     train_contracts, val_contracts, test_contracts = get_contract_datasets(
         root=root,
@@ -261,7 +311,7 @@ def get_loaders(
         verbose=verbose,
     )
 
-    # Get the list of numpy arrays for each contract dataset
+    # Get the combined datasets of contract data for training, validation, and testing
     train_dataset = get_combined_dataset(
         contracts=train_contracts,
         core_feats=core_feats,
@@ -287,100 +337,151 @@ def get_loaders(
         offline=offline
     )
 
+    # Create dataloaders for training, validation, and testing
+    train_loader = DataLoader(
+        dataset=train_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        drop_last=drop_last,
+        num_workers=num_workers,
+        persistent_workers=True,
+        prefetch_factor=prefetch_factor,
+        pin_memory=pin_memory
+    )
 
+    val_loader = DataLoader(
+        dataset=val_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        drop_last=drop_last,
+        num_workers=num_workers,
+        persistent_workers=True,
+        prefetch_factor=prefetch_factor,
+        pin_memory=pin_memory
+    )
 
-def get_combined_dataset(
-    contracts: ContractDataset,
-    core_feats: list,
-    tte_feats: list,
-    datetime_feats: list,
-    clean_up: bool = True,
-    offline: bool = False,
-    intraday: bool = False,
-    target_channels: list=[0],
-    seq_len: int=100,
-    pred_len: int=10,
-    dtype: str="float64",
-) -> Dataset:
+    test_loader = DataLoader(
+        dataset=test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        drop_last=drop_last,
+        num_workers=num_workers,
+        persistent_workers=True,
+        prefetch_factor=prefetch_factor,
+        pin_memory=pin_memory
+    )
 
-    dataset_list = []
-    for contract in contracts.contracts:
+    return train_loader, val_loader, test_loader
 
-        # Get the data for each contract
-        df = get_data(
-            contract=contract,
-            clean_up=clean_up,
-            offline=offline,
-        )
-
-        # Select and add features
-        data = get_features(
-            df=df,
-            core_feats=core_feats,
-            tte_feats=tte_feats,
-            datetime_feats=datetime_feats,
-        ).to_numpy()
-
-        # Convert to PyTorch dataset
-        dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
-        dataset_list.append(dataset)
-
-    # Using torch.utils.data.ConcatDataset, combine all datasets into one,
-    # while maintaining temporal separation between contracts
-    return ConcatDataset(dataset_list)
 
 if __name__ == "__main__":
     root="AMZN"
-    total_start_date="20220101"
-    total_end_date="20220301"
+    total_start_date="20230101"
+    total_end_date="20230901"
     right="C"
     interval_min=1
-    contract_stride=15
-    target_tte=10
+    contract_stride=5
+    target_tte=30
+    tte_tolerance=(15, 45)
     moneyness="ATM"
     volatility_scaled=True
-    volatility_scalar=1.0
+    volatility_scalar=0.01
     volatility_type="period"
     target_band=0.05
 
-    contracts = get_contract_datasets(root=root,
-    start_date=total_start_date,
-    end_date=total_end_date,
-    train_split=0.7,
-    val_split=0.1,
-    contract_stride=contract_stride,
-    interval_min=interval_min,
-    right=right,
-    target_tte=target_tte,
-    tte_tolerance=(5, 15),
-    moneyness=moneyness,
-    target_band=target_band,
-    volatility_scaled=volatility_scaled,
-    volatility_scalar=volatility_scalar,
-    volatility_type=volatility_type,
-    clean_up=False,
-    offline=False,
+    # TTE features
+    tte_feats = ["sqrt", "exp_decay"]
+
+    # Datetime features
+    datetime_feats = ["sin_timeofday", "cos_timeofday", "dayofweek"]
+
+    # Select features
+    core_feats = [
+        "option_returns",
+        "option_mid_price",
+        "option_bid_size",
+        "option_bid",
+        "option_ask_size",
+        "option_close",
+        "option_volume",
+        "option_count",
+        "stock_mid_price",
+        "stock_bid_size",
+        "stock_bid",
+        "stock_ask_size",
+        "stock_ask",
+        "stock_volume",
+        "stock_count",
+    ]
+
+    # Testing: get_loaders
+    train_loader, val_loader, test_loader = get_loaders(
+        root=root,
+        start_date=total_start_date,
+        end_date=total_end_date,
+        contract_stride=contract_stride,
+        interval_min=interval_min,
+        right=right,
+        target_tte=target_tte,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        target_band=target_band,
+        volatility_type=volatility_type,
+        volatility_scaled=volatility_scaled,
+        volatility_scalar=volatility_scalar,
+        train_split=0.4,
+        val_split=0.3,
+        core_feats=core_feats,
+        tte_feats=tte_feats,
+        datetime_feats=datetime_feats,
+        batch_size=32,
+        clean_up=False,
+        offline=False,
+        save_dir=None,
+        verbose=True,
     )
 
-    # TODO: Test loading each dataset
+    print(f"Num train examples: {len(train_loader.dataset)}")
+    print(f"Num val examples: {len(val_loader.dataset)}")
+    print(f"Num test examples: {len(test_loader.dataset)}")
 
-    save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
-    contract_dir = (
-        save_dir /
-        root /
-        f"{total_start_date}_{total_end_date}" /
-        right /
-        f"contract_stride_{contract_stride}" /
-        f"interval_{interval_min}" /
-        f"target_tte_{target_tte}" /
-        f"moneyness_{moneyness}"
-    )
 
-    # Add volatility info to path if volatility_scaled is True
-    if volatility_scaled:
-        contract_dir = contract_dir / f"voltype_{volatility_type}_volscalar_{volatility_scalar}"
-    else:
-        contract_dir = contract_dir / f"target_band_{str(target_band).replace('.', 'p')}"
+    # Testing: get_contract_datasets
+    # contracts = get_contract_datasets(root=root,
+    # start_date=total_start_date,
+    # end_date=total_end_date,
+    # train_split=0.7,
+    # val_split=0.1,
+    # contract_stride=contract_stride,
+    # interval_min=interval_min,
+    # right=right,
+    # target_tte=target_tte,
+    # tte_tolerance=(5, 15),
+    # moneyness=moneyness,
+    # target_band=target_band,
+    # volatility_scaled=volatility_scaled,
+    # volatility_scalar=volatility_scalar,
+    # volatility_type=volatility_type,
+    # clean_up=False,
+    # offline=False,
+    # )
+    # save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
+    # contract_dir = (
+    #     save_dir /
+    #     root /
+    #     f"{total_start_date}_{total_end_date}" /
+    #     right /
+    #     f"contract_stride_{contract_stride}" /
+    #     f"interval_{interval_min}" /
+    #     f"target_tte_{target_tte}" /
+    #     f"moneyness_{moneyness}"
+    # )
 
-    train_contracts = ContractDataset.load(contract_dir / "train_contracts.pkl")
-    print(train_contracts.contracts)
+    # # Add volatility info to path if volatility_scaled is True
+    # if volatility_scaled:
+    #     contract_dir = contract_dir / f"voltype_{volatility_type}_volscalar_{volatility_scalar}"
+    # else:
+    #     contract_dir = contract_dir / f"target_band_{str(target_band).replace('.', 'p')}"
+
+    # train_contracts = ContractDataset.load(contract_dir / "train_contracts.pkl")
+    # print(train_contracts.contracts)
