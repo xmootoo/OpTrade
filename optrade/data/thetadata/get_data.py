@@ -8,6 +8,7 @@ from optrade.data.thetadata.contracts import Contract
 from optrade.data.thetadata.options import get_option_data
 from optrade.data.thetadata.stocks import get_stock_data
 from optrade.src.utils.data.clean_up import clean_up_dir
+from optrade.src.utils.data.error import DataValidationError, OPTION_DATE_MISMATCH, MISSING_DATES
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -74,7 +75,7 @@ def get_data(
                 "Please run with offline=False and clean_up=False first to download the required data."
             )
 
-    options_df = get_option_data(
+    option_df = get_option_data(
         root=contract.root,
         start_date=contract.start_date,
         end_date=contract.exp,
@@ -118,18 +119,35 @@ def get_data(
     ]
 
     option_columns = {col: "option_" + col for col in base_columns if col != "datetime"}
-    options_df = options_df.rename(columns=option_columns)
+    option_df = option_df.rename(columns=option_columns)
 
     # Same for stocks
     stock_columns = {col: "stock_" + col for col in base_columns if col != "datetime"}
     stock_df = stock_df.rename(columns=stock_columns)
 
-    # Assert that datetime columns are equal
-    assert (options_df["datetime"] == stock_df["datetime"]).all(), "Datetime columns between option and stock data are not equal"
+    # Check lengths of option_df and stock_df match exactly
+    if len(option_df) != len(stock_df):
+
+        # If lengths don't match, verify that option_df is a subset of stock_df
+        # starting at a later date but with identical dates once options begin
+        option_start_date = option_df["datetime"].iloc[0]
+        stock_filtered = stock_df[stock_df["datetime"] >= option_start_date].reset_index(drop=True)
+
+        if (option_df["datetime"]==stock_filtered["datetime"]).all():
+            option_start_date = option_start_date.strftime("%Y%m%d")
+            raise DataValidationError(
+                f"Date mismatch between option and stock data. Option data starts on {option_start_date}, but stock data starts earlier.",
+                OPTION_DATE_MISMATCH, option_start_date)
+        else:
+            missing_dates = option_df.loc[~option_df["datetime"].isin(stock_df["datetime"]), "datetime"].unique()
+            raise DataValidationError(
+                f"Date mismatch between option and stock data. The discrepancy is not simply that stock data starts earlier. \
+                There are dates in options data that don't exist in stock data: {missing_dates}",
+                MISSING_DATES
+            )
 
     # Merge the two dataframes and save
-    df = pd.merge(options_df, stock_df, on="datetime")
-
+    df = pd.merge(option_df, stock_df, on="datetime")
 
     # Clean up temp files
     if clean_up:
@@ -143,15 +161,32 @@ def get_data(
 if __name__ == "__main__":
     from optrade.data.thetadata.contracts import Contract
 
+    # contract = Contract().find_optimal(
+    #     root="AAPL",
+    #     start_date="20241107",
+    #     interval_min=1,
+    #     right="C",
+    #     target_tte=30,
+    #     tte_tolerance=(25, 35),
+    #     moneyness="OTM",
+    #     target_band=0.05,
+    #     hist_vol=0.1,
+    #     volatility_scaled=True,
+    #     volatility_scalar=1.0
+    # )
+
     contract = Contract(
-        root="AAPL",
-        start_date="20241107",
-        end_date="20241107",
-        exp="20250117",
-        strike=225,
+        root="AMZN",
+        start_date="20230118",
+        exp="20230217",
+        strike=97,
         interval_min=1,
-        right="C"
-    )
+        right="C")
+
+    from rich.console import Console
+    ctx = Console()
+
+    ctx.log(contract)
 
     combined_df = get_data(contract=contract, clean_up=False, offline=False)
     print(combined_df.head())
