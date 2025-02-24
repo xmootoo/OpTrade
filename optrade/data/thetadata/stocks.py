@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from typing import Optional, Tuple
 from pathlib import Path
+from rich.console import Console
 
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
@@ -42,6 +43,8 @@ def get_stock_data(
     BASE_URL = "http://127.0.0.1:25510/v2"  # all endpoints use this URL base
 
     intervals = str(interval_min * 60000) # Convert minutes to milliseconds
+
+    ctx = Console()
 
     params = {
         'root': root,
@@ -123,7 +126,7 @@ def get_stock_data(
         if 'Next-Page' in quote_response.headers and quote_response.headers['Next-Page'] != "null":
             quote_url = quote_response.headers['Next-Page']
             params = None
-            print(f"Paginating to {quote_url}")
+            ctx.log(f"Paginating to {quote_url}")
         else:
             quote_url = None
 
@@ -171,7 +174,7 @@ def get_stock_data(
         if 'Next-Page' in ohlc_response.headers and ohlc_response.headers['Next-Page'] != "null":
             ohlc_url = ohlc_response.headers['Next-Page']
             params = None
-            print(f"Paginating to {ohlc_url}")
+            ctx.log(f"Paginating to {ohlc_url}")
         else:
             ohlc_url = None
 
@@ -198,6 +201,7 @@ def get_stock_data(
     else:
         # Save merged data
         merged_df.to_csv(merged_file_path, index=False)
+
 
     return merged_df
 
