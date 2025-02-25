@@ -3,11 +3,13 @@ OpTrade is a framework designed for high-frequency forecasting of alpha term str
 Currently, the project is focused on completing objective $(\textbf{I})$, with objective $(\textbf{II})$ planned for implementation upon successful completion of the microstructure analysis framework.
 
 ## Table of Contents
-1. [Market Data](#market-data)
+1. [DATA.md](DATA.md)
 2. [Installation](#installation)
 3. [Contact](#contact)
 
-## Market Data
+For more details on the project, see the [DATA.md](DATA.md) file.
+
+<!-- ## Market Data
 We utilize the [ThetaData API](https://http-docs.thetadata.us/) to obtain high-frequency options data consolidated by the Options Price Reporting Authority (OPRA).
 The data includes quotes and OHLC metrics at 1-minute intervals during regular trading hours (9:30 AM - 4:00 PM EST). Note that this requires an
 active subscription to both the option and stock VALUE packages, although not free, are (relatively) cheap with respect to other financial market data providers.
@@ -42,8 +44,6 @@ Trade-based statistics filtered according to Securities Information Processor (S
 - `volume`: Contract volume from eligible trades
 - `count`: Total number of eligible trades
 
-
-
 Note: For shorter intervals (e.g., `interval_min`=1), a significant portion of OHLCVC data may contain zeroes, i.e. no eligible trades ocurred within the time period. Increasing `interval_min` will reduce this issue, but will not eliminate it (even for more liquid options). For more details on the OHLCVC data format, see [`hist/options/ohlc`](https://http-docs.thetadata.us/operations/get-hist-option-ohlc.html).
 To acquire both quote data and OHLCVC data for options, see `optrade/data/thetadata/options.py`.
 
@@ -57,7 +57,7 @@ For the underlying securities, we collect analogous data through UTP and CTA fee
 
 The underlying data includes both NBBO quotes and OHLCVC metrics in the same format as the options data. To acquire data for the underlying,
 see `optrade/data/thetadata/stocks.py`. For more details on the data format, see [`hist/stocks/quote`](https://http-docs.thetadata.us/operations/get-v2-hist-stock-quote.html)
-and [`hist/stocks/ohlc`](https://http-docs.thetadata.us/operations/get-v2-hist-stock-ohlc.html).
+and [`hist/stocks/ohlc`](https://http-docs.thetadata.us/operations/get-v2-hist-stock-ohlc.html). -->
 
 
 ## Installation
