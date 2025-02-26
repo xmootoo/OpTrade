@@ -50,10 +50,10 @@ class ContractDataset:
             tte_tolerance: Acceptable range for TTE as (min_days, max_days)
             moneyness: Contract moneyness (OTM/ATM/ITM)
             target_band: Target percentage band for strike selection
-            volatility_type: Type of volatility measure to use
             volatility_scaled: Whether to scale by volatility
             volatility_scalar: Scaling factor for volatility
-            volatility_window: Window size for volatility calculation
+            hist_vol: Historical volatility for dynamic strike selection
+            verbose: Whether to print verbose output
         """
         self.root = root
         self.total_start_date = total_start_date
