@@ -244,6 +244,12 @@ class ForecastingDataset(Dataset):
         target_channels (list): Channels to forecast. By default target_channels=[0], which corresponds to the
                                 option midprice returns. If None, all channels will be returned for the target.
         dtype (str): Desired data type of the tensor.
+
+    __getitem__:
+        Returns:
+            input (torch.Tensor): Lookback window of shape (seq_len, num_feats)
+            target (torch.Tensor): Target window of shape (pred_len, len(target_channels))
+
     """
 
     def __init__(self, data, seq_len, pred_len, target_channels=[0], dtype="float32"):
