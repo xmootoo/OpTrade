@@ -99,7 +99,7 @@ def get_model(args, generator=torch.Generator()):
             patch_stride=args.data.patch_stride,
             patch_embed_dim=args.emf.patch_embed_dim,
             independent_patching=args.emf.independent_patching,
-            pos_enc=args.sl.pos_enc
+            pos_enc=args.train.pos_enc
         )
     elif args.exp.model_id == "ModernTCN":
         model = ModernTCN(
@@ -159,10 +159,11 @@ def get_model(args, generator=torch.Generator()):
     return model
 
 def get_optim(args, model, optimizer_type="adamw", flag="sl"):
-    if args.exp.sklearn:
-        return None
+    # if args.exp.sklearn:
+    #     return None
 
     optimizer_classes = {"adam": optim.Adam, "adamw": optim.AdamW}
+
     if optimizer_type not in optimizer_classes:
         raise ValueError("Please select a valid optimizer.")
     optimizer_class = optimizer_classes[optimizer_type]
@@ -194,22 +195,22 @@ def exclude_weight_decay(model, args, flag="sl"):
     return param_groups
 
 def get_scheduler(args, scheduler_type, training_mode, optimizer, num_batches=0):
-    if args.exp.sklearn:
-        return None
+    # if args.exp.sklearn:
+    #     return None
 
-    elif scheduler_type == "cosine":
+    if scheduler_type == "cosine":
         scheduler = CosineAnnealingLR(optimizer,
-                                    T_max=args.sl.epochs,
-                                    eta_min=args.sl.lr*1e-2,
+                                    T_max=args.train.epochs,
+                                    eta_min=args.train.lr*1e-2,
                                     last_epoch=args.scheduler.last_epoch)
     elif scheduler_type == "patchtst" and training_mode=="supervised":
-            scheduler = PatchTSTSchedule(optimizer, args, num_batches)
+        scheduler = PatchTSTSchedule(optimizer, args, num_batches)
     elif scheduler_type == "onecycle" and training_mode=="supervised":
         scheduler = OneCycleLR(optimizer=optimizer,
                                steps_per_epoch=num_batches,
                                pct_start=args.scheduler.pct_start,
-                               epochs = args.sl.epochs,
-                               max_lr = args.sl.lr)
+                               epochs = args.train.epochs,
+                               max_lr = args.train.lr)
     elif scheduler_type is None:
         return None
     else:
@@ -231,18 +232,14 @@ def get_criterion(args, criterion_type):
         raise ValueError("Please select a valid criterion_type.")
 
 def forward_pass(args, model, batch, model_id, device):
-
-    if model_id in {"SSS", "PatchTSTBlind", "PatchTSTOG", "TSMixer", "MLPMixerCI", "RecurrentModel", "Linear", "DLinear", "ModernTCN",
-                    "TimesNet", "RF_EMF_CNN", "RF_EMF_MLP", "RF_EMF_LSTM", "RF_EMF_Transformer", "EMForecaster", "CyclicalEMForecaster"}:
-
+    if model_id in {"PatchTST", "TSMixer", "RecurrentModel", "Linear", "DLinear", "ModernTCN", "TimesNet", "EMForecaster"}:
         x = batch[0]
         x = x.to(device)
 
-            if args.data.difference_input:
-                x = x.diff(dim=1)
-
-                # Pad the last dimension with the last value of the sequence
-                x = torch.cat([x, x[:, -1].unsqueeze(1)], dim=1)
+        if args.data.difference_input:
+            x = x.diff(dim=1)
+            # Pad the last dimension with the last value of the sequence
+            x = torch.cat([x, x[:, -1].unsqueeze(1)], dim=1)
 
         output = model(x)
     else:
@@ -251,9 +248,7 @@ def forward_pass(args, model, batch, model_id, device):
     return output
 
 def compute_loss(output, batch, criterion, model_id, args, device):
-    if model_id in {"SSS", "PatchTSTBlind", "PatchTSTOG", "TSMixer", "MLPMixerCI", "RecurrentModel", "Linear", "DLinear", "ModernTCN",
-                    "TimesNet", "RF_EMF_CNN", "RF_EMF_MLP", "RF_EMF_LSTM", "RF_EMF_Transformer", "EMForecaster", "CyclicalEMForecaster"}:
-
+    if model_id in {"PatchTST", "TSMixer", "RecurrentModel", "Linear", "DLinear", "ModernTCN", "TimesNet", "EMForecaster"}:
         target = batch[1].to(device)
         loss = criterion(output, target)
     else:
@@ -261,13 +256,12 @@ def compute_loss(output, batch, criterion, model_id, args, device):
 
     return loss
 
-def model_update(model, loss, optimizer, model_id, alpha=0.6):
-    if model_id in {"SSS", "PatchTSTBlind", "PatchTSTOG", "TSMixer", "MLPMixerCI", "RecurrentModel", "Linear", "DLinear", "ModernTCN",
-                    "TimesNet", "RF_EMF_CNN", "RF_EMF_MLP", "RF_EMF_LSTM", "RF_EMF_Transformer", "EMForecaster", "CyclicalEMForecaster"}:
+def model_update(model, loss, optimizer, model_id):
+    if model_id in {"PatchTST", "TSMixer", "RecurrentModel", "Linear", "DLinear", "ModernTCN", "TimesNet", "EMForecaster"}:
         loss.backward()
         optimizer.step()
     else:
-        raise ValueError("Please select a valid model_id.")
+        raise ValueError(f"{model_id} is not a valid model_id.")
 
 def check_gradients(model, threshold_low=1e-5, threshold_high=1e2):
     vanishing = []
