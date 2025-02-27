@@ -4,10 +4,8 @@ import shutil
 import neptune
 from pydantic import BaseModel
 from rich.console import Console
-import time
 from datetime import datetime
 from typing import Any, Dict
-import yaml
 from optrade.src.config.config import Global
 
 def offline_to_neptune():
@@ -104,7 +102,7 @@ def upload_model_weights(directory, logs, neptune_logger, console):
     try:
         model_weights = next(f for f in os.listdir(directory) if f.endswith('.pth'))
         model_id = logs["parameters/exp/model_id"]
-        neptune_logger[f"model_checkpoints/{model_id}_sl"].upload(os.path.join(directory, model_weights))
+        neptune_logger[f"model_checkpoints/{model_id}"].upload(os.path.join(directory, model_weights))
     except StopIteration:
         console.log(f"[blue]No .pth file found in {directory}. Skipping model weight upload...[/blue]")
     except Exception as e:
@@ -191,7 +189,6 @@ def format_time_dynamic(seconds):
         return f"{hours}hr {minutes}min {seconds}s"
     days, hours = divmod(hours, 24)
     return f"{days}d {hours}hr {minutes}min {seconds}s"
-
 
 
 # Converting PyDantic -> YAML for Neptune upload
