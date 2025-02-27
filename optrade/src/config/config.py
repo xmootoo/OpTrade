@@ -20,7 +20,6 @@ def generate_random_id(length=10):
 
 class Experiment(BaseModel):
     model_id: str = Field(default="PatchTSTBlind", description="Model ID. Options: 'PatchTSTOG', 'PatchTSTBlind', 'JEPA', 'DualJEPA'")
-    backbone_id: str = Field(default="LSTM", description="Backbone for the RecurrentModel class. Options: 'LSTM', 'RNN', 'GRU', 'Mamba'.")
     seed_list: List[int] = Field(default=[2024], description="List of random seeds to run a single experiment on.")
     seed: int = Field(default=2024, description="Random seed")
     learning_type: str = Field(default="sl", description="Type of learning: 'sl', 'ssl'")
@@ -104,9 +103,6 @@ class Train(BaseModel):
     d_ff: int = Field(default=256, description="Dimension of the feedforward network model")
     num_heads: int = Field(default=16, description="Number of heads in each MultiheadAttention block")
     dropout: float = Field(default=0.05, description="Dropout for some of the linears layers in PatchTSTOG")
-    attn_dropout: float = Field(default=0.2, description="Dropout value for attention")
-    ff_dropout: float = Field(default=0.2, description="Dropout value for feed forward")
-    pred_dropout: float = Field(default=0.1, description="Dropout value for prediction") # CyclicalPatchedForecaster (usable)
     batch_first: bool = Field(default=True, description="Whether the first dimension is batch")
     norm_mode: str = Field(default="batch1d", description="Normalization mode: 'batch1d', 'batch2d', or 'layer'")
     batch_size: int = Field(default=64, description="Batch size")
@@ -147,6 +143,7 @@ class PatchTST(BaseModel):
     num_heads: int = Field(default=4, description="Number of heads for the PatchTST model.")
     attn_dropout: float = Field(default=0.3, description="Dropout rate for attention mechanism in the PatchTST model.")
     ff_dropout: float = Field(default=0.3, description="Dropout rate for feedforward mechanism in the PatchTST model.")
+    pred_dropout: float = Field(default=0.0, description="Dropout rate for prediction mechanism in the PatchTST model.")
     norm_mode: str = Field(default="batch1d", description="Normalization mode for the PatchTST model.")
 
 class DLinear(BaseModel):
@@ -159,7 +156,6 @@ class DLinear(BaseModel):
 class TSMixer(BaseModel):
     num_enc_layers: int = Field(default=2, description="Number of encoder layers for the TSMixer model.")
     dropout: float = Field(default=0.3, description="Dropout rate for the TSMixer model.")
-    d_model: int = Field(default=16, description="Hidden dimension of the Temporal and Channel MLPs for the TSMixer model.")
 
 class TimesNet(BaseModel):
     num_enc_layers: int = Field(default=2, description="Number of encoder layers for the TimesNet model.")
@@ -186,12 +182,17 @@ class EMForecaster(BaseModel):
     patch_embed_dim: int = Field(default=128, description="Embedding dimension for the PatchedForecaster model")
     independent_patching: bool = Field(default=False, description="Whether to use independent patching for the PatchedForecaster model")
     pos_enc: str = Field(default="learnable", description="Positional encoding for the PatchedForecaster model")
+    backbone_id: str = Field(default="TSMixer", description="Backbone for the EMForecaster class. Options: 'TSMixer', 'DLinear'.")
+    patch_model_id: str = Field(default="Linear", description="Patch model for the EMForecaster class. Options: 'Linear', 'TSMixer', 'DLinear'.")
+
 
 class RecurrentModel(BaseModel):
+    d_model: int = Field(default=16, description="Model dimension for the RecurrentModel.")
     bidirectional: bool = Field(default=False, description="Whether to use bidirectional LSTM (typically for classification).")
     last_state: bool = Field(default=True, description="Whether to use the last state hidden of the LSTM (typically for classification).")
     avg_state: bool = Field(default=False, description="Whether to use the average the hidden states of the LSTM.")
-
+    backbone_id: str = Field(default="LSTM", description="Backbone for the RecurrentModel class. Options: 'LSTM', 'RNN', 'GRU', 'Mamba'.")
+    num_enc_layers: int = Field(default=1, description="Number of encoder layers for the RecurrentModel.")
 
 class Global(BaseModel):
     exp: Experiment = Experiment()
@@ -205,8 +206,8 @@ class Global(BaseModel):
     timesnet: TimesNet = TimesNet()
     moderntcn: ModernTCN = ModernTCN()
     conf: Conformal = Conformal()
-    emforecaster: EMForecaster = EMForecaster()
-    recurrent: RecurrentModel = RecurrentModel()
+    emf: EMForecaster = EMForecaster()
+    rnn: RecurrentModel = RecurrentModel()
 
 def load_config(file_path: str) -> Global:
     print(f"Received file_path in load_config: {file_path}")
