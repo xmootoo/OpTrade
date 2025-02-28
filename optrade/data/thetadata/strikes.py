@@ -1,12 +1,13 @@
-from datetime import datetime
 from typing import Tuple, Optional
 import numpy as np
 import pandas as pd
+import os
 
 # Custom modules
 from optrade.data.thetadata.listings import get_strikes
 from optrade.data.thetadata.stocks import get_stock_data
-from optrade.src.utils.data.volatility import get_historical_volatility
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def find_optimal_strike(
     root: str="AAPL",
@@ -16,10 +17,9 @@ def find_optimal_strike(
     interval_min: int=1,
     moneyness: str="OTM",
     target_band: float=0.05,
-    volatility_type: str="period",
+    hist_vol: Optional[float]=None,
     volatility_scaled: bool=True,
     volatility_scalar: float=1.0,
-    volatility_window: float=0.8,
     clean_up: bool=False,
     offline: bool=False,
     deterministic: Optional[bool] = True, # TODO: Implement deterministic algorithm or random selection
@@ -55,8 +55,6 @@ def find_optimal_strike(
           price movement for modeling
     """
 
-    start_date = start_date.strftime("%Y%m%d")
-    exp = exp.strftime("%Y%m%d")
     # Get current price and available strikes
 
 
@@ -90,7 +88,7 @@ def find_optimal_strike(
         root=root,
         exp=exp,
         clean_up=clean_up,
-        offline=offline,
+        offline=offline
     ).values.squeeze()
 
     # Calculate the target strike band
@@ -100,40 +98,11 @@ def find_optimal_strike(
 
         # Get historical prices and calculate volatility
         if volatility_scaled:
-
-            # Calculate number of days to use for historical volatility
-            total_days = (pd.to_datetime(exp, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
-            num_vol_days = int(volatility_window * total_days)
-            vol_end_date = (pd.to_datetime(start_date, format='%Y%m%d') + pd.Timedelta(days=num_vol_days)).strftime('%Y%m%d')
-
-            stock_data = get_stock_data(
-                root=root,
-                start_date=start_date,
-                end_date=vol_end_date,
-                interval_min=interval_min,
-                # save_dir=stocks_dir,
-                clean_up=clean_up,
-                offline=offline,
-            )
-
-            # Calculate historical volatility
-            hist_vol = get_historical_volatility(stock_data, volatility_type)
-
             # Scale target band based on volatility
-            scaled_vol = volatility_scalar * hist_vol  # (SD) * (num_SDs)
-            strike_band = np.array(
-                [
-                    current_price - current_price * scaled_vol,
-                    current_price + current_price * scaled_vol,
-                ]
-            )
+            scaled_vol = volatility_scalar * hist_vol # (SD) * (num_SDs)
+            strike_band = np.array([current_price - current_price*scaled_vol, current_price + current_price*scaled_vol])
         else:
-            strike_band = np.array(
-                [
-                    current_price - target_band * current_price,
-                    current_price + target_band * current_price,
-                ]
-            )
+            strike_band = np.array([current_price - target_band*current_price, current_price + target_band*current_price])
 
     # Calculate target strike based on moneyness. Find closest strike to target band
     if right == "C":
@@ -141,7 +110,7 @@ def find_optimal_strike(
             optimal_strike = strikes[np.argmin(np.abs(strikes - strike_band[0]))]
         elif moneyness == "ITM":
             optimal_strike = strikes[np.argmin(np.abs(strikes - strike_band[1]))]
-        elif moneyness == "ATM":
+        elif moneyness== "ATM":
             optimal_strike = strikes[np.argmin(np.abs(strikes - current_price))]
         else:
             raise ValueError(f"Invalid moneyness: {moneyness}")
@@ -169,13 +138,10 @@ if __name__ == "__main__":
         hist_vol=0.20,
         volatility_scaled=True,
         volatility_scalar=2.0,
-        volatility_window=0.8,
-        clean_up=False,
-        offline=True,)
+        clean_up=True,
+        offline=False,)
 
     from rich.console import Console
 
     console = Console()
-    console.log(
-        f"Optimal strike of {optimal_strike} found successfully!", style="bold green"
-    )
+    console.log(f"Optimal strike of {optimal_strike} found successfully!", style="bold green")

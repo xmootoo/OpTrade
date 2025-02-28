@@ -189,4 +189,4 @@ if __name__ == "__main__":
     ctx.log(contract)
 
     combined_df = get_data(contract=contract, clean_up=False, offline=False)
-    print(combined_df.head()) 
+    print(combined_df.head())
