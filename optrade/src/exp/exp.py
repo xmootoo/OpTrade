@@ -26,8 +26,8 @@ from torch.utils.data import DataLoader
 
 # Custom Modules
 from optrade.src.utils.train.early_stopping import EarlyStopping
-from optrade.src.utils.data.dataloading import get_loaders
-from sss.utils.models import get_criterion, \
+from optrade.src.preprocessing.data.dataloading import get_loaders
+from optrade.src.utils.train.models import get_criterion, \
                              get_model, \
                              get_optim, \
                              get_scheduler, \
@@ -36,7 +36,6 @@ from sss.utils.models import get_criterion, \
                              forward_pass
 
 from sss.utils.logger import log_pydantic, epoch_logger, format_time_dynamic
-
 
 class Experiment:
     def __init__(self, args):
@@ -95,28 +94,59 @@ class Experiment:
             learning_type (str): Options: "sl", "ssl", "downstream". "sl" is supervised learning. "ssl" is self-supervised learning. "downstream" is downstream learning.
         """
 
-        # Deep learning (PyTorch) models
-        if self.args.data.seq_load:
-            self.seq_load(loader_type, learning_type)
-        else:
-            raise ValueError(f"Invalid dataloading option. Please set either data.seq_load or data.rank_seq_load to {True}.")
+        self.train_loader, self.val_loader, self.test_loader = get_loaders(
+            root=self.args.data.root,
+            start_date=self.args.data.start_date,
+            end_date=self.args.data.end_date,
+            contract_stride=self.args.data.contract_stride,
+            interval_min=self.args.data.interval_min,
+            right=self.args.data.right,
+            target_tte=self.args.data.target_tte,
+            tte_tolerance=self.args.data.tte_tolerance,
+            moneyness=self.args.data.moneyness,
+            target_band=self.args.data.target_band,
+            volatility_type=self.args.data.volatility_type,
+            volatility_scaled=self.args.data.volatility_scaled,
+            volatility_scalar=self.args.data.volatility_scalar,
+            train_split=self.args.data.train_split,
+            val_split=self.args.data.val_split,
+            core_feats=self.args.data.core_feats,
+            tte_feats=self.args.data.tte_feats,
+            datetime_feats=self.args.data.datetime_feats,
+            batch_size=self.args.train.batch_size,
+            shuffle=self.args.data.shuffle,
+            drop_last=self.args.data.drop_last,
+            num_workers=self.args.data.num_workers,
+            prefetch_factor=self.args.data.prefetch_factor,
+            pin_memory=self.args.data.pin_memory,
+            clean_up=self.args.data.clean_up,
+            offline=self.args.data.offline,
+            save_dir=self.args.data.save_dir,
+            verbose=self.args.data.verbose,
+        )
 
-    def seq_load(self, loader_type="train", learning_type="sl"):
-        self.console.log(f"Running sequential dataloading on rank ({loader_type}).")
-        self.free_memory()
-        loaders = get_loaders(self.args, learning_type, self.generator, self.args.sl.dataset_class, loader_type)
+        # # Deep learning (PyTorch) models
+        # if self.args.data.seq_load:
+        #     self.seq_load(loader_type, learning_type)
+        # else:
+        #     raise ValueError(f"Invalid dataloading option. Please set either data.seq_load or data.rank_seq_load to {True}.")
 
-        if loader_type=="train":
-            self.train_loader, self.val_loader = loaders[:2]
-            self.print_master(f"{len(self.train_loader.dataset)} train samples. {len(self.val_loader.dataset)} validation samples.")
-        elif loader_type=="test":
-            self.test_loader = loaders[0]
-            self.print_master(f"{len(self.test_loader.dataset)} test samples.")
-        elif loader_type=="all":
-            self.train_loader, self.val_loader, self.test_loader = loaders[:3]
-            if not self.args.exp.sklearn: self.print_master(f"{len(self.train_loader.dataset)} train samples. {len(self.val_loader.dataset)} validation samples. {len(self.test_loader.dataset)} test samples.")
-        else:
-            raise ValueError("Invalid loader type.")
+    # def seq_load(self, loader_type="train", learning_type="sl"):
+    #     self.console.log(f"Running sequential dataloading on rank ({loader_type}).")
+    #     self.free_memory()
+    #     loaders = get_loaders(self.args, learning_type, self.generator, self.args.sl.dataset_class, loader_type)
+
+    #     if loader_type=="train":
+    #         self.train_loader, self.val_loader = loaders[:2]
+    #         self.print_master(f"{len(self.train_loader.dataset)} train samples. {len(self.val_loader.dataset)} validation samples.")
+    #     elif loader_type=="test":
+    #         self.test_loader = loaders[0]
+    #         self.print_master(f"{len(self.test_loader.dataset)} test samples.")
+    #     elif loader_type=="all":
+    #         self.train_loader, self.val_loader, self.test_loader = loaders[:3]
+    #         if not self.args.exp.sklearn: self.print_master(f"{len(self.train_loader.dataset)} train samples. {len(self.val_loader.dataset)} validation samples. {len(self.test_loader.dataset)} test samples.")
+    #     else:
+    #         raise ValueError("Invalid loader type.")
 
     def free_memory(self):
         for k in ["train", "val", "test"]:

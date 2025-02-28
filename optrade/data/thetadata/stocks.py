@@ -4,11 +4,9 @@ import pandas as pd
 import os
 from typing import Optional, Tuple
 from pathlib import Path
-from datetime import datetime
 
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
-
 
 def get_stock_data(
     start_date: datetime ,
@@ -42,10 +40,7 @@ def get_stock_data(
 
     BASE_URL = "http://127.0.0.1:25510/v2"  # all endpoints use this URL base
 
-    intervals = str(interval_min * 60000)  # Convert minutes to milliseconds
-
-    start_date = start_date.strftime("%Y%m%d")
-    end_date = end_date.strftime("%Y%m%d")
+    intervals = str(interval_min * 60000) # Convert minutes to milliseconds
 
     params = {
         "root": root,
@@ -58,8 +53,7 @@ def get_stock_data(
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "stocks")
+        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "stocks")
         save_dir = temp_dir
 
     # Set up directory structure
@@ -67,9 +61,9 @@ def get_stock_data(
     os.makedirs(save_dir, exist_ok=True)
 
     # Define file paths
-    quote_file_path = os.path.join(save_dir, "quote.csv")
-    ohlc_file_path = os.path.join(save_dir, "ohlc.csv")
-    merged_file_path = os.path.join(save_dir, "merged.csv")
+    quote_file_path = os.path.join(save_dir, 'quote.csv')
+    ohlc_file_path = os.path.join(save_dir, 'ohlc.csv')
+    merged_file_path = os.path.join(save_dir, 'merged.csv')
 
     print(f"Merge file path: {merged_file_path}")
 
@@ -145,7 +139,7 @@ def get_stock_data(
         ):
             quote_url = quote_response.headers["Next-Page"]
             params = None
-            print(f"Paginating to {quote_url}")
+            ctx.log(f"Paginating to {quote_url}")
         else:
             quote_url = None
 
@@ -202,7 +196,7 @@ def get_stock_data(
         ):
             ohlc_url = ohlc_response.headers["Next-Page"]
             params = None
-            print(f"Paginating to {ohlc_url}")
+            ctx.log(f"Paginating to {ohlc_url}")
         else:
             ohlc_url = None
 
@@ -226,10 +220,10 @@ def get_stock_data(
     # Clean up the entire temp_dir
     if clean_up:
         clean_up_dir(temp_dir)
-        print(f"Deleted temp directory: {temp_dir}")
     else:
         # Save merged data
         merged_df.to_csv(merged_file_path, index=False)
+
 
     return merged_df
 

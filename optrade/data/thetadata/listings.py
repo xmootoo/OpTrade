@@ -5,8 +5,9 @@ import os
 
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_URL = "http://127.0.0.1:25510/v2"
 
-# TODO: Add assertions and checks that if clean_up then use /temp folder NOT historical data
 def get_roots(
     sec: str="option",
     save_dir: str='../historical_data/roots',
@@ -20,7 +21,6 @@ def get_roots(
         sec (str): The security type. Options: 'option', 'stock', 'index'.
     """
 
-    BASE_URL = "http://127.0.0.1:25510/v2"
     url = BASE_URL + f'/list/roots/{sec}'
     params = {
       'use_csv': 'true',
@@ -28,8 +28,7 @@ def get_roots(
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "roots")
+        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "roots")
         save_dir = temp_dir
 
     save_dir = os.path.join(save_dir, sec)
@@ -93,14 +92,12 @@ def get_expirations(
         root (str): The root symbol to get expirations for (default: 'AAPL')
         save_dir (str): Directory to save the CSV file (default: current directory)
     """
-    BASE_URL = "http://127.0.0.1:25510/v2"
     url = BASE_URL + '/list/expirations'
     params = {'root': root}
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "expirations")
+        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "expirations")
         save_dir = temp_dir
 
     save_dir = os.path.join(save_dir, root)
@@ -170,21 +167,17 @@ def get_strikes(
         exp (str): The expiration date to get strikes for (default: '20250117')
         save_dir (str): Directory to save the CSV file (default: current directory)
     """
-    BASE_URL = "http://127.0.0.1:25510/v2"
     url = BASE_URL + '/list/strikes'
     params = {'root': root, 'exp': exp}
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "strikes")
+        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "strikes")
         save_dir = temp_dir
 
     save_dir = os.path.join(save_dir, root, exp)
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, 'strikes.csv')
-
-    print(f"File path: {file_path}")
 
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:

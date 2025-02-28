@@ -1,10 +1,9 @@
 from pydantic import BaseModel, Field
-from typing import Tuple
+from typing import Tuple, Optional
 
 # Custom modules
 from optrade.data.thetadata.expirations import find_optimal_exp
 from optrade.data.thetadata.strikes import find_optimal_strike
-
 
 class Contract(BaseModel):
     """
@@ -18,7 +17,7 @@ class Contract(BaseModel):
     root: str = Field(default="AAPL", description="Root symbol of the underlying security")
     start_date: str = Field(default="20241107", description="Start date in YYYYMMDD format")
     exp: str = Field(default="20241206", description="Expiration date in YYYYMMDD format")
-    strike: float = Field(default=225, description="Strike price")
+    strike: int = Field(default=225, description="Strike price")
     interval_min: int = Field(default=1, description="Interval in minutes")
     right: str = Field(default="C", description="Option type (C for call, P for put)")
 
@@ -33,10 +32,9 @@ class Contract(BaseModel):
         tte_tolerance: Tuple[int, int] = (25, 35),
         moneyness: str = "OTM",
         target_band: float = 0.05,
-        volatility_type: str = "period",
+        hist_vol: Optional[float] = None,
         volatility_scaled: bool = True,
         volatility_scalar: float = 1.0,
-        volatility_window: float = 0.8,
     ) -> "Contract":
         """Find the optimal contract for a given security, start date, and approximate TTE."""
         exp, _ = find_optimal_exp(
@@ -44,7 +42,10 @@ class Contract(BaseModel):
             start_date=start_date,
             target_tte=target_tte,
             tte_tolerance=tte_tolerance,
+            clean_up=True,
         )
+
+        print(f"Historical volatility: {hist_vol}")
 
         strike = find_optimal_strike(
             root=root,
@@ -54,10 +55,10 @@ class Contract(BaseModel):
             interval_min=interval_min,
             moneyness=moneyness,
             target_band=target_band,
-            volatility_type=volatility_type,
+            hist_vol=hist_vol,
             volatility_scaled=volatility_scaled,
             volatility_scalar=volatility_scalar,
-            volatility_window=volatility_window,
+            clean_up=True,
         )
 
         return cls(
@@ -83,9 +84,8 @@ if __name__ == "__main__":
         tte_tolerance=(25, 35),
         moneyness="OTM",
         target_band=0.05,
-        volatility_type="period",
         volatility_scaled=True,
         volatility_scalar=1.0,
-        volatility_window=0.8,
+        hist_vol=1.0
     )
     console.log(contract)

@@ -20,7 +20,6 @@ def generate_random_id(length=10):
 
 class Experiment(BaseModel):
     model_id: str = Field(default="PatchTSTBlind", description="Model ID. Options: 'PatchTSTOG', 'PatchTSTBlind', 'JEPA', 'DualJEPA'")
-    backbone_id: str = Field(default="LSTM", description="Backbone for the RecurrentModel class. Options: 'LSTM', 'RNN', 'GRU', 'Mamba'.")
     seed_list: List[int] = Field(default=[2024], description="List of random seeds to run a single experiment on.")
     seed: int = Field(default=2024, description="Random seed")
     learning_type: str = Field(default="sl", description="Type of learning: 'sl', 'ssl'")
@@ -43,7 +42,6 @@ class Experiment(BaseModel):
     ablation_id: int = Field(default=1, description="Ablation ID for the base experiment")
 
 class Data(BaseModel):
-    dataset: str = Field(default="electricity", description="Name of the dataset. Options: 'electricity', 'traffic', 'weather', 'exchange_rate', 'illness', 'ETTh1', 'ETTh2', 'ETTm1', 'ETTm2', 'open_neuro', 'LongTerm17'.")
     dtype: str = Field(default="float32", description="Type of data. Options: 'float32', 'float64'")
     seq_len: int = Field(default=512, description="Sequence length of the input.")
     window_stride: int = Field(default=1, description="Window stride for generating windows.")
@@ -59,29 +57,36 @@ class Data(BaseModel):
     pin_memory: bool = Field(default=True, description="Whether to pin memory for the dataloader")
     prefetch_factor: int = Field(default=2, description="Prefetch factor for the dataloader")
     shuffle_test: bool = Field(default=False, description="Whether to shuffle the test set")
+    shuffle: bool = Field(default=True, description="Whether to shuffle all datasets")
     patching: bool = Field(default=False, description="Whether to use patching for the dataset (LSTM only)")
     patch_dim: int = Field(default=16, description="Patch dimension or patch length.")
     patch_stride: int = Field(default=8, description="Patch stride for generating patches.}")
     univariate: bool = Field(default=False, description="Whether to process a multivariate time series as univariate data (mixed together but separated by channel)")
     seq_load: bool = Field(default=False, description="Whether to use sequential dataloading. Loads train datasets first, and then test set at test time.")
-    rank_seq_load: bool = Field(default=False, description="Whether to use sequential dataloading for each rank for large datasets, only for DDP.")
-    pad_to_max: bool = Field(default=False, description="Whether to pad sequences to the maximum length in the dataset.")
-    dataset_only: bool = Field(default=False, description="Whether to only load the dataset without training the model (for sickit-learn).")
-    tslearn: bool = Field(default=False, description="Whether to use tslearn time series data for processing multiple time series.")
     numpy_data: bool = Field(default=False, description="Whether to use numpy data in dataloading (will not be converted to torch tensors).")
-    rocket_transform: bool = Field(default=False, description="Whether to use the ROCKET transform for time series data.")
-    full_channels: bool = Field(default=False, description="Whether to use the full channels for the OpenNeuro dataset or not.")
-    resizing_mode: str = Field(default="None", description="Mode for resizing the time series data. Options: 'pad_trunc' or 'resizing' for linear interpolation.")
-    median_seq_len: bool = Field(default=False, description="Whether to use the median sequence length from the training set as the context/window size.")
-    single_channel: bool = Field(default=False, description="Whether to use a single model for each channel. Use target_channel to specify channel ID.")
-    target_channel: int = Field(default=-1, description="Target channel for univariate modelling.")
-    time_indices: bool = Field(default=False, description="Whether to use relative time indices for sorting windows within the channel.")
-    clip: bool = Field(default=False, description="Whether to clip the time series data for noisy peaks. It will apply linear interpolation between nearest neighbour points.")
-    clip_thresh: float = Field(default=0.8, description="Threshold for clipping the time series data.")
-    datetime: bool = Field(default=False, description="Whether to use datetime data for the time series analysis.")
-    datetime_features: List[str] = Field(default=["year", "month", "day", "hour", "minute", "second"], description="Datetime features to use for the time series analysis. Choose a subset of the default argument.")
-    cyclical_encoding: bool = Field(default=False, description="Whether to use cyclical encoding for datetime features.")
-    difference_input: bool = Field(default=False, description="Whether to use first-order differencing of the input time series for the model.")
+
+    # Option/Underlying Parameters
+    root: str = Field(default="AAPL", description="The root symbol of the underlying security")
+    start_date: str = Field(default="20231107", description="Start date of the dataset of multiple option contracts")
+    end_date: str = Field(default="20241114", description="End date of the dataset of multiple option contracts")
+    interval_min: int = Field(default=1, description="Interval length in minutes for requested data. Mininimum is 1minute resolution.")
+    right: str = Field(default="C", description="Right of the option of contract. 'C' for call and 'P' for put.")
+    moneyness: str = Field(default="ATM", description="Moneyness of the option contract. Options: 'ATM', 'ITM', or 'OTM'.")
+    target_band: float = Field(default=0.05, description="Target band in proportion between 0 and 1 used for fixed strike selection (e.g., target_band=0.05 uses +/- 5% of current underlying price")
+    volatility_scaled: bool = Field(default=True, description="Whether to select strikes based on scaled historical volatility")
+    volatility_scalar: float = Field(default=0.1, description="Scalar to amplify or attenuate the effect of historical volatility on selecting strikes")
+    volatility_type: str = Field(default="period", description="The time range to calculate historical volatility for volatility-based strike selection")
+    target_tte: int = Field(default=30, description="Desired length of the contract in days. The find_optimal() method of the Contract class will attempt to the contract with the closests TTE")
+    tte_tolerance: Tuple[int, int] = Field(default=(15,45), description="Tolerance range for selecting a contract if exact target_tte does not exist")
+    contract_stride: int = Field(default=5, description="Stride length used to select multiple contracts at different dates")
+    target_channels: List[int] = Field(default=[0], description="Target channels used in the target window.")
+    datetime_feats: List[str] = Field(default=["sin_timeofday"], description="Datetime features to use for the time series.")
+    core_feats: List[str] = Field(default=["option_mid_price"], description="Core features of option and underlying data")
+    tte_feats: List[str] = Field(default=["sqrt"], description="Time-to-Expiration (TTE) features for option contracts.")
+    clean_up: bool = Field(default=True, description="Whether to clean up the CSV files after saving data from ThetaData API.")
+    offline: bool = Field(default=False, description="Whether to use offline data instead of calling ThetaData API directly.")
+    save_dir: str = Field(default="../historical_data/", description="Directory to save the data.")
+    verbose: bool = Field(default=True, description="Verbose print for data loading.")
 
 class Conformal(BaseModel):
     conf: bool = Field(default=False, description="Whether to use conformal prediction. This will split .")
@@ -98,9 +103,6 @@ class Train(BaseModel):
     d_ff: int = Field(default=256, description="Dimension of the feedforward network model")
     num_heads: int = Field(default=16, description="Number of heads in each MultiheadAttention block")
     dropout: float = Field(default=0.05, description="Dropout for some of the linears layers in PatchTSTOG")
-    attn_dropout: float = Field(default=0.2, description="Dropout value for attention")
-    ff_dropout: float = Field(default=0.2, description="Dropout value for feed forward")
-    pred_dropout: float = Field(default=0.1, description="Dropout value for prediction") # CyclicalPatchedForecaster (usable)
     batch_first: bool = Field(default=True, description="Whether the first dimension is batch")
     norm_mode: str = Field(default="batch1d", description="Normalization mode: 'batch1d', 'batch2d', or 'layer'")
     batch_size: int = Field(default=64, description="Batch size")
@@ -141,6 +143,7 @@ class PatchTST(BaseModel):
     num_heads: int = Field(default=4, description="Number of heads for the PatchTST model.")
     attn_dropout: float = Field(default=0.3, description="Dropout rate for attention mechanism in the PatchTST model.")
     ff_dropout: float = Field(default=0.3, description="Dropout rate for feedforward mechanism in the PatchTST model.")
+    pred_dropout: float = Field(default=0.0, description="Dropout rate for prediction mechanism in the PatchTST model.")
     norm_mode: str = Field(default="batch1d", description="Normalization mode for the PatchTST model.")
 
 class DLinear(BaseModel):
@@ -153,7 +156,6 @@ class DLinear(BaseModel):
 class TSMixer(BaseModel):
     num_enc_layers: int = Field(default=2, description="Number of encoder layers for the TSMixer model.")
     dropout: float = Field(default=0.3, description="Dropout rate for the TSMixer model.")
-    d_model: int = Field(default=16, description="Hidden dimension of the Temporal and Channel MLPs for the TSMixer model.")
 
 class TimesNet(BaseModel):
     num_enc_layers: int = Field(default=2, description="Number of encoder layers for the TimesNet model.")
@@ -180,12 +182,17 @@ class EMForecaster(BaseModel):
     patch_embed_dim: int = Field(default=128, description="Embedding dimension for the PatchedForecaster model")
     independent_patching: bool = Field(default=False, description="Whether to use independent patching for the PatchedForecaster model")
     pos_enc: str = Field(default="learnable", description="Positional encoding for the PatchedForecaster model")
+    backbone_id: str = Field(default="TSMixer", description="Backbone for the EMForecaster class. Options: 'TSMixer', 'DLinear'.")
+    patch_model_id: str = Field(default="Linear", description="Patch model for the EMForecaster class. Options: 'Linear', 'TSMixer', 'DLinear'.")
+
 
 class RecurrentModel(BaseModel):
+    d_model: int = Field(default=16, description="Model dimension for the RecurrentModel.")
     bidirectional: bool = Field(default=False, description="Whether to use bidirectional LSTM (typically for classification).")
     last_state: bool = Field(default=True, description="Whether to use the last state hidden of the LSTM (typically for classification).")
     avg_state: bool = Field(default=False, description="Whether to use the average the hidden states of the LSTM.")
-
+    backbone_id: str = Field(default="LSTM", description="Backbone for the RecurrentModel class. Options: 'LSTM', 'RNN', 'GRU', 'Mamba'.")
+    num_enc_layers: int = Field(default=1, description="Number of encoder layers for the RecurrentModel.")
 
 class Global(BaseModel):
     exp: Experiment = Experiment()
@@ -199,8 +206,8 @@ class Global(BaseModel):
     timesnet: TimesNet = TimesNet()
     moderntcn: ModernTCN = ModernTCN()
     conf: Conformal = Conformal()
-    emforecaster: EMForecaster = EMForecaster()
-    recurrent: RecurrentModel = RecurrentModel()
+    emf: EMForecaster = EMForecaster()
+    rnn: RecurrentModel = RecurrentModel()
 
 def load_config(file_path: str) -> Global:
     print(f"Received file_path in load_config: {file_path}")

@@ -9,19 +9,17 @@ from datetime import datetime
 # Custom modules
 from optrade.src.utils.data.clean_up import clean_up_dir
 
-
 def get_option_data(
-    start_date: datetime,
-    end_date: datetime,
-    /,
-    root: str = "AAPL",
-    exp: Optional[datetime] = None,
-    strike: int = 225,
-    interval_min: int = 1,
-    right: str = "C",
-    save_dir: str = "../historical_data/options",
-    clean_up: bool = False,
-    offline: bool = False,
+    root: str="AAPL",
+    start_date: str="20241107",
+    end_date: str="20241107",
+    exp: Optional[str]="20250117",
+    strike: int=225,
+    interval_min: int=1,
+    right: str="C",
+    save_dir: str="../historical_data/options",
+    clean_up: bool=False,
+    offline: bool=False,
 ) -> pd.DataFrame:
     """
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for
@@ -69,8 +67,7 @@ def get_option_data(
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        temp_dir = os.path.join(os.path.dirname(script_dir), "temp", "options")
+        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "options")
         save_dir = temp_dir
 
     # Set up directory structure
@@ -266,40 +263,31 @@ def get_option_data(
     # Verify fix
     remaining_zeros = merged_df[merged_df["mid_price"] == 0]
     if not remaining_zeros.empty:
-        ctx.log("Still have zeros at:", remaining_zeros.index)
+        console.log("Still have zeros at:", remaining_zeros.index)
+
 
     # Check proportion of zeros for open and close (do not backfill/interpolate these)
-    zero_mask_open = merged_df["open"] == 0
-    ctx.log(
-        f"Proportion of zeros in the open: {zero_mask_open.sum() / len(merged_df):.2f}"
-    )
+    zero_mask_open = merged_df['open'] == 0
+    console.log(f"Proportion of zeros in the open: {zero_mask_open.sum() / len(merged_df):.2f}")
 
-    zero_mask_close = merged_df["close"] == 0
-    ctx.log(
-        f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df):.2f}"
-    )
+    zero_mask_close = merged_df['close'] == 0
+    console.log(f"Proportion of zeros in the close: {zero_mask_close.sum() / len(merged_df):.2f}")
 
-    # ctx.log proportion of zeros to total dates
-    zero_mask_high = merged_df["high"] == 0
-    ctx.log(
-        f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df):.2f}"
-    )
+    # console.log proportion of zeros to total dates
+    zero_mask_high = merged_df['high'] == 0
+    console.log(f"Proportion of zeros in the high: {zero_mask_high.sum() / len(merged_df):.2f}")
 
-    zero_mask_low = merged_df["low"] == 0
-    ctx.log(
-        f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df):.2f}"
-    )
+    zero_mask_low = merged_df['low'] == 0
+    console.log(f"Proportion of zeros in the low: {zero_mask_low.sum() / len(merged_df):.2f}")
 
     # Clean up the entire temp_dir
     if clean_up:
         clean_up_dir(temp_dir)
-        print(f"Deleted temp directory: {temp_dir}")
     else:
         # Save merged data
         merged_df.to_csv(merged_file_path, index=False)
 
     return merged_df
-
 
 def fill_open_zeros(group):
     if group.iloc[0]["mid_price"] == 0:

@@ -11,6 +11,7 @@ def find_optimal_exp(
     start_date: str="20230407",
     target_tte: int=30,
     tte_tolerance: Tuple[int, int]=(25, 35),
+    clean_up: bool=True,
 ) -> Tuple[Optional[str], Optional[int]]:
     """
     Returns the closest valid TTE to target_tte within tolerance range and its expiration date.
@@ -25,15 +26,12 @@ def find_optimal_exp(
     Returns:
         Tuple of (Expiration date string 'YYYYMMDD', Optimal TTE) if found, (None, None) otherwise
     """
-    script_dir = Path(__file__).parent  # Get the directory containing the current script
-    expirations_dir = script_dir.parent / "historical_data/expirations"
     min_tte, max_tte = tte_tolerance
 
     # Get expirations and convert to list of strings
     expirations = get_expirations(
         root=root,
-        save_dir=expirations_dir,
-        clean_up=True
+        clean_up=clean_up,
     ).values.squeeze()
 
     # Convert start_date to datetime
