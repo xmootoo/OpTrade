@@ -1,12 +1,8 @@
 import os
 import pandas as pd
 from typing import Optional
-<<<<<<< HEAD
-from datetime import datetime
-=======
 from pathlib import Path
 
->>>>>>> 666d177d1c5b6c7e237bcecb3092f7d32b4deb70
 # Custom modules
 from optrade.data.thetadata.contracts import Contract
 from optrade.data.thetadata.options import get_option_data
@@ -17,20 +13,8 @@ from optrade.src.utils.data.error import DataValidationError, OPTION_DATE_MISMAT
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 def get_data(
-<<<<<<< HEAD
-    start_date: datetime,
-    end_date: datetime,
-    /, 
-    exp: Optional[str] = None,
-    root: str="AAPL",
-    strike: int=225,
-    interval_min: int=1,
-    right: str="C",
-    save_dir: str="../historical_data/merged",
-=======
     contract: Contract,
     save_dir: str="../historical_data/combined",
->>>>>>> 666d177d1c5b6c7e237bcecb3092f7d32b4deb70
     clean_up: bool=False,
     offline: bool=False,
 ) -> pd.DataFrame:
@@ -205,4 +189,4 @@ if __name__ == "__main__":
     ctx.log(contract)
 
     combined_df = get_data(contract=contract, clean_up=False, offline=False)
-    print(combined_df.head())
+    print(combined_df.head()) 
