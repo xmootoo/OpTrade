@@ -19,7 +19,8 @@ class DLinear(nn.Module):
         num_classes=2,
         moving_avg=25,
         individual=False,
-        return_head=True):
+        return_head=True,
+        target_channel=None):
 
         """
         Args:
@@ -71,12 +72,16 @@ class DLinear(nn.Module):
             self.Linear_Trend.weight = nn.Parameter(
                 (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
 
-        if self.task == 'classification':
-            self.projection = nn.Linear(
+        if self.task == "classification":
+            self.head = nn.Linear(
                 num_channels * seq_len, num_classes)
+        elif self.task == "forecasting":
+            self.target_channel = target_channel
+            in_dim = num_channels * pred_len if target_channel is None else pred_len
+            out_dim = num_channels * pred_len if target_channel is None else pred_len
+            self.head = nn.Linear(in_dim, out_dim)
 
     def encoder(self, x):
-        x = x.permute(0, 2, 1) # (batch_size, num_channels, seq_len) -> (batch_size, seq_len, num_channels)
         seasonal_init, trend_init = self.decomposition(x)
         seasonal_init, trend_init = seasonal_init.permute(
             0, 2, 1), trend_init.permute(0, 2, 1)
@@ -103,26 +108,44 @@ class DLinear(nn.Module):
             batch_size, _, seq_len = x_enc.size()
             assert seq_len == self.seq_len, f"Input sequence length {seq_len} is not equal to the model sequence length {self.seq_len}."
 
-        # Encoder
-        return self.encoder(x_enc)
+        output = self.encoder(x_enc) # (batch_size, seq_len, num_channels)
+        if self.target_channel is not None:
+            output = output[:, :, self.target_channel]
+
+        if self.return_head:
+            output = output.reshape(output.shape[0], -1)
+
+            print(f"Shape before head: {output.shape}")
+            output = self.head(output) # (batch_size, num_channels*pred_len) or (batch_size, pred_len) if target_channel is not None
+
+            if self.target_channel is not None:
+                output = output.unsqueeze(-1) # (batch_size, pred_len, 1)
+            else:
+                output = output.reshape(output.shape[0], self.pred_len, -1) # (batch_size, pred_len, num_channels)
+
+        return output
 
     def classification(self, x_enc):
         # Encoder
         output = self.encoder(x_enc) # (batch_size, seq_len, num_channels)
 
+        if self.target_channel is not None:
+            output = output[:, :, self.target_channel]
+
         if self.return_head:
             output = output.reshape(output.shape[0], -1)
-            output = self.projection(output) # (batch_size, num_classes)
+            output = self.head(output) # (batch_size, num_classes)
         return output
 
     def forward(self, x_enc):
         if self.task == "forecasting":
-            dec_out = self.forecast(x_enc)
-            return dec_out[:, -self.pred_len:, :].permute(0, 2, 1)  # (batch_size, num_channels, pred_len)
-        if self.task == "classification":
-            dec_out = self.classification(x_enc) # (batch_size, num_classes) or (batch_size,) for binary classification
-            return dec_out
-        return None
+            output = self.forecast(x_enc)[:, -self.pred_len, :] # (batch_size, pred_len, num_channels)
+        elif self.task == "classification":
+            output = self.classification(x_enc) # (batch_size, num_classes) or (batch_size,) for binary classification
+        else:
+            raise ValueError(f"Task name '{self.task}' not supported.")
+
+        return output
 
 
 # Test
@@ -134,35 +157,14 @@ if __name__ == '__main__':
     num_channels = 7
     task="forecasting"
     pred_len = 96
-    x = torch.randn(batch_size, num_channels, seq_len)
+    x = torch.randn(batch_size, seq_len, num_channels)
 
     forecasting_model = DLinear(task=task,
                     seq_len=seq_len,
                     pred_len=pred_len,
-                    num_channels=num_channels,)
+                    num_channels=num_channels,
+                    target_channel=None)
 
     y = forecasting_model(x)
-    print(f"x: {x.shape}")
-    print(f"y: {y.shape}")
-
-    # Classification
-    batch_size = 32
-    seq_len = 24
-    num_channels = 1
-    task = "classification"
-    pred_len = -1
-    num_classes = 1
-
-    x = torch.randn(batch_size, num_channels, seq_len)
-
-    classification_model = DLinear(task=task,
-                    seq_len=seq_len,
-                    pred_len=pred_len,
-                    num_classes=num_classes,
-                    num_channels=num_channels,
-                    moving_avg=13)
-
-    y = classification_model(x)
-
     print(f"x: {x.shape}")
     print(f"y: {y.shape}")
