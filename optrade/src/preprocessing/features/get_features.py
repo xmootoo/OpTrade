@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+from typing import Optional
+
 from optrade.src.preprocessing.features.datetime_features import get_datetime_features
 from optrade.src.preprocessing.features.tte_features import get_tte_features
 
@@ -9,6 +11,7 @@ def get_features(
     core_feats: list,
     tte_feats: list,
     datetime_feats: list,
+    strike: Optional[int]=None,
 ) -> pd.DataFrame:
 
     """
@@ -22,6 +25,7 @@ def get_features(
 
     Core features options:
         - "datetime"
+        - "distance_to_strike"
         - f"{asset}_returns"
         - f"{asset}_mid_price"
         - f"{asset}_bid_size"
@@ -38,7 +42,7 @@ def get_features(
         - f"{asset}_close"
         - f"{asset}_volume"
         - f"{asset}_count"
-    where 'asset' is either 'option' or 'stock'.
+    where "asset" is either "option" or "stock".
 
     TTE features options:
         - "linear"
@@ -63,15 +67,20 @@ def get_features(
 
     if "option_returns" in core_feats:
         # Calculate returns and add to dataframe
-        prices = df['option_mid_price'].to_numpy()
+        prices = df["option_mid_price"].to_numpy()
         returns = np.zeros_like(prices)
         returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
-        df['option_returns'] = returns
+        df["option_returns"] = returns
 
         # Drop the first market open (return=0)
-        first_time = df['datetime'].iloc[0].time()
+        first_time = df["datetime"].iloc[0].time()
         if first_time.hour == 9 and first_time.minute == 30:
             df = df.iloc[1:].reset_index(drop=True)
+
+    if "distance_to_strike" in core_feats:
+        # Calculate distance to strike and add to dataframe
+        distance = (float(strike) - df["stock_mid_price"]).to_numpy()
+        df["distance_to_strike"] = distance
 
     # Select features
     tte_index = ["tte_" + tte_feats[i] for i in range(len(tte_feats))]
@@ -87,15 +96,9 @@ if __name__ == "__main__":
     from rich.console import Console
     console = Console()
 
+    contract = Contract()
     df = get_data(
-        # root="AAPL",
-        # start_date="20241107",
-        # end_date="20241114",
-        # exp="20250117",
-        # strike=225,
-        # interval_min=1,
-        # right="C",
-        # save_dir="../historical_data/merged",
+        contract=contract,
         clean_up=True,
         offline=False
     )
@@ -108,6 +111,7 @@ if __name__ == "__main__":
 
     # Select features
     core_feats = [
+        "distance_to_strike",
         "option_returns",
         "option_mid_price",
         "option_bid_size",
@@ -130,6 +134,7 @@ if __name__ == "__main__":
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        strike=contract.strike,
     )
 
     print(df.columns == core_feats + [f"tte_{f}" for f in tte_feats] + [f"dt_{f}" for f in datetime_feats])
