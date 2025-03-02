@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from optrade.src.models.deep_learning.dlinear.series_decomp import series_decomp
 
+from typing import Optional
+
 
 class DLinear(nn.Module):
     """
@@ -20,7 +22,7 @@ class DLinear(nn.Module):
         moving_avg=25,
         individual=False,
         return_head=True,
-        target_channel=None):
+        target_channels: Optional[list] = None):
 
         """
         Args:
@@ -76,9 +78,9 @@ class DLinear(nn.Module):
             self.head = nn.Linear(
                 num_channels * seq_len, num_classes)
         elif self.task == "forecasting":
-            self.target_channel = target_channel
-            in_dim = num_channels * pred_len if target_channel is None else pred_len
-            out_dim = num_channels * pred_len if target_channel is None else pred_len
+            self.target_channels = target_channels
+            in_dim = num_channels * pred_len if target_channels is None else pred_len * len(target_channels)
+            out_dim = num_channels * pred_len if target_channels is None else pred_len * len(target_channels)
             self.head = nn.Linear(in_dim, out_dim)
 
     def encoder(self, x):
@@ -109,19 +111,23 @@ class DLinear(nn.Module):
             assert seq_len == self.seq_len, f"Input sequence length {seq_len} is not equal to the model sequence length {self.seq_len}."
 
         output = self.encoder(x_enc) # (batch_size, seq_len, num_channels)
-        if self.target_channel is not None:
-            output = output[:, :, self.target_channel]
+
+        print(f"Output after encoder: {output.shape}")
+        if self.target_channels is not None:
+            output = output[:, :, self.target_channels]
+
+        print(f"Output after target channels: {output.shape}")
 
         if self.return_head:
             output = output.reshape(output.shape[0], -1)
 
-            print(f"Shape before head: {output.shape}")
-            output = self.head(output) # (batch_size, num_channels*pred_len) or (batch_size, pred_len) if target_channel is not None
+            print(f"Output after reshape: {output.shape}")
+            output = self.head(output) # (batch_size, num_channels*pred_len)
 
-            if self.target_channel is not None:
-                output = output.unsqueeze(-1) # (batch_size, pred_len, 1)
-            else:
-                output = output.reshape(output.shape[0], self.pred_len, -1) # (batch_size, pred_len, num_channels)
+            print(f"Output after head: {output.shape}")
+            output = output.reshape(output.shape[0], self.pred_len, -1) # (batch_size, pred_len, num_channels)
+
+            print(f"Output after reshape: {output.shape}")
 
         return output
 
@@ -129,8 +135,8 @@ class DLinear(nn.Module):
         # Encoder
         output = self.encoder(x_enc) # (batch_size, seq_len, num_channels)
 
-        if self.target_channel is not None:
-            output = output[:, :, self.target_channel]
+        if self.target_channels is not None:
+            output = output[:, :, self.target_channels]
 
         if self.return_head:
             output = output.reshape(output.shape[0], -1)
@@ -139,7 +145,7 @@ class DLinear(nn.Module):
 
     def forward(self, x_enc):
         if self.task == "forecasting":
-            output = self.forecast(x_enc)[:, -self.pred_len, :] # (batch_size, pred_len, num_channels)
+            output = self.forecast(x_enc) # (batch_size, pred_len, num_channels)
         elif self.task == "classification":
             output = self.classification(x_enc) # (batch_size, num_classes) or (batch_size,) for binary classification
         else:
@@ -163,7 +169,8 @@ if __name__ == '__main__':
                     seq_len=seq_len,
                     pred_len=pred_len,
                     num_channels=num_channels,
-                    target_channel=None)
+                    target_channels=[0],
+                    return_head=True)
 
     y = forecasting_model(x)
     print(f"x: {x.shape}")
