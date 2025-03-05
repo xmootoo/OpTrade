@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from optrade.src.models.deep_learning.dlinear.series_decomp import series_decomp
+from optrade.src.models.deep_learning.utils.revin import RevIN
 
 from typing import Optional
-
 
 class DLinear(nn.Module):
     """
@@ -14,15 +14,20 @@ class DLinear(nn.Module):
 
     def __init__(
         self,
-        task="forecasting",
-        seq_len=512,
-        pred_len=96,
-        num_channels=7,
-        num_classes=2,
-        moving_avg=25,
-        individual=False,
-        return_head=True,
-        target_channels: Optional[list] = None):
+        task: str="forecasting",
+        seq_len: int=512,
+        pred_len: int=96,
+        num_channels: int=7,
+        num_classes: int=2,
+        moving_avg: int=25,
+        individual: bool=False,
+        return_head: bool=True,
+        revin: bool=True,
+        revout: bool=False,
+        revin_affine: bool=False,
+        eps_revin: float=1e-5,
+        target_channels: Optional[list] = None,
+    ) -> None:
 
         """
         Args:
@@ -39,6 +44,19 @@ class DLinear(nn.Module):
         self.task = task
         self.seq_len = seq_len
         self.return_head = return_head
+        self.target_channels = target_channels
+        self.revout = revout
+        self.revin_affine = revin_affine
+        self.eps_revin = eps_revin
+        self.num_channels = num_channels
+
+        # RevIN
+        if revin:
+            self._init_revin()
+        else:
+            self._revin = None
+            self.revout = None
+
         if self.task == "classification":
             self.pred_len = seq_len
         elif self.task == "forecasting":
@@ -83,6 +101,15 @@ class DLinear(nn.Module):
             out_dim = num_channels * pred_len if target_channels is None else pred_len * len(target_channels)
             self.head = nn.Linear(in_dim, out_dim)
 
+    def _init_revin(self):
+        self._revin = True
+        self.revin = RevIN(
+            num_channels=self.num_channels,
+            eps=self.eps_revin,
+            affine=self.revin_affine,
+            target_channels=self.target_channels
+        )
+
     def encoder(self, x):
         seasonal_init, trend_init = self.decomposition(x)
         seasonal_init, trend_init = seasonal_init.permute(
@@ -110,24 +137,22 @@ class DLinear(nn.Module):
             batch_size, _, seq_len = x_enc.size()
             assert seq_len == self.seq_len, f"Input sequence length {seq_len} is not equal to the model sequence length {self.seq_len}."
 
+        if self._revin:
+            x_enc = self.revin(x_enc.permute(0, 2, 1), mode="norm").permute(0, 2, 1)
+
         output = self.encoder(x_enc) # (batch_size, seq_len, num_channels)
 
-        print(f"Output after encoder: {output.shape}")
         if self.target_channels is not None:
             output = output[:, :, self.target_channels]
 
-        print(f"Output after target channels: {output.shape}")
-
         if self.return_head:
             output = output.reshape(output.shape[0], -1)
-
-            print(f"Output after reshape: {output.shape}")
             output = self.head(output) # (batch_size, num_channels*pred_len)
-
-            print(f"Output after head: {output.shape}")
             output = output.reshape(output.shape[0], self.pred_len, -1) # (batch_size, pred_len, num_channels)
 
-            print(f"Output after reshape: {output.shape}")
+        # RevOUT
+        if self.revout:
+            output = self.revin(output.permute(0, 2, 1), mode="denorm").permute(0, 2, 1)
 
         return output
 
@@ -169,8 +194,11 @@ if __name__ == '__main__':
                     seq_len=seq_len,
                     pred_len=pred_len,
                     num_channels=num_channels,
-                    target_channels=[0],
-                    return_head=True)
+                    target_channels=[1, 3],
+                    return_head=True,
+                    revin=True,
+                    revin_affine=True,
+                    revout=True)
 
     y = forecasting_model(x)
     print(f"x: {x.shape}")
