@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from typing import List
+from typing import Optional
 
 class RevIN(nn.Module):
     def __init__(
@@ -9,7 +9,7 @@ class RevIN(nn.Module):
         num_channels: int,
         eps: float=1e-5,
         affine: bool=True,
-        target_channels: List[int]=None,
+        target_channels: Optional[list]=None,
     ) -> None:
         """
         Kim et al. (2022): Reversible instance normalization for accurate time-series forecasting against
