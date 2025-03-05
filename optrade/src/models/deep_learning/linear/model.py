@@ -85,8 +85,6 @@ class Linear(nn.Module):
         else:
             out = self.backbone(x) # (batch_size, num_channels, pred_len)
 
-        print(f"After backbone: {out.shape}")
-
         # Head
         if self.target_channels is not None:
             out = out[:, self.target_channels, :] # (batch_size, len(target_channels), pred_len)
@@ -98,8 +96,6 @@ class Linear(nn.Module):
             else:
                 out = self.head(out)
             out = out.reshape(B, C, -1) # (batch_size, len(target_channels), pred_len)
-
-        print(f"After head: {out.shape}")
 
         # RevOUT
         if self.revout:
