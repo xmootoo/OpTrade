@@ -1,8 +1,16 @@
 import torch
 import torch.nn as nn
 
+from typing import List
+
 class RevIN(nn.Module):
-    def __init__(self, num_channels: int, eps=1e-5, affine=True):
+    def __init__(
+        self,
+        num_channels: int,
+        eps: float=1e-5,
+        affine: bool=True,
+        target_channels: List[int]=None,
+    ) -> None:
         """
         Kim et al. (2022): Reversible instance normalization for accurate time-series forecasting against
         distribution shift. Provides a learnable instance normalization layer that is reversible. Code is
@@ -13,6 +21,7 @@ class RevIN(nn.Module):
             num_channels: The number of features or channels.
             eps: A value added for numerical stability.
             affine: If True, RevIN has learnable affine parameters (e.g., like LayerNorm).
+            target_channels: List of target channels for the head layer.
         """
 
         super(RevIN, self).__init__()
@@ -21,6 +30,9 @@ class RevIN(nn.Module):
         self.affine = affine
         self.affine_weight = nn.Parameter(torch.ones(self.num_channels))
         self.affine_bias = nn.Parameter(torch.zeros(self.num_channels))
+
+        if target_channels is not None:
+            self.target_channels = target_channels
 
     def forward(self, x, mode:str):
         """
@@ -36,10 +48,10 @@ class RevIN(nn.Module):
         if x.dim() != 3:
             x = x.unsqueeze(1)
 
-        if mode == 'norm':
+        if mode == "norm":
             self._get_statistics(x)
             x = self._normalize(x)
-        elif mode == 'denorm':
+        elif mode == "denorm":
             x = self._denormalize(x)
         else:
             raise NotImplementedError
@@ -58,11 +70,24 @@ class RevIN(nn.Module):
         return x
 
     def _denormalize(self, x):
+
+        # If target_channels enabled, then x is of shape (batch_size, len(target_channels), pred_len)
+        if self.target_channels is not None:
+            affine_bias = self.affine_bias[self.target_channels] # Select target channels
+            affine_weight = self.affine_weight[self.target_channels]
+            mean = self.mean[:, self.target_channels, :]
+            stdev = self.stdev[:, self.target_channels, :]
+        else:
+            affine_bias = self.affine_bias
+            affine_weight = self.affine_weight
+            mean = self.mean
+            stdev = self.stdev
+
         if self.affine:
-            x = x - self.affine_bias.unsqueeze(0).unsqueeze(-1)
-            x = x / (self.affine_weight.unsqueeze(0).unsqueeze(-1) + self.eps*self.eps)
-        x = x * self.stdev
-        x = x + self.mean
+            x = x - affine_bias.unsqueeze(0).unsqueeze(-1)
+            x = x / (affine_weight.unsqueeze(0).unsqueeze(-1) + self.eps*self.eps)
+        x = x * mean
+        x = x + stdev
         return x
 
 
@@ -70,6 +95,16 @@ if __name__ == "__main__":
     batch_size = 32
     num_channels = 7
     seq_len = 100
+    pred_len = 48
+    target_channels = [1,3]
     x = torch.randn(batch_size, num_channels, seq_len)
-    revin = RevIN(num_channels=num_channels)
+    revin = RevIN(num_channels=num_channels, eps=1e-5, affine=True, target_channels=target_channels)
     x_norm = revin(x, mode='norm')
+
+    print(f"x_norm shape: {x_norm.shape}")
+
+    y_hat = torch.randn(batch_size, len(target_channels), pred_len)
+
+    x_denorm = revin(y_hat, mode='denorm')
+
+    print(f"x_denorm shape: {x_denorm.shape}")
