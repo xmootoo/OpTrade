@@ -21,7 +21,8 @@ class RevIN(nn.Module):
             num_channels: The number of features or channels.
             eps: A value added for numerical stability.
             affine: If True, RevIN has learnable affine parameters (e.g., like LayerNorm).
-            target_channels: List of target channels for the head layer.
+            target_channels: List of target channels for the head layer. It not None, it will denormalize only the target channels corresponding
+                             to an input shape of (batch_size, len(target_channels), pred_len) for the model output.
         """
 
         super(RevIN, self).__init__()
