@@ -46,19 +46,19 @@ class ResBlock(nn.Module):
 class TSMixer(nn.Module):
     def __init__(
         self,
-        seq_len,
-        pred_len,
-        num_enc_layers,
-        d_model,
-        num_channels,
-        dropout=0.,
-        revin=True,
-        revin_affine=True,
-        revout=False,
-        eps_revin=1e-5,
-        return_head=True,
+        seq_len: int,
+        pred_len: int,
+        num_enc_layers: int,
+        d_model: int,
+        num_channels: int,
+        dropout: float=0.,
+        revin: bool=True,
+        revin_affine: bool=True,
+        revout: bool=False,
+        eps_revin: float=1e-5,
+        return_head: bool=True,
         target_channels: Optional[list]=None,
-        channel_independent:bool=False,
+        channel_independent: bool=False,
     ) -> None:
         super(TSMixer, self).__init__()
 
@@ -164,7 +164,8 @@ if __name__ == "__main__":
         revin_affine=revin_affine,
         revout=revout,
         eps_revin=eps_revin,
-        target_channels=[4,5]
+        target_channels=[4,5],
+        channel_independent=True,
     )
 
     y = model(x)
