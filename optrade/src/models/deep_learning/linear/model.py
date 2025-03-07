@@ -110,7 +110,7 @@ if __name__ == "__main__":
     seq_len = 512
     num_channels = 7
     pred_len = 96
-    x = torch.randn(batch_size, seq_len, num_channels).permute(0, 2, 1)
+    x = torch.randn(batch_size, num_channels, seq_len)
 
 
     model = Linear(

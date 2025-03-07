@@ -138,9 +138,9 @@ class DLinear(nn.Module):
             assert seq_len == self.seq_len, f"Input sequence length {seq_len} is not equal to the model sequence length {self.seq_len}."
 
         if self._revin:
-            x_enc = self.revin(x_enc.permute(0, 2, 1), mode="norm").permute(0, 2, 1)
+            x_enc = self.revin(x_enc, mode="norm")
 
-        output = self.encoder(x_enc) # (batch_size, seq_len, num_channels)
+        output = self.encoder(x_enc.permute(0, 2, 1)) # (batch_size, seq_len, num_channels)
 
         if self.target_channels is not None:
             output = output[:, :, self.target_channels]
@@ -154,7 +154,7 @@ class DLinear(nn.Module):
         if self.revout:
             output = self.revin(output.permute(0, 2, 1), mode="denorm").permute(0, 2, 1)
 
-        return output
+        return output.permute(0, 2, 1)
 
     def classification(self, x_enc):
         # Encoder
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     num_channels = 7
     task="forecasting"
     pred_len = 96
-    x = torch.randn(batch_size, seq_len, num_channels)
+    x = torch.randn(batch_size, num_channels, seq_len)
 
     forecasting_model = DLinear(task=task,
                     seq_len=seq_len,
