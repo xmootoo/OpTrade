@@ -25,7 +25,6 @@ def get_features(
 
     Core features options:
         - "datetime"
-        - "distance_to_strike"
         - f"{asset}_returns"
         - f"{asset}_mid_price"
         - f"{asset}_bid_size"
@@ -42,6 +41,7 @@ def get_features(
         - f"{asset}_close"
         - f"{asset}_volume"
         - f"{asset}_count"
+        - "distance_to_strike"
     where "asset" is either "option" or "stock".
 
     TTE features options:
@@ -111,8 +111,8 @@ if __name__ == "__main__":
 
     # Select features
     core_feats = [
-        "distance_to_strike",
         "option_returns",
+        "distance_to_strike",
         "option_mid_price",
         "option_bid_size",
         "option_bid",
