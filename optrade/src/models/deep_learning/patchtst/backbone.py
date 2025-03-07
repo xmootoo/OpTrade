@@ -31,6 +31,7 @@ class PatchTSTBackbone(nn.Module):
         self.d_model = d_model
         self.return_head = return_head
         self.pred_len = pred_len
+        self.target_channels = target_channels
 
         # Encoder
         self.enc = nn.Sequential(*(EncoderBlock(d_model, d_ff, num_heads, num_channels, num_patches, attn_dropout, ff_dropout,
@@ -65,7 +66,10 @@ class PatchTSTBackbone(nn.Module):
 
         if self.return_head:
             x = x.reshape(batch_size, self.num_channels, self.num_patches*self.d_model)
-            print(f"Output before head:{x.shape}")
+
+            if self.target_channels is not None:
+                x = x[:, self.target_channels, :]
+
             out = self.head(x)
         else:
             out = x.view(batch_size, self.num_channels, self.num_patches, -1)
