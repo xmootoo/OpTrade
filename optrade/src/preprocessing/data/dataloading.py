@@ -6,6 +6,7 @@ import pandas as pd
 from typing import Tuple, Optional, List
 from pathlib import Path
 from rich.console import Console
+from sklearn.preprocessing import StandardScaler
 
 # Data
 from optrade.data.thetadata.stocks import get_stock_data
@@ -216,6 +217,104 @@ def get_hist_vol(
     # Calculate historical volatility
     return get_historical_volatility(stock_data, volatility_type)
 
+# from sklearn.preprocessing import StandardScaler
+# from joblib import dump, load
+# import torch
+# import numpy as np
+# import os
+
+# def normalize_option_data(
+#     train_dataset: ConcatDataset,
+#     val_dataset: ConcatDataset,
+#     test_dataset: ConcatDataset,
+#     target_channels: list = [0],
+#     save_dir: Optional[Path] = None,
+# ) -> Tuple[ConcatDataset, ConcatDataset, ConcatDataset, StandardScaler]:
+#     """
+#     Normalizes existing option datasets based on training data statistics.
+#     Works with ConcatDataset of ForecastingDataset objects.
+
+#     Args:
+#         train_dataset: Training dataset (ConcatDataset of ForecastingDatasets)
+#         val_dataset: Validation dataset
+#         test_dataset: Test dataset
+#         target_channels: List of channel indices considered as targets
+#         save_dir: Directory to save the scaler
+
+#     Returns:
+#         Normalized datasets and scaler
+#     """
+#     ctx = Console()
+
+#     # Create directory for scalers
+#     if save_dir is not None:
+#         scalers_dir = save_dir / "scalers"
+#         scalers_dir.mkdir(parents=True, exist_ok=True)
+
+#     # Extract all training data to fit the scaler
+#     train_raw_data = []
+
+#     # Iterate through each dataset in the ConcatDataset
+#     for dataset_idx in range(len(train_dataset.datasets)):
+#         # Get the individual ForecastingDataset
+#         dataset = train_dataset.datasets[dataset_idx]
+#         # Extract the raw data tensor
+#         data = dataset.data
+#         # Convert to numpy for the scaler
+#         if torch.is_tensor(data):
+#             data_np = data.numpy()
+#         else:
+#             data_np = data
+#         train_raw_data.append(data_np)
+
+#     # Combine all training data
+#     combined_train_data = np.vstack(train_raw_data)
+
+#     # Fit scaler on the combined training data
+#     scaler = StandardScaler()
+#     scaler.fit(combined_train_data)
+
+#     # Save the scaler if save_dir is provided
+#     if save_dir is not None:
+#         scaler_path = scalers_dir / "option_data_scaler.joblib"
+#         dump(scaler, scaler_path)
+#         ctx.log(f"Scaler saved to {scaler_path}")
+
+#     # Function to normalize a single dataset
+#     def normalize_dataset(dataset_list):
+#         normalized_datasets = []
+
+#         for dataset in dataset_list:
+#             # Get the original data
+#             data = dataset.data
+#             if torch.is_tensor(data):
+#                 data_np = data.numpy()
+#             else:
+#                 data_np = data
+
+#             # Transform the data
+#             normalized_data = scaler.transform(data_np)
+
+#             # Create a new ForecastingDataset with normalized data
+#             normalized_dataset = ForecastingDataset(
+#                 data=normalized_data,
+#                 seq_len=dataset.seq_len,
+#                 pred_len=dataset.pred_len,
+#                 target_channels=dataset.target_channels,
+#                 dtype="float32" if data.dtype == torch.float32 else "float64"
+#             )
+
+#             normalized_datasets.append(normalized_dataset)
+
+#         return ConcatDataset(normalized_datasets)
+
+#     # Normalize all datasets
+#     normalized_train = normalize_dataset(train_dataset.datasets)
+#     normalized_val = normalize_dataset(val_dataset.datasets)
+#     normalized_test = normalize_dataset(test_dataset.datasets)
+
+#     return normalized_train, normalized_val, normalized_test, scaler
+
 def get_combined_dataset(
     contracts: ContractDataset,
     core_feats: list,
@@ -253,6 +352,7 @@ def get_combined_dataset(
                     core_feats=core_feats,
                     tte_feats=tte_feats,
                     datetime_feats=datetime_feats,
+                    strike=contract.strike,
                 ).to_numpy()
 
                 # Convert to PyTorch dataset
@@ -284,6 +384,67 @@ def get_combined_dataset(
 
     return ConcatDataset(dataset_list)
 
+def normalize_concat_dataset(
+    concat_dataset: ConcatDataset,
+    scaler: StandardScaler,
+) -> None:
+    """
+    Modifies the data in a ConcatDataset in-place by normalizing it using a fitted StandardScaler.
+    """
+    for dataset in concat_dataset.datasets:
+        data = dataset.data.numpy()
+        dtype = dataset.dtype
+
+        # Normalize data
+        normalized_data = scaler.transform(data)
+
+        # Replace data with normalized version
+        dataset.data = torch.tensor(normalized_data, dtype=dtype)
+
+def normalize_datasets(
+    train_dataset: ConcatDataset,
+    val_dataset: ConcatDataset,
+    test_dataset: ConcatDataset,
+) -> Tuple[ConcatDataset, ConcatDataset, ConcatDataset, StandardScaler]:
+    """
+    Normalizes financial time series datasets using StandardScaler.
+    Fits scaler only on training data to prevent look-ahead bias.
+
+    Args:
+        train_dataset: Training dataset (ConcatDataset of ForecastingDatasets)
+        val_dataset: Validation dataset
+        test_dataset: Test dataset
+        save_scaler: Whether to save the scaler to disk
+        scaler_path: Path to save the scaler if save_scaler is True
+
+    Returns:
+        Normalized train_dataset, val_dataset, test_dataset, and the fitted scaler
+    """
+    # Extract all underlying data from train_dataset
+    all_train_data = []
+
+    # Iterate through the individual ForecastingDataset objects within the ConcatDataset
+    for dataset_idx in range(len(train_dataset.datasets)):
+        individual_dataset = train_dataset.datasets[dataset_idx]
+
+        # Extract data tensor from the individual dataset
+        data = individual_dataset.data.numpy()
+        all_train_data.append(data)
+
+    # Stack all the arrays together
+    combined_train_data = np.vstack(all_train_data)
+
+    # Fit scaler on training data only
+    scaler = StandardScaler()
+    scaler.fit(combined_train_data)
+
+    # Apply normalization to all datasets
+    normalize_concat_dataset(train_dataset, scaler)
+    normalize_concat_dataset(val_dataset, scaler)
+    normalize_concat_dataset(test_dataset, scaler)
+
+    return train_dataset, val_dataset, test_dataset, scaler
+
 def get_loaders(
     root: str = "AAPL",
     start_date: str = "20231107",
@@ -313,7 +474,8 @@ def get_loaders(
     offline: bool = False,
     save_dir: Optional[Path] = None,
     verbose: bool=False,
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    scaling: bool=True,
+) -> Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]:
 
     train_contracts, val_contracts, test_contracts = get_contract_datasets(
         root=root,
@@ -366,6 +528,13 @@ def get_loaders(
         offline=offline
     )
 
+    if scaling:
+        train_dataset, val_dataset, test_dataset, scaler = normalize_datasets(
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            test_dataset=test_dataset
+        )
+
     # Create dataloaders for training, validation, and testing
     train_loader = DataLoader(
         dataset=train_dataset,
@@ -400,20 +569,22 @@ def get_loaders(
         pin_memory=pin_memory
     )
 
-    return train_loader, val_loader, test_loader
-
+    if scaling:
+        return train_loader, val_loader, test_loader, scaler
+    else:
+        return train_loader, val_loader, test_loader
 
 if __name__ == "__main__":
     root="AMZN"
     total_start_date="20230101"
-    total_end_date="20230901"
+    total_end_date="20230601"
     right="C"
-    interval_min=1
+    interval_min=60
     contract_stride=5
     target_tte=30
     tte_tolerance=(15, 45)
     moneyness="ATM"
-    volatility_scaled=True
+    volatility_scaled=False
     volatility_scalar=0.01
     volatility_type="period"
     target_band=0.05
@@ -427,6 +598,7 @@ if __name__ == "__main__":
     # Select features
     core_feats = [
         "option_returns",
+        "distance_to_strike",
         "option_mid_price",
         "option_bid_size",
         "option_bid",
@@ -444,7 +616,7 @@ if __name__ == "__main__":
     ]
 
     # Testing: get_loaders
-    train_loader, val_loader, test_loader = get_loaders(
+    output = get_loaders(
         root=root,
         start_date=total_start_date,
         end_date=total_end_date,
@@ -468,7 +640,9 @@ if __name__ == "__main__":
         offline=False,
         save_dir=None,
         verbose=True,
+        scaling=True,
     )
+    train_loader, val_loader, test_loader = output[0:3]
 
     print(f"Num train examples: {len(train_loader.dataset)}")
     print(f"Num val examples: {len(val_loader.dataset)}")
