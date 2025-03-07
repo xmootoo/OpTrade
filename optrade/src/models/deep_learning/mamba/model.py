@@ -189,7 +189,7 @@ if __name__=="__main__":
         patching=False,
         last_state=True,
         channel_independent=False,
-        target_channels=None,
+        target_channels=[0, 3, 5],
     ).to(device)
 
     x = torch.randn(batch_size, num_channels, seq_len).to(device)
