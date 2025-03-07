@@ -43,10 +43,12 @@ class PatchTST(nn.Module):
         self.num_channels = num_channels
         self.eps_revin = eps_revin
         self.revin_affine = revin_affine
+        self.target_channels = target_channels
+        self.revout = revout
 
         # Initialize layers
         if revin:
-            self._init_revin(revout, revin_affine)
+            self._init_revin()
         else:
             self._revin = None
             self.revout = None
@@ -75,11 +77,14 @@ class PatchTST(nn.Module):
         # Weight initialization
         self.apply(xavier_init)
 
-    def _init_revin(self, revout:bool, revin_affine:bool):
+    def _init_revin(self):
         self._revin = True
-        self.revout = revout
-        self.revin_affine = revin_affine
-        self.revin = RevIN(self.num_channels, self.eps_revin, self.revin_affine)
+        self.revin = RevIN(
+            num_channels=self.num_channels,
+            eps=self.eps_revin,
+            affine=self.revin_affine,
+            target_channels=self.target_channels
+        )
 
     def forward(self, x, y=None, ch_ids=None):
 
@@ -130,7 +135,8 @@ if __name__ == "__main__":
                             stride=patch_stride,
                             return_head=True,
                             head_type="linear",
-                            channel_independent=False,)
+                            channel_independent=False,
+                            target_channels=[1, 3, 0])
 
     x = torch.randn(batch_size, num_channels, seq_len) # (B, M, L)
     out = model(x)
