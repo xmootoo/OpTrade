@@ -34,6 +34,8 @@ class RevIN(nn.Module):
 
         if target_channels is not None:
             self.target_channels = target_channels
+        else:
+            self.target_channels = None
 
     def forward(self, x, mode:str):
         """

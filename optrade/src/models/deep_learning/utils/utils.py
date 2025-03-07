@@ -31,7 +31,7 @@ class Reshape(nn.Module):
         self.shape = args
 
     def forward(self, x):
-        return x.view(*self.shape)
+        return x.reshape(*self.shape)
 
 class Norm(nn.Module):
     def __init__(self, norm_mode, num_channels, seq_len, d_model):
