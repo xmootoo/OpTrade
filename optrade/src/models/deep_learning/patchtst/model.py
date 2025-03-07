@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor
 import torch.nn as nn
+from typing import Optional
 
 from backbone import PatchTSTBackbone
 
@@ -11,9 +12,30 @@ from optrade.src.models.deep_learning.utils.weight_init import xavier_init
 
 
 class PatchTST(nn.Module):
-    def __init__(self, num_enc_layers, d_model, d_ff, num_heads, num_channels, seq_len, pred_len, attn_dropout=0.0,
-        ff_dropout=0.0, pred_dropout=0.0, batch_first=True, norm_mode="batch1d", revin=True, revout=True, revin_affine=True,
-        eps_revin=1e-5, patch_dim=16, stride=1, return_head=True, head_type="linear"):
+    def __init__(self,
+        num_enc_layers,
+        d_model,
+        d_ff,
+        num_heads,
+        num_channels,
+        seq_len,
+        pred_len,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        pred_dropout=0.0,
+        batch_first=True,
+        norm_mode="batch1d",
+        revin=True,
+        revout=True,
+        revin_affine=True,
+        eps_revin=1e-5,
+        patch_dim=16,
+        stride=1,
+        return_head=True,
+        head_type="linear",
+        channel_independent=False, # Head only
+        target_channels:Optional[list]=None, # Head only
+    ) -> None:
         super(PatchTST, self).__init__()
 
         # Parameters
@@ -31,8 +53,24 @@ class PatchTST(nn.Module):
 
         self.patcher = Patcher(patch_dim, stride)
         self.pos_enc = PositionalEncoding(patch_dim, d_model, self.num_patches)
-        self.backbone = PatchTSTBackbone(num_enc_layers, d_model, d_ff, num_heads, num_channels, self.num_patches, pred_len,
-                                         attn_dropout,ff_dropout, pred_dropout, batch_first, norm_mode, return_head, head_type)
+        self.backbone = PatchTSTBackbone(
+            num_enc_layers=num_enc_layers,
+            d_model=d_model,
+            d_ff=d_ff,
+            num_heads=num_heads,
+            num_channels=num_channels,
+            num_patches=self.num_patches,
+            pred_len=pred_len,
+            attn_dropout=attn_dropout,
+            ff_dropout=ff_dropout,
+            pred_dropout=pred_dropout,
+            batch_first=batch_first,
+            norm_mode=norm_mode,
+            return_head=return_head,
+            head_type=head_type,
+            channel_independent=channel_independent,
+            target_channels=target_channels,
+        )
 
         # Weight initialization
         self.apply(xavier_init)
@@ -66,11 +104,11 @@ class PatchTST(nn.Module):
 
 if __name__ == "__main__":
     batch_size = 64
-    num_channels = 1
-    seq_len = 96
+    num_channels = 7
+    seq_len = 512
     patch_dim = 16
     patch_stride = 8
-    pred_len = 1
+    pred_len = 96
 
     model = PatchTST(num_enc_layers=3,
                             d_model=128,
@@ -90,15 +128,10 @@ if __name__ == "__main__":
                             eps_revin=1e-5,
                             patch_dim=patch_dim,
                             stride=patch_stride,
-                            return_head=False,
-                            head_type="linear",)
+                            return_head=True,
+                            head_type="linear",
+                            channel_independent=False,)
 
-    # Count number of parameters
-    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Number of parameters: {num_params}")
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    optimizer.zero_grad()
     x = torch.randn(batch_size, num_channels, seq_len) # (B, M, L)
-    ch_ids = torch.randint(0, 4, (batch_size,))
-    targets = torch.randint(0, 2, (batch_size,))
+    out = model(x)
+    print(f"Input shape: {x.shape}, Output shape: {out.shape}")

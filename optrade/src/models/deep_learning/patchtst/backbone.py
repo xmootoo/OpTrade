@@ -1,10 +1,28 @@
 import torch
 import torch.nn as nn
-from enc_block import SupervisedHead, EncoderBlock
+from enc_block import EncoderBlock
+from optrade.src.models.deep_learning.utils.utils import Reshape
+from typing import Optional
 
 class PatchTSTBackbone(nn.Module):
-    def __init__(self, num_enc_layers, d_model, d_ff, num_heads, num_channels, num_patches, pred_len, attn_dropout=0.0,
-        ff_dropout=0.0, pred_dropout=0.0, batch_first=True, norm_mode="batch1d", return_head=True, head_type="linear"):
+    def __init__(
+        self,
+        num_enc_layers,
+        d_model,
+        d_ff,
+        num_heads,
+        num_channels,
+        num_patches,
+        pred_len,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        pred_dropout=0.0,
+        batch_first=True,
+        norm_mode="batch1d",
+        return_head=True,
+        head_type="linear",
+        channel_independent=False,
+        target_channels:Optional[list]=None):
         super(PatchTSTBackbone, self).__init__()
 
         # Parameters
@@ -19,16 +37,22 @@ class PatchTSTBackbone(nn.Module):
                                                 batch_first, norm_mode) for i in range(num_enc_layers)))
 
         # Prediction head
-        head_in_dim = num_patches*d_model*2 if self.clm else num_patches*d_model
-        head_hidden_dim = num_patches*d_model // 2 if self.clm else num_patches*d_model
         self.flatten = nn.Flatten(start_dim=-2)
+        num_output_channels = len(target_channels) if target_channels is not None else num_channels
         if head_type=="linear":
-            self.head = SupervisedHead(head_in_dim, pred_len, pred_dropout)
+            if channel_independent:
+                self.head = nn.Linear(num_patches*d_model, pred_len)
+            elif target_channels is not None or not channel_independent:
+                self.head = nn.Sequential(
+                    Reshape(-1, num_output_channels*num_patches*d_model),
+                    nn.Linear(num_output_channels*num_patches*d_model, num_output_channels*pred_len),
+                    Reshape(-1, num_output_channels, pred_len)
+                )
         elif head_type=="mlp":
-            self.head = nn.Sequential(nn.Linear(head_in_dim, head_hidden_dim),
+            self.head = nn.Sequential(nn.Linear(num_patches*d_model, num_patches*d_model),
                                         nn.GELU(),
                                         nn.Dropout(pred_dropout),
-                                        nn.Linear(head_hidden_dim, pred_len))
+                                        nn.Linear(num_patches*d_model, pred_len))
         else:
             raise ValueError(f"Invalid head type: {head_type}")
 
@@ -40,7 +64,8 @@ class PatchTSTBackbone(nn.Module):
         x = self.enc(x) # (batch_size * num_channels, num_patches, d_model)
 
         if self.return_head:
-            x = self.flatten(x) # (batch_size, num_channels, num_patches*d_model)
+            x = x.reshape(batch_size, self.num_channels, self.num_patches*self.d_model)
+            print(f"Output before head:{x.shape}")
             out = self.head(x)
         else:
             out = x.view(batch_size, self.num_channels, self.num_patches, -1)
