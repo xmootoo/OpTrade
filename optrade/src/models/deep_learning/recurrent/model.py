@@ -1,35 +1,40 @@
 import torch
 import torch.nn as nn
 
-from mambapy.mamba import Mamba as MambaBackbone
-from mambapy.mamba import MambaConfig
+from typing import Optional
 
 from optrade.src.models.deep_learning.utils.revin import RevIN
 from optrade.src.models.deep_learning.utils.patcher import Patcher
 from optrade.src.models.deep_learning.utils.pos_enc import PositionalEncoding
 from optrade.src.models.deep_learning.utils.weight_init import xavier_init
+from optrade.src.models.deep_learning.utils.utils import Reshape
 
+# TODO: Reimplement patching
 class RecurrentModel(nn.Module):
-    def __init__(self, d_model,
-                       num_enc_layers,
-                       pred_len,
-                       backbone_id,
-                       bidirectional=False,
-                       dropout=0.,
-                       seq_len=512,
-                       patching=False,
-                       patch_dim=16,
-                       patch_stride=8,
-                       num_channels=1,
-                       head_type="linear",
-                       norm_mode="layer",
-                       revin=False,
-                       revout=False,
-                       revin_affine=False,
-                       eps_revin=1e-5,
-                       last_state=True,
-                       avg_state=False,
-                       return_head=True):
+    def __init__(self,
+        d_model,
+        num_enc_layers,
+        pred_len,
+        backbone_id,
+        bidirectional=False,
+        dropout=0.,
+        seq_len=512,
+        patching=False,
+        patch_dim=16,
+        patch_stride=8,
+        num_channels=1,
+        head_type="linear",
+        norm_mode="layer",
+        revin=False,
+        revout=False,
+        revin_affine=False,
+        eps_revin=1e-5,
+        last_state=True,
+        avg_state=False,
+        return_head=True,
+        channel_independent=False,
+        target_channels:Optional[list]=None
+    ) -> None:
         super(RecurrentModel, self).__init__()
 
         """
@@ -65,6 +70,8 @@ class RecurrentModel(nn.Module):
         self.num_channels = num_channels
         self.eps_revin = eps_revin
         self.revin_affine = revin_affine
+        self.revout = revout
+        self.target_channels = target_channels
         self.last_state = last_state
         self.avg_state = avg_state
         self.input_size = d_model if patching else num_channels
@@ -72,7 +79,7 @@ class RecurrentModel(nn.Module):
 
         # RevIN
         if revin:
-            self._init_revin(revout, revin_affine)
+            self._init_revin()
         else:
             self._revin = None
             self.revout = None
@@ -107,47 +114,54 @@ class RecurrentModel(nn.Module):
                                 batch_first=True,
                                 dropout=dropout,
                                 bidirectional=bidirectional)
-        elif self.backbone_id=="Mamba":
-            config = MambaConfig(
-                d_model=d_model,
-                n_layers=num_enc_layers,
-            )
-            self.backbone = MambaBackbone(config)
         else:
-            raise ValueError("Invalid backbone_id. Options: 'LSTM', 'RNN', 'GRU', 'Mamba'.")
+            raise ValueError("Invalid backbone_id. Options: 'LSTM', 'RNN', 'GRU'.")
 
         # Head
         self.dropout = nn.Dropout(dropout)
 
         if patching and not avg_state:
             head_dim = self.num_patches * d_model
-        else:
+        elif last_state or avg_state:
             head_dim = d_model
 
-        head_dim = 2*head_dim if bidirectional else head_dim
 
+        num_output_channels = len(target_channels) if target_channels is not None else num_channels
         if head_type=="linear":
-            self.head = nn.Linear(head_dim, pred_len)
+            self.head = nn.Sequential(
+                nn.Linear(head_dim, num_output_channels*pred_len),
+                Reshape(-1, num_output_channels, pred_len),
+            )
         elif head_type=="mlp":
             self.head = nn.Sequential(
                 nn.Linear(head_dim, head_dim//2),
                 nn.GELU(),
-                nn.Linear(head_dim//2, pred_len)
+                nn.Linear(head_dim//2, num_output_channels*pred_len),
+                Reshape(-1, num_output_channels, pred_len),
+            )
+
+        if not (last_state or avg_state):
+            self.head = nn.Sequential(
+                Reshape(-1, seq_len*d_model),
+                self.head,
             )
         self.flatten = nn.Flatten(start_dim=-2)
 
         # Final Normalization Layer
-        norm_dim = 2*d_model if bidirectional else d_model
+        norm_dim = d_model
         self.norm = nn.LayerNorm(norm_dim) if norm_mode=="layer" else nn.Identity()
 
         # Weight initialization
         self.apply(xavier_init)
 
-    def _init_revin(self, revout:bool, revin_affine:bool):
+    def _init_revin(self):
         self._revin = True
-        self.revout = revout
-        self.revin_affine = revin_affine
-        self.revin = RevIN(self.num_channels, self.eps_revin, self.revin_affine)
+        self.revin = RevIN(
+            num_channels=self.num_channels,
+            eps=self.eps_revin,
+            affine=self.revin_affine,
+            target_channels=self.target_channels
+        )
 
     def compute_backbone(self, x):
         if self.backbone_id in {"RNN", "GRU"}:
@@ -156,31 +170,17 @@ class RecurrentModel(nn.Module):
         elif self.backbone_id =="LSTM":
             out, (hn, _) = self.backbone(x)
             last_hn = hn[-1]
-        elif self.backbone_id=="Mamba":
-            out = self.backbone(x)
-            last_hn = out[-1]
         else:
-            raise ValueError("Invalid backbone_id. Options: 'LSTM', 'RNN', 'GRU', 'Mamba'.")
+            raise ValueError("Invalid backbone_id. Options: 'LSTM', 'RNN', 'GRU',.")
 
         return out, last_hn
 
-
     def forward(self, x):
         """
-        Computes the forward pass of the Mamba model. There are two possible modes:
+        Forward pass of the model.
 
-            Patched Version: This is meant for univariate or multivariate time series forecasting, which applies a
-            patching mechanism to the input sequence. The input tensor should have shape (B, M, L), where B is the batch size, M
-            is the number of channels, and L is the sequence length. The output tensor will have shape (B, pred_len), where
-            pred_len is the prediction length.
-
-            Non-Patched Version: This is meant for univariate variable-length time series classification (SOZ localization), where the input
-            tensor should have shape (B, L, 1), where B is the batch size, and L is the sequence length which can change from batch to batch,
-            and is padded accordingly. The output tensor will have shape (B, pred_len), where pred_len is the prediction length (usually set to
-            pred_len=1 for binary classification). You may also use this method forecasting too, but it is not recommended.
-
-        Legend:
-            B: batch_size, M: num_channels, L: seq_len, N: num_patches, P: patch_dim, D: d_model.
+        Args:
+            x (torch.Tensor): The input data. Shape: (batch_size, num_channels, seq_len) = (B, M, L).
         """
 
         # Ensure input is correct
@@ -191,12 +191,14 @@ class RecurrentModel(nn.Module):
         if self._revin:
             x = self.revin(x, mode="norm") # Patched version:(B, M, L). Non-patched version: (B, L, 1)
 
-        # Patching
-        if self._patching:
-            x = self.patcher(x) # (B, M, N, P)
-            x = self.pos_enc(x) # (B, M, N, D)
-            B, M, N, D = x.shape
-            x = x.view(B*M, N, D) # (B*M, N, D)
+        x = x.transpose(1, 2)
+
+        # # Patching
+        # if self._patching:
+        #     x = self.patcher(x) # (B, M, N, P)
+        #     x = self.pos_enc(x) # (B, M, N, D)
+        #     B, M, N, D = x.shape
+        #     x = x.view(B*M, N, D) # (B*M, N, D)
 
         # Backbone forward pass
         out, last_hn = self.compute_backbone(x)
@@ -209,14 +211,18 @@ class RecurrentModel(nn.Module):
         else:
             x = self.norm(out) # Patched version: (B*M, N, D). Non-patched version: (B, L, D)
 
-        # Reshape for patching
-        if self._patching:
-            x = x.view(B, M, -1) # avg state: (B, M, D). Non-avg state: (B, M, N*D)
+        # # Reshape for patching
+        # if self._patching:
+        #     x = x.view(B, M, -1) # avg state: (B, M, D). Non-avg state: (B, M, N*D)
 
         # Head
         if self.return_head:
+            # x = x.transpose(0,1)
+            print(f"Shape before head: {x.shape}")
             x = self.head(self.dropout(x)) # (B, pred_len)
 
+
+        print(f"x after head: {x.shape}")
         # RevOUT
         if self.revout:
             x = self.revin(x, mode="denorm")
@@ -224,84 +230,90 @@ class RecurrentModel(nn.Module):
         return x
 
 if __name__ == '__main__':
-    # # <---Non-patched version (classification)--->
-    # # Define model parameters
-    # batch_size = 32
-    # input_size = 1  # for univariate time series
-    # d_model = 64
-    # num_enc_layers = 5
-    # pred_len = 1
-    # seq_len = 512
-    # num_channels = 1
-
-    # # Device
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # # Create an instance of the LSTM model
-    # model = LSTM(
-    #     input_size=input_size,
-    #     d_model=d_model,
-    #     num_enc_layers=num_enc_layers,
-    #     pred_len=pred_len,
-    #     seq_len=seq_len,
-    #     num_channels=num_channels,
-    #     revin=True,
-    #     head_type="linear",
-    #     patching=False,
-    #     last_state=True,
-    # ).to(device)
-
-    # # Create sample input data
-    # true_seq_len = 10000
-    # x = torch.randn(batch_size, true_seq_len, input_size).to(device)  # (B, L_true, input_dim)
-
-    # # Pass the data through the model
-    # output = model(x)
-    # output = output.to(device)
-
-    # print(f"Input shape: {x.shape}")
-    # print(f"Output shape: {output.shape}")
-
-
-    #<--Patched Version (forecasting)--->
+    # <---Non-patched version (classification)--->
     # Define model parameters
-    patch_dim = 64
-    patch_stride = 16
-    batch_size = 1
-    d_model = 128
+    batch_size = 32
+    num_channels = 7
+    seq_len = 512
+    pred_len = 96
+    d_model = 64
     num_enc_layers = 5
-    pred_len = 1
-    seq_len = 16031
-    num_channels = 1
+
 
     # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    x = torch.randn(batch_size, num_channels, seq_len).to(device)  # (B, M, L)
 
-    # Create an instance of the LSTM model
     model = RecurrentModel(
         d_model=d_model,
-        backbone_id="Mamba",
         num_enc_layers=num_enc_layers,
         pred_len=pred_len,
+        backbone_id="GRU",
+        bidirectional=False,
+        dropout=0.1,
         seq_len=seq_len,
+        patching=False,
+        # patch_dim=16,
+        # patch_stride=8,
         num_channels=num_channels,
-        revin=True,
-        revin_affine=True,
-        revout=True,
         head_type="linear",
-        patching=True,
+        norm_mode="layer",
+        revin=True,
+        revout=True,
+        revin_affine=True,
         last_state=False,
         avg_state=True,
+        return_head=True,
+        target_channels=[0, 3, 5],
     ).to(device)
-
-    # Create sample input data
-    x = torch.randn(batch_size, num_channels, seq_len).to(device)  # (B, M, L)
-    print(f"Input shape: {x.shape}")
 
     # Pass the data through the model
     output = model(x)
     output = output.to(device)
 
-
+    print(f"Input shape: {x.shape}")
     print(f"Output shape: {output.shape}")
+
+
+    # #<--Patched Version (forecasting)--->
+    # # Define model parameters
+    # patch_dim = 64
+    # patch_stride = 16
+    # batch_size = 1
+    # d_model = 128
+    # num_enc_layers = 5
+    # pred_len = 1
+    # seq_len = 16031
+    # num_channels = 1
+
+    # # Device
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # print(f"Using device: {device}")
+
+    # # Create an instance of the LSTM model
+    # model = RecurrentModel(
+    #     d_model=d_model,
+    #     backbone_id="Mamba",
+    #     num_enc_layers=num_enc_layers,
+    #     pred_len=pred_len,
+    #     seq_len=seq_len,
+    #     num_channels=num_channels,
+    #     revin=True,
+    #     revin_affine=True,
+    #     revout=True,
+    #     head_type="linear",
+    #     patching=True,
+    #     last_state=False,
+    #     avg_state=True,
+    # ).to(device)
+
+    # # Create sample input data
+    # x = torch.randn(batch_size, num_channels, seq_len).to(device)  # (B, M, L)
+    # print(f"Input shape: {x.shape}")
+
+    # # Pass the data through the model
+    # output = model(x)
+    # output = output.to(device)
+
+
+    # print(f"Output shape: {output.shape}")
