@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import Tuple, Optional
 
+from rich.console import Console
+
 # Custom modules
 from optrade.data.thetadata.expirations import find_optimal_exp
 from optrade.data.thetadata.strikes import find_optimal_strike
@@ -45,7 +47,10 @@ class Contract(BaseModel):
             clean_up=True,
         )
 
-        print(f"Historical volatility: {hist_vol}")
+        ctx = Console()
+
+        if hist_vol is not None:
+            ctx.log(f"Historical volatility: {hist_vol}")
 
         strike = find_optimal_strike(
             root=root,
