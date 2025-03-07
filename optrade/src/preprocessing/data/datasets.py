@@ -247,9 +247,8 @@ class ForecastingDataset(Dataset):
 
     __getitem__:
         Returns:
-            input (torch.Tensor): Lookback window of shape (seq_len, num_feats)
-            target (torch.Tensor): Target window of shape (pred_len, len(target_channels))
-
+            input (torch.Tensor): Lookback window of shape (num_features, seq_len)
+            target (torch.Tensor): Target window of shape (len(target_channels), pred_len)
     """
 
     def __init__(self, data, seq_len, pred_len, target_channels=[0], dtype="float32"):
@@ -275,7 +274,7 @@ class ForecastingDataset(Dataset):
         else:
             target = self.data[idx+self.seq_len:idx+self.seq_len+self.pred_len]
 
-        return input, target
+        return input.transpose(0,1), target.tranpose(0,1)
 
 class CombinedForecastingDataset(Dataset):
     """
@@ -375,7 +374,6 @@ if __name__=="__main__":
     total_start_date="20220101"
     total_end_date="20220301"
     hist_vol = 0.1
-
 
     contracts = ContractDataset(root=root,
     total_start_date=total_start_date,
