@@ -252,11 +252,11 @@ class ForecastingDataset(Dataset):
     """
 
     def __init__(self, data, seq_len, pred_len, target_channels=[0], dtype="float32"):
-        dtype = eval("torch." + dtype)
+        self.dtype = eval("torch." + dtype)
         if not torch.is_tensor(data):
-            self.data = torch.from_numpy(data).type(dtype)
+            self.data = torch.from_numpy(data).type(self.dtype)
         else:
-            self.data = data.type(dtype)
+            self.data = data.type(self.dtype)
         self.seq_len = seq_len
         self.pred_len = pred_len
 
