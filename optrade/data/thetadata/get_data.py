@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-from typing import Optional
 from pathlib import Path
 
 # Custom modules
@@ -130,14 +129,15 @@ def get_data(
 
         # If lengths don't match, verify that option_df is a subset of stock_df
         # starting at a later date but with identical dates once options begin
-        option_start_date = option_df["datetime"].iloc[0]
-        stock_filtered = stock_df[stock_df["datetime"] >= option_start_date].reset_index(drop=True)
+        real_start_date = option_df["datetime"].iloc[0]
+        stock_filtered = stock_df[stock_df["datetime"] >= real_start_date].reset_index(drop=True)
 
         if (option_df["datetime"]==stock_filtered["datetime"]).all():
-            option_start_date = option_start_date.strftime("%Y%m%d")
+            real_start_date = real_start_date.strftime("%Y%m%d")
+            queried_start_date = stock_df["datetime"].iloc[0].strftime("%Y%m%d")
             raise DataValidationError(
-                f"Date mismatch between option and stock data. Option data starts on {option_start_date}, but stock data starts earlier.",
-                OPTION_DATE_MISMATCH, option_start_date)
+                f"Date mismatch between option and stock data. Option data queried on {queried_start_date}, but the contract does not start until {real_start_date}.",
+                OPTION_DATE_MISMATCH, queried_start_date)
         else:
             missing_dates = option_df.loc[~option_df["datetime"].isin(stock_df["datetime"]), "datetime"].unique()
             raise DataValidationError(
