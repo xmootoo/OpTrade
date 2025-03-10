@@ -14,10 +14,11 @@ Currently, the project is focused on completing objective $(\textbf{I})$, with o
 
 ## Table of Contents
 1. [DATA.md](DATA.md)
+2. [FEATURES.md](FEATURES.md)
 2. [Installation](#installation)
 3. [Contact](#contact)
 
-For more details on the project, see the [DATA.md](DATA.md) file.
+For more details on the project, please consult the [DATA.md](DATA.md) file.
 
 <!-- ## Market Data
 We utilize the [ThetaData API](https://http-docs.thetadata.us/) to obtain high-frequency options data consolidated by the Options Price Reporting Authority (OPRA).
