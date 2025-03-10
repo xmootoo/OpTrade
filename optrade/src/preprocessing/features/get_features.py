@@ -23,9 +23,8 @@ def get_features(
         tte_feats (list): List of Time to Expiration (TTE) features to select.
         datetime_feats (list): List of datetime features to select.
 
-    Core features options:
+    Core feature options (subset of NBBO and OHLCVC):
         - "datetime"
-        - f"{asset}_returns"
         - f"{asset}_mid_price"
         - f"{asset}_bid_size"
         - f"{asset}_bid_exchange"
@@ -41,7 +40,15 @@ def get_features(
         - f"{asset}_close"
         - f"{asset}_volume"
         - f"{asset}_count"
+
+    Core feature options (advanced):
+        # TODO: Add these features
+        - f"{asset}_returns"
+        - f"{asset}_lob_imbalance"
+        - f"{asset}_quote_spread"
+        - "moneyness" (log(S/K))
         - "distance_to_strike"
+
     where "asset" is either "option" or "stock".
 
     TTE features options:
@@ -66,21 +73,49 @@ def get_features(
     df = get_tte_features(df=df, feats=tte_feats)
 
     if "option_returns" in core_feats:
-        # Calculate returns and add to dataframe
+        # Calculate option price returns and add to dataframe
         prices = df["option_mid_price"].to_numpy()
         returns = np.zeros_like(prices)
         returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
         df["option_returns"] = returns
 
-        # Drop the first market open (return=0)
+    if "stock_returns" in core_feats:
+        # Calculate stock price returns and add to dataframe
+        prices = df["stock_mid_price"].to_numpy()
+        returns = np.zeros_like(prices)
+        returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
+        df["stock_returns"]
+
+    if "option_returns" in core_feats or "stock_returns" in core_feats:
+        # Drop the first market open (since returns=0)
         first_time = df["datetime"].iloc[0].time()
         if first_time.hour == 9 and first_time.minute == 30:
             df = df.iloc[1:].reset_index(drop=True)
 
     if "distance_to_strike" in core_feats:
         # Calculate distance to strike and add to dataframe
-        distance = (float(strike) - df["stock_mid_price"]).to_numpy()
+        distance = (float(strike) - df["stock_mid_price"])
         df["distance_to_strike"] = distance
+
+    if "moneyness" in core_feats:
+        # Calculate moneyness and add to dataframe
+        df["moneyness"] = np.log(df["stock_mid_price"] / float(strike))
+
+    if "stock_lob_imbalance" in core_feats:
+        # Calculate limit order book (LOB) imbalance and add to dataframe
+        df["stock_lob_imbalance"] = (df["stock_bid_size"] - df["stock_ask_size"]) / (df["stock_bid_size"] + df["stock_ask_size"])
+
+    if "option_lob_imbalance" in core_feats:
+        # Calculate limit order book (LOB) imbalance and add to dataframe
+        df["option_lob_imbalance"] = (df["option_bid_size"] - df["option_ask_size"]) / (df["option_bid_size"] + df["option_ask_size"])
+
+    if "stock_quote_spread" in core_feats:
+        # Calculate stock quote spread normalized by mid-price
+        df["stock_quote_spread"] = (df["stock_ask"] - df["stock_bid"]) / ((df["stock_ask"] + df["stock_bid"])/2)
+
+    if "option_quote_spread" in core_feats:
+        # Calculate option quote spread normalized by mid-price
+        df["option_quote_spread"] = (df["option_ask"] - df["option_bid"]) / ((df["option_ask"] + df["option_bid"])/2)
 
     # Select features
     tte_index = ["tte_" + tte_feats[i] for i in range(len(tte_feats))]
@@ -99,7 +134,7 @@ if __name__ == "__main__":
     contract = Contract()
     df = get_data(
         contract=contract,
-        clean_up=True,
+        clean_up=False,
         offline=False
     )
 
@@ -113,6 +148,11 @@ if __name__ == "__main__":
     core_feats = [
         "option_returns",
         "distance_to_strike",
+        "moneyness",
+        "option_lob_imbalance",
+        "option_quote_spread",
+        "stock_lob_imbalance",
+        "stock_quote_spread",
         "option_mid_price",
         "option_bid_size",
         "option_bid",
