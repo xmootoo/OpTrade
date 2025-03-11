@@ -191,7 +191,7 @@ def generate_contracts(self) -> "ContractDataset":
 ```
 
 ## Feature Engineering
-Our data pipeline includes specialized feature engineering designed to capture important predictive. The feature engineering process is detailed in [`FEATURES.md`](FEATURES.md)
+Our data pipeline includes specialized feature engineering which designs important predictors for option forecasting. For more details, consult [`FEATURES.md`](FEATURES.md).
 
 ## Data Loading
 ### Combined Dataset
