@@ -66,8 +66,8 @@ Using our primary source data, we can also can construct the following features:
 
 $$
 \begin{align*}
-    V_t = \frac{V_t^b+V_t^a}{2} \tag{Option Mid Price} \\
-    S_t = \frac{S_t^b+S_t^a}{2} \tag{Stock Mid Price}
+    \text{Option Mid Price}  = V_t = \frac{V_t^b+V_t^a}{2} \\
+    \text{Stock Mid Price} = S_t = \frac{S_t^b+S_t^a}{2} 
 \end{align*}
 $$
 
@@ -75,8 +75,8 @@ $$
 
 $$
 \begin{align*}
-    r_{t}^V = \frac{V_{t} - V_{t-1}}{V_{t-1}} \tag{Option Returns} \\
-    r_t^S = \frac{S_{t} - S_{t-1}}{S_{t-1}} \tag{Stock Returns}
+    \text{Option Returns} = \frac{V_{t} - V_{t-1}}{V_{t-1}}  \\
+    \text{Stock Returns} = \frac{S_{t} - S_{t-1}}{S_{t-1}} 
 \end{align*}
 $$
 
@@ -86,8 +86,8 @@ If `option_returns` or `stock_returns` is included in the list of features, by c
 
 $$
 \begin{align*}
-    \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}} \tag{Option LOB Imbalance} \\
-    \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} \tag{Stock LOB Imbalance} 
+    \text{Option LOB Imbalance} = \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}}  \\
+    \text{Stock LOB Imbalance}  = \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} 
 \end{align*}
 $$
 where $Q_t^{b,V}$ and $Q_t^{a,V}$ represent the bid and ask quantities for the option at time $t$, and $Q_t^{b,S}$ and $Q_t^{a,S}$ represent the bid and ask quantities for the underlying stock.
@@ -96,15 +96,15 @@ where $Q_t^{b,V}$ and $Q_t^{a,V}$ represent the bid and ask quantities for the o
 
 $$
 \begin{align*}
-    \frac{V_t^a - V_t^b}{V_t} \tag{Option Quote Spread} \\
-    \frac{S_t^a - S_t^b}{S_t} \tag{Stock Quote Spread}
+    \text{Option Quote Spread} = \frac{V_t^a - V_t^b}{V_t}  \\
+    \text{Stock Quote Spread} = \frac{S_t^a - S_t^b}{S_t} 
 \end{align*}
 $$
 
 - `distance_to_strike`: The raw difference between the strike price and the current stock price, directly measuring proximity to the exercise threshold.
 $$
 \begin{align*}
-K - S_t
+\text{Distance to Strike} =  K - S_t
 \end{align*}
 $$
 This feature is useful when absolute dollar distances matter for risk management and provides an intuitive measure that directly relates to option pricing models.
@@ -112,7 +112,7 @@ This feature is useful when absolute dollar distances matter for risk management
 - `moneyness`: The logarithm of the ratio between the current stock price and the option's strike price, indicating whether the option is profitable to exercise.
 $$
 \begin{align*}
-\log\left(\frac{S_t}{K}\right)
+\text{Moneyness} = \log\left(\frac{S_t}{K}\right)
 \end{align*}
 $$
 Compared to `distance_to_strike`, this feature is normalized and scale-invariant, and therefore better suited for comparing across different stocks, time periods, or price ranges.
