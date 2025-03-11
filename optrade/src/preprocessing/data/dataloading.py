@@ -218,6 +218,21 @@ def get_hist_vol(
     volatility_window: float,
     volatility_type: str) -> pd.DataFrame:
 
+    """
+    Get historical volatility for a stock over a given time period.
+
+    Args:
+        root: Underlying stock symbol
+        start_date: Start date for the total dataset in YYYYMMDD format
+        end_date: End date for the total dataset in YYYYMMDD format
+        interval_min: Interval in minutes for the underlying stock data
+        volatility_window: Proportion of total days to use for historical volatility calculation
+        volatility_type: Type of historical volatility to use. Options: "daily", "period", "annualized".
+
+    Returns:
+        Historical volatility value based on the specified type.
+    """
+
     # Calculate number of days to use for historical volatility
     total_days = (pd.to_datetime(end_date, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
     num_vol_days = int(volatility_window * total_days)
