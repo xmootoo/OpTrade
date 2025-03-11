@@ -90,6 +90,7 @@ $$
     \text{Stock LOB Imbalance}  = \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} 
 \end{align*}
 $$
+
 where $Q_t^{b,V}$ and $Q_t^{a,V}$ represent the bid and ask quantities for the option at time $t$, and $Q_t^{b,S}$ and $Q_t^{a,S}$ represent the bid and ask quantities for the underlying stock.
 
 - `quote_spread`: The normalized bid-ask spread, which indicates liquidity and trading costs.
