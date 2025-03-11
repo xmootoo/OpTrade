@@ -86,8 +86,8 @@ If `option_returns` or `stock_returns` is included in the list of features, by c
 
 $$
 \begin{align*}
-    \text{Option LOB Imbalance} &= \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}}  \\
-    \text{Stock LOB Imbalance}  &= \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} 
+    \text{Option LOB Imbalance} = \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}}  \\
+    \text{Stock LOB Imbalance}  = \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} 
 \end{align*}
 $$
 where $Q_t^{b,V}$ and $Q_t^{a,V}$ represent the bid and ask quantities for the option at time $t$, and $Q_t^{b,S}$ and $Q_t^{a,S}$ represent the bid and ask quantities for the underlying stock.
