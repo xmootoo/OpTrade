@@ -60,10 +60,10 @@ def get_contract_datasets(
         contract_stride: Number of days between each contract
         interval_min: Interval in minutes for the underlying stock data
         right: Option type (C for call, P for put)
-        target_tte: Target time to expiration in minutes
-        tte_tolerance: Tuple of (min, max) time to expiration tolerance in minutes
+        target_tte: Target time to expiration in days
+        tte_tolerance: Tuple of (min, max) time to expiration tolerance in days
         moneyness: Moneyness of the option contract (OTM, ATM, ITM)
-        target_band: Target band for moneyness selection
+        target_band: Target band for moneyness selection, proportion of current underlying price
         volatility_type: Type of historical volatility to use
         volatility_scaled: Whether to scale strikes based on historical volatility
         volatility_scalar: Scalar to adjust historical volatility
@@ -266,6 +266,27 @@ def get_combined_dataset(
     pred_len: int=10,
     dtype: str="float64",
 ) -> Dataset:
+    """
+    Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
+    different option contracts.
+
+    Args:
+        contracts: ContractDataset object containing option contract parameters
+        core_feats: List of core features to include
+        tte_feats: List of time-to-expiration features to include
+        datetime_feats: List of datetime features to include
+        tte_tolerance: Tuple of (min, max) time to expiration tolerance in days
+        clean_up: Whether to clean up the data after use
+        offline: Whether to load saved contracts from disk
+        intraday: Whether to use intraday data
+        target_channels: List of target channels to include
+        seq_len: Sequence length
+        pred_len: Prediction length
+        dtype: Data type for the PyTorch tensors
+
+    Returns:
+        Concatenated PyTorch dataset object
+    """
 
     ctx = Console()
     dataset_list = []
@@ -327,6 +348,13 @@ def normalize_concat_dataset(
 ) -> None:
     """
     Modifies the data in a ConcatDataset in-place by normalizing it using a fitted StandardScaler.
+
+    Args:
+        concat_dataset: ConcatDataset object containing ForecastingDatasets
+        scaler: Fitted StandardScaler (scikit-learn)
+
+    Returns:
+        None
     """
     for dataset in concat_dataset.datasets:
         data = dataset.data.numpy()
@@ -413,6 +441,44 @@ def get_loaders(
     verbose: bool=False,
     scaling: bool=True,
 ) -> Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]:
+    """
+
+    Forms training, validation, and test dataloaders for option contract data.
+
+    Args:
+        root: Underlying stock symbol
+        start_date: Start date for the total dataset in YYYYMMDD format
+        end_date: End date for the total dataset in YYYYMMDD format
+        contract_stride: Number of days between each contract (for sampling)
+        interval_min: Interval in minutes for the underlying stock data and option data
+        right: Option type (C for call, P for put)
+        target_tte: Target time to expiration in days
+        tte_tolerance: Tuple of (min, max) time to expiration tolerance in minutes
+        moneyness: Moneyness of the option contract (OTM, ATM, ITM)
+        target_band: Target band for moneyness selection
+        volatility_type: Type of historical volatility to use
+        volatility_scaled: Whether to scale strikes based on historical volatility
+        volatility_scalar: Scalar to adjust historical volatility
+        train_split: Proportion of total days to use for training
+        val_split: Proportion of total days to use for validation
+        core_feats: List of core features to include
+        tte_feats: List of time-to-expiration features to include
+        datetime_feats: List of datetime features to include
+        batch_size: Number of samples per batch
+        shuffle: Whether to shuffle the data
+        drop_last: Whether to drop the last incomplete batch
+        num_workers: Number of subprocesses to use for data loading
+        prefetch_factor: Number of batches to prefetch
+        pin_memory: Whether to pin memory for faster GPU transfer
+        clean_up: Whether to clean up the data after use
+        offline: Whether to load saved contracts from disk
+        save_dir: Directory to save/load contracts
+        verbose: Whether to print verbose output
+        scaling: Whether to normalize the datasets
+
+    Returns:
+        Training, validation, and test PyTorch dataloaders.
+    """
 
     train_contracts, val_contracts, test_contracts = get_contract_datasets(
         root=root,
@@ -483,7 +549,6 @@ def get_loaders(
         prefetch_factor=prefetch_factor,
         pin_memory=pin_memory
     )
-
     val_loader = DataLoader(
         dataset=val_dataset,
         batch_size=batch_size,
@@ -494,7 +559,6 @@ def get_loaders(
         prefetch_factor=prefetch_factor,
         pin_memory=pin_memory
     )
-
     test_loader = DataLoader(
         dataset=test_dataset,
         batch_size=batch_size,
