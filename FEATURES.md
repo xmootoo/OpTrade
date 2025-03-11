@@ -199,11 +199,12 @@ This function processes temporal data to extract cyclic patterns and market-spec
 $$\text{minute of day} = \text{current time in minutes} - \text{market open in minutes}$$
 
 - `sin_minute_of_day` and `cos_minute_of_day`: Sine and cosine transformations of time of day, providing continuous circular features that capture daily cyclical patterns:
+
 $$
 \begin{align*}
-    \text{normalized time} = 2\pi \times \frac{\text{minute of day}}{\text{trading minutes per day}} \\
-    \text{sin minute of day} = \sin(\text{normalized time}) \\
-    \text{cos minute of day} = \cos(\text{normalized time}) 
+    \text{normalized time} &= 2\pi \times \frac{\text{minute of day}}{\text{trading minutes per day}} \\
+    \text{sin minute of day} &= \sin(\text{normalized time}) \\
+    \text{cos minute of day} &= \cos(\text{normalized time}) 
 \end{align*}
 $$
 
