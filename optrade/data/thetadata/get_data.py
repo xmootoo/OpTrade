@@ -142,7 +142,7 @@ def get_data(
             queried_start_date = stock_df["datetime"].iloc[0].strftime("%Y%m%d")
             raise DataValidationError(
                 f"Date mismatch between option and stock data. Option data queried on {queried_start_date}, but the contract does not start until {real_start_date}.",
-                OPTION_DATE_MISMATCH, queried_start_date)
+                OPTION_DATE_MISMATCH, real_start_date)
         else:
             missing_dates = option_df.loc[~option_df["datetime"].isin(stock_df["datetime"]), "datetime"].unique()
             raise DataValidationError(
