@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from pathlib import Path
+from typing import Optional
 
 # Custom modules
 from optrade.data.thetadata.contracts import Contract
@@ -13,7 +14,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 
 def get_data(
     contract: Contract,
-    save_dir: str="../historical_data/combined",
+    save_dir: Optional[str]=None,
     clean_up: bool=False,
     offline: bool=False,
 ) -> pd.DataFrame:
@@ -44,7 +45,11 @@ def get_data(
     # Directory setup
     options_dir = SCRIPT_DIR.parent / "historical_data" / "options"
     stocks_dir = SCRIPT_DIR.parent / "historical_data" / "stocks"
-    save_dir = Path(save_dir)
+
+    if save_dir is None:
+        save_dir = SCRIPT_DIR.parent / "historical_data" / "combined"
+    else:
+        save_dir = Path(save_dir)
 
     if clean_up and not offline:
         temp_dir = SCRIPT_DIR.parent / "temp" / "combined"
