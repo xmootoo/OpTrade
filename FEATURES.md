@@ -66,8 +66,8 @@ Using our primary source data, we can also can construct the following features:
 
 $$
 \begin{align*}
-    \text{option_mid_price} &= V_t = \frac{V_t^b+V_t^a}{2} \\
-    \text{stock_mid_price} &= S_t = \frac{S_t^b+S_t^a}{2} 
+    V_t = \frac{V_t^b+V_t^a}{2} \tag{Option Mid Price} \\
+    S_t = \frac{S_t^b+S_t^a}{2} \tag{Stock Mid Price}
 \end{align*}
 $$
 
@@ -75,8 +75,8 @@ $$
 
 $$
 \begin{align*}
-    \text{option\_returns} &= \frac{V_{t} - V_{t-1}}{V_{t-1}} \\
-    \text{stock\_returns} &= \frac{S_{t} - S_{t-1}}{S_{t-1}}
+    r_{t}^V = \frac{V_{t} - V_{t-1}}{V_{t-1}} \tag{Option Returns} \\
+    r_t^S = \frac{S_{t} - S_{t-1}}{S_{t-1}} \tag{Stock Returns}
 \end{align*}
 $$
 
@@ -86,25 +86,25 @@ If `option_returns` or `stock_returns` is included in the list of features, by c
 
 $$
 \begin{align*}
-    \text{option\_lob\_imbalance} &= \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}} \\
-    \text{stock\_lob\_imbalance} &= \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} 
+    \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}} \tag{Option LOB Imbalance} \\
+    \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} \tag{Stock LOB Imbalance} 
 \end{align*}
 $$
-Where $Q_t^{b,V}$ and $Q_t^{a,V}$ represent the bid and ask quantities for the option at time $t$, and $Q_t^{b,S}$ and $Q_t^{a,S}$ represent the bid and ask quantities for the underlying stock.
+where $Q_t^{b,V}$ and $Q_t^{a,V}$ represent the bid and ask quantities for the option at time $t$, and $Q_t^{b,S}$ and $Q_t^{a,S}$ represent the bid and ask quantities for the underlying stock.
 
 - `quote_spread`: The normalized bid-ask spread, which indicates liquidity and trading costs.
 
 $$
 \begin{align*}
-    \text{option\_quote\_spread} &= \frac{V_t^a - V_t^b}{V_t} \\
-    \text{stock\_quote\_spread} &= \frac{S_t^a - S_t^b}{S_t}
+    \frac{V_t^a - V_t^b}{V_t} \tag{Option Quote Spread} \\
+    \frac{S_t^a - S_t^b}{S_t} \tag{Stock Quote Spread}
 \end{align*}
 $$
 
 - `distance_to_strike`: The raw difference between the strike price and the current stock price, directly measuring proximity to the exercise threshold.
 $$
 \begin{align*}
-\text{distance\_to\_strike} = K - S_t
+K - S_t
 \end{align*}
 $$
 This feature is useful when absolute dollar distances matter for risk management and provides an intuitive measure that directly relates to option pricing models.
@@ -112,7 +112,7 @@ This feature is useful when absolute dollar distances matter for risk management
 - `moneyness`: The logarithm of the ratio between the current stock price and the option's strike price, indicating whether the option is profitable to exercise.
 $$
 \begin{align*}
-\text{moneyness} = \log\left(\frac{S_t}{K}\right)
+\log\left(\frac{S_t}{K}\right)
 \end{align*}
 $$
 Compared to `distance_to_strike`, this feature is normalized and scale-invariant, and therefore better suited for comparing across different stocks, time periods, or price ranges.
@@ -141,17 +141,17 @@ $$\text{tte} = t_\text{expiration} - t_{\text{current}}$$
 where $t_{\text{current}}$ is the current time (measured in units based on `interval_min`). For example, if `interval_min=1`, then `tte` provides the current time-to-expiration in minutes.
 
 - `tte_inverse`: The reciprocal of time-to-expiration, increasing sensitivity as expiration approaches:
-$$\text{tte\_inverse} = \frac{1}{\text{tte}}$$
+$$\frac{1}{\text{tte}}$$
 - `tte_sqrt`: The square root of time-to-expiration, moderating decay and aligning with Black-Scholes:
-$$\text{tte\_sqrt} = \sqrt{\text{tte}}$$
+$$\sqrt{\text{tte}}$$
 - `tte_inverse_sqrt`: Inverse square root of time-to-expiration, balanced approach to capture accelerating decay.
-$$\text{tte\_inverse\_sqrt} = \frac{1}{\sqrt{\text{tte}}}$$
+$$\frac{1}{\sqrt{\text{tte}}}$$
 which is more sensitive near the expiration than `tte_inverse`.
 
 - `tte_exp_decay`: Exponential decay relative to contract length, normalizing decay across options of different durations (useful for modeling multiple contracts):
-$$\text{tte\_exp\_decay} = \exp\left( -\frac{\text{tte}}{\text{contract\_length}} \right) $$
+$$\exp\left( -\frac{\text{tte}}{\text{CL}} \right) $$
 
-where $\text{contract\_length}$ is the total duration from issuance to expiration, resulting in a normalized value $0 \leq (\frac{\text{tte}}{\text{contract\_length}}) \leq 1$.
+where $\text{CL}$ (contract length) is the total duration from issuance to expiration, resulting in a normalized value $0 \leq (\frac{\text{tte}}{\text{CL}}) \leq 1$.
 
 
 ## Datetime Features
@@ -180,23 +180,23 @@ def get_datetime_features(
 ```
 This function processes temporal data to extract cyclic patterns and market-specific time features:
 - `minute_of_day`: Position within the trading day (e.g., 0-389 minutes for `interval_min=1`), where 0 represents market open.
-$$\text{minute\_of\_day} = \text{current\_time\_in\_minutes} - \text{market\_open\_in\_minutes}$$
+$$\text{minute of day} = \text{current time in minutes} - \text{market open in minutes}$$
 
 - `sin_minute_of_day` and `cos_minute_of_day`: Sine and cosine transformations of time of day, providing continuous circular features that capture daily cyclical patterns:
-$$\text{normalized\_time} = 2\pi \times \frac{\text{minute\_of\_day}}{\text{trading\_minutes\_per\_day}}$$
-$$\text{sin\_minute\_of\_day} = \sin(\text{normalized\_time})$$
-$$\text{cos\_minute\_of\_day} = \cos(\text{normalized\_time})$$
+$$\text{normalized time} = 2\pi \times \frac{\text{minute of day}}{\text{trading minutes per day}}$$
+$$\text{sin minute of day} = \sin(\text{normalized time})$$
+$$\text{cos minute of day} = \cos(\text{normalized time})$$
 
 These transformations help capture recurring patterns at specific times of the trading day (e.g., opening/closing volatility, lunch hour dips).
 - `day_of_week`: Trading day number (0=Monday, 4=Friday), capturing weekly expiration effects.
 
 - `hour_of_week`: Hour position as a proportion of the trading week (0.0-1.0), providing a continuous measure of weekly progress:
-$$\text{hour\_of\_week} = \frac{\text{total\_trading\_hours\_elapsed\_this\_week}}{\text{total\_trading\_hours\_per\_week}}$$
+$$\text{hour of week} = \frac{\text{total trading hours elapsed this week}}{\text{total trading hours per week}}$$
 
 - `sin_hour_of_week` and `cos_hour_of_week`: Sine and cosine transformations of the hour of week, providing continuous circular features that capture weekly cyclical patterns:
-$$\text{normalized\_week\_time} = 2\pi \times \text{hour\_of\_week}$$
-$$\text{sin\_hour\_of\_week} = \sin(\text{normalized\_week\_time})$$
-$$\text{cos\_hour\_of\_week} = \cos(\text{normalized\_week\_time})$$
+$$\text{normalized week time} = 2\pi \times \text{hour of week}$$
+$$\text{sin hour of week} = \sin(\text{normalized week time})$$
+$$\text{cos hour of week} = \cos(\text{normalized week time})$$
 
 These weekly transformations are particularly important for capturing option expiration cycles and day-of-week effects that are common in derivatives markets. All datetime features are prefixed with `dt_` in the resulting DataFrame to distinguish them from other feature types.
 
