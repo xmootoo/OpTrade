@@ -151,21 +151,21 @@ where $t_{\text{current}}$ is the current time (measured in units based on `inte
 
 - `tte_inverse`: The reciprocal of time-to-expiration, increasing sensitivity as expiration approaches:
 
-$$\frac{1}{\text{tte}}$$
+$$\text{Inverse TTE} = \frac{1}{\text{tte}}$$
 
 - `tte_sqrt`: The square root of time-to-expiration, moderating decay and aligning with Black-Scholes:
 
-$$\sqrt{\text{tte}}$$
+$$\text{Sqrt TTE} = \sqrt{\text{tte}}$$
 
 - `tte_inverse_sqrt`: Inverse square root of time-to-expiration, balanced approach to capture accelerating decay.
 
-$$\frac{1}{\sqrt{\text{tte}}}$$
+$$\text{Inverse Sqrt TTE} = \frac{1}{\sqrt{\text{tte}}}$$
 
 which is more sensitive near the expiration than `tte_inverse`.
 
 - `tte_exp_decay`: Exponential decay relative to contract length, normalizing decay across options of different durations (useful for modeling multiple contracts):
 
-$$\exp\left( -\frac{\text{tte}}{\text{CL}} \right) $$
+$$\text{Exp Decay TTE =} \exp\left( -\frac{\text{tte}}{\text{CL}} \right) $$
 
 where $\text{CL}$ (contract length) is the total duration from issuance to expiration, resulting in a normalized value $0 \leq (\frac{\text{tte}}{\text{CL}}) \leq 1$.
 
