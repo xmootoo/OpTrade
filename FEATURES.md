@@ -201,9 +201,9 @@ $$\text{minute of day} = \text{current time in minutes} - \text{market open in m
 - `sin_minute_of_day` and `cos_minute_of_day`: Sine and cosine transformations of time of day, providing continuous circular features that capture daily cyclical patterns:
 $$
 \begin{align*}
-    \text{normalized time} = 2\pi \times \frac{\text{minute of day}}{\text{trading minutes per day}}
-    \text{sin minute of day} = \sin(\text{normalized time})
-    \text{cos minute of day} = \cos(\text{normalized time})
+    \text{normalized time} = 2\pi \times \frac{\text{minute of day}}{\text{trading minutes per day}} \\
+    \text{sin minute of day} = \sin(\text{normalized time}) \\
+    \text{cos minute of day} = \cos(\text{normalized time}) 
 \end{align*}
 $$
 
@@ -217,9 +217,9 @@ $$\text{hour of week} = \frac{\text{total trading hours elapsed this week}}{\tex
 - `sin_hour_of_week` and `cos_hour_of_week`: Sine and cosine transformations of the hour of week, providing continuous circular features that capture weekly cyclical patterns:
 $$
 \begin{align*}
-    \text{normalized week time} = 2\pi \times \text{hour of week}
-    \text{sin hour of week} = \sin(\text{normalized week time})
-    \text{cos hour of week} = \cos(\text{normalized week time})
+    \text{normalized week time} = 2\pi \times \text{hour of week} \\
+    \text{sin hour of week} = \sin(\text{normalized week time}) \\
+    \text{cos hour of week} = \cos(\text{normalized week time}) 
 \end{align*}
 $$
 
