@@ -103,19 +103,23 @@ $$
 $$
 
 - `distance_to_strike`: The raw difference between the strike price and the current stock price, directly measuring proximity to the exercise threshold.
+
 $$
 \begin{align*}
 \text{Distance to Strike} =  K - S_t
 \end{align*}
 $$
+
 This feature is useful when absolute dollar distances matter for risk management and provides an intuitive measure that directly relates to option pricing models.
 
 - `moneyness`: The logarithm of the ratio between the current stock price and the option's strike price, indicating whether the option is profitable to exercise.
+
 $$
 \begin{align*}
 \text{Moneyness} \log\left(\frac{S_t}{K}\right)
 \end{align*}
 $$
+
 Compared to `distance_to_strike`, this feature is normalized and scale-invariant, and therefore better suited for comparing across different stocks, time periods, or price ranges.
 
 
@@ -138,18 +142,29 @@ def get_tte_features(
 ```
 These features include:
 - `tte`:  Raw time-to-expiration, providing baseline measurement of remaining time.
+
 $$\text{tte} = t_\text{expiration} - t_{\text{current}}$$
+
+
+
 where $t_{\text{current}}$ is the current time (measured in units based on `interval_min`). For example, if `interval_min=1`, then `tte` provides the current time-to-expiration in minutes.
 
 - `tte_inverse`: The reciprocal of time-to-expiration, increasing sensitivity as expiration approaches:
+
 $$\frac{1}{\text{tte}}$$
+
 - `tte_sqrt`: The square root of time-to-expiration, moderating decay and aligning with Black-Scholes:
+
 $$\sqrt{\text{tte}}$$
+
 - `tte_inverse_sqrt`: Inverse square root of time-to-expiration, balanced approach to capture accelerating decay.
+
 $$\frac{1}{\sqrt{\text{tte}}}$$
+
 which is more sensitive near the expiration than `tte_inverse`.
 
 - `tte_exp_decay`: Exponential decay relative to contract length, normalizing decay across options of different durations (useful for modeling multiple contracts):
+
 $$\exp\left( -\frac{\text{tte}}{\text{CL}} \right) $$
 
 where $\text{CL}$ (contract length) is the total duration from issuance to expiration, resulting in a normalized value $0 \leq (\frac{\text{tte}}{\text{CL}}) \leq 1$.
@@ -184,20 +199,29 @@ This function processes temporal data to extract cyclic patterns and market-spec
 $$\text{minute of day} = \text{current time in minutes} - \text{market open in minutes}$$
 
 - `sin_minute_of_day` and `cos_minute_of_day`: Sine and cosine transformations of time of day, providing continuous circular features that capture daily cyclical patterns:
-$$\text{normalized time} = 2\pi \times \frac{\text{minute of day}}{\text{trading minutes per day}}$$
-$$\text{sin minute of day} = \sin(\text{normalized time})$$
-$$\text{cos minute of day} = \cos(\text{normalized time})$$
+$$
+\begin{align*}
+    \text{normalized time} = 2\pi \times \frac{\text{minute of day}}{\text{trading minutes per day}}
+    \text{sin minute of day} = \sin(\text{normalized time})
+    \text{cos minute of day} = \cos(\text{normalized time})
+\end{align*}
+$$
 
 These transformations help capture recurring patterns at specific times of the trading day (e.g., opening/closing volatility, lunch hour dips).
 - `day_of_week`: Trading day number (0=Monday, 4=Friday), capturing weekly expiration effects.
 
 - `hour_of_week`: Hour position as a proportion of the trading week (0.0-1.0), providing a continuous measure of weekly progress:
+
 $$\text{hour of week} = \frac{\text{total trading hours elapsed this week}}{\text{total trading hours per week}}$$
 
 - `sin_hour_of_week` and `cos_hour_of_week`: Sine and cosine transformations of the hour of week, providing continuous circular features that capture weekly cyclical patterns:
-$$\text{normalized week time} = 2\pi \times \text{hour of week}$$
-$$\text{sin hour of week} = \sin(\text{normalized week time})$$
-$$\text{cos hour of week} = \cos(\text{normalized week time})$$
+$$
+\begin{align*}
+    \text{normalized week time} = 2\pi \times \text{hour of week}
+    \text{sin hour of week} = \sin(\text{normalized week time})
+    \text{cos hour of week} = \cos(\text{normalized week time})
+\end{align*}
+$$
 
 These weekly transformations are particularly important for capturing option expiration cycles and day-of-week effects that are common in derivatives markets. All datetime features are prefixed with `dt_` in the resulting DataFrame to distinguish them from other feature types.
 
