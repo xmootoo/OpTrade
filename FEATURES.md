@@ -110,13 +110,13 @@ $$
 \end{align*}
 $$
 
-This feature is useful when absolute dollar distances matter for risk management and provides an intuitive measure that directly relates to option pricing models.
+where $K$ is the strike price. This feature is useful when absolute dollar distances matter for risk management and provides an intuitive measure that directly relates to option pricing models.
 
 - `moneyness`: The logarithm of the ratio between the current stock price and the option's strike price, indicating whether the option is profitable to exercise.
 
 $$
 \begin{align*}
-\text{Moneyness} \log\left(\frac{S_t}{K}\right)
+\text{Moneyness} = \log\left(\frac{S_t}{K}\right)
 \end{align*}
 $$
 
