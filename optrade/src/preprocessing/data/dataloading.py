@@ -11,7 +11,6 @@ from sklearn.preprocessing import StandardScaler
 # Data
 from optrade.data.thetadata.stocks import get_stock_data
 from optrade.data.thetadata.get_data import get_data
-from optrade.data.thetadata.contracts import Contract
 
 # Datasets
 from optrade.src.preprocessing.data.datasets import ContractDataset, ForecastingDataset
@@ -594,12 +593,18 @@ if __name__ == "__main__":
     tte_feats = ["sqrt", "exp_decay"]
 
     # Datetime features
-    datetime_feats = ["sin_timeofday", "cos_timeofday", "dayofweek"]
+    datetime_feats = ["sin_minute_of_day", "cos_minute_of_day", "sin_hour_of_week", "cos_hour_of_week"]
 
     # Select features
     core_feats = [
         "option_returns",
+        "stock_returns",
         "distance_to_strike",
+        "moneyness",
+        "option_lob_imbalance",
+        "option_quote_spread",
+        "stock_lob_imbalance",
+        "stock_quote_spread",
         "option_mid_price",
         "option_bid_size",
         "option_bid",
@@ -615,6 +620,7 @@ if __name__ == "__main__":
         "stock_volume",
         "stock_count",
     ]
+
 
     # Testing: get_loaders
     output = get_loaders(
