@@ -86,8 +86,8 @@ If `option_returns` or `stock_returns` is included in the list of features, by c
 
 $$
 \begin{align*}
-    \text{Option LOB Imbalance} = \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}}  \\
-    \text{Stock LOB Imbalance}  = \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} 
+    \text{Option LOB Imbalance} &= \frac{Q_t^{b,V} - Q_t^{a,V}}{Q_t^{b,V} + Q_t^{a,V}}  \\
+    \text{Stock LOB Imbalance}  &= \frac{Q_t^{b,S} - Q_t^{a,S}}{Q_t^{b,S} + Q_t^{a,S}} 
 \end{align*}
 $$
 where $Q_t^{b,V}$ and $Q_t^{a,V}$ represent the bid and ask quantities for the option at time $t$, and $Q_t^{b,S}$ and $Q_t^{a,S}$ represent the bid and ask quantities for the underlying stock.
@@ -112,7 +112,7 @@ This feature is useful when absolute dollar distances matter for risk management
 - `moneyness`: The logarithm of the ratio between the current stock price and the option's strike price, indicating whether the option is profitable to exercise.
 $$
 \begin{align*}
-\text{Moneyness} = \log\left(\frac{S_t}{K}\right)
+\text{Moneyness} \log\left(\frac{S_t}{K}\right)
 \end{align*}
 $$
 Compared to `distance_to_strike`, this feature is normalized and scale-invariant, and therefore better suited for comparing across different stocks, time periods, or price ranges.
