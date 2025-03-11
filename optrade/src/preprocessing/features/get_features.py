@@ -59,12 +59,15 @@ def get_features(
         - "exp_decay"
 
     Datetime features options:
-        - "minuteofday"
-        - "sin_timeofday"
-        - "cos_timeofday"
-        - "dayofweek"
-        - "sin_dayofweek"
-        - "cos_dayofweek"
+        - "minute_of_day"
+        - "sin_minute_of_day"
+        - "cos_minute_of_day"
+        - "day_of_week"
+        - "sin_day_of_week"
+        - "cos_day_of_week"
+        - "hour_of_week"
+        - "sin_hour_of_week"
+        - "cos_hour_of_week"
     """
 
     # Generate additional features
@@ -83,7 +86,7 @@ def get_features(
         prices = df["stock_mid_price"].to_numpy()
         returns = np.zeros_like(prices)
         returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
-        df["stock_returns"]
+        df["stock_returns"] = returns
 
     if "option_returns" in core_feats or "stock_returns" in core_feats:
         # Drop the first market open (since returns=0)
@@ -141,11 +144,12 @@ if __name__ == "__main__":
     tte_feats = ["sqrt", "exp_decay"]
 
     # Datetime features
-    datetime_feats = ["sin_timeofday", "cos_timeofday", "dayofweek"]
+    datetime_feats = ["sin_minute_of_day", "cos_minute_of_day", "sin_hour_of_week", "cos_hour_of_week"]
 
     # Select features
     core_feats = [
         "option_returns",
+        "stock_returns",
         "distance_to_strike",
         "moneyness",
         "option_lob_imbalance",
