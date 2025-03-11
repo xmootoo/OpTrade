@@ -1,16 +1,15 @@
 import pandas as pd
 import numpy as np
 
-from typing import Optional
-
+from typing import Optional, List
 from optrade.src.preprocessing.features.datetime_features import get_datetime_features
 from optrade.src.preprocessing.features.tte_features import get_tte_features
 
 def get_features(
     df: pd.DataFrame,
-    core_feats: list,
-    tte_feats: list,
-    datetime_feats: list,
+    core_feats: List[str],
+    tte_feats: List[str],
+    datetime_feats: List[str],
     strike: Optional[int]=None,
 ) -> pd.DataFrame:
 
@@ -103,11 +102,11 @@ def get_features(
 
     if "stock_lob_imbalance" in core_feats:
         # Calculate limit order book (LOB) imbalance and add to dataframe
-        df["stock_lob_imbalance"] = (df["stock_bid_size"] - df["stock_ask_size"]) / (df["stock_bid_size"] + df["stock_ask_size"])
+        df["stock_lob_imbalance"] = (df["stock_ask_size"] - df["stock_bid_size"]) / (df["stock_bid_size"] + df["stock_ask_size"])
 
     if "option_lob_imbalance" in core_feats:
         # Calculate limit order book (LOB) imbalance and add to dataframe
-        df["option_lob_imbalance"] = (df["option_bid_size"] - df["option_ask_size"]) / (df["option_bid_size"] + df["option_ask_size"])
+        df["option_lob_imbalance"] = (df["option_ask_size"] - df["option_bid_size"]) / (df["option_bid_size"] + df["option_ask_size"])
 
     if "stock_quote_spread" in core_feats:
         # Calculate stock quote spread normalized by mid-price
