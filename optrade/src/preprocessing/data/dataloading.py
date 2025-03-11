@@ -54,7 +54,28 @@ def get_contract_datasets(
     at mutually exclusive time periods to prevent information leakage during training and evaluation.
 
     Args:
+        root: Underlying stock symbol
+        start_date: Start date for the total dataset in YYYYMMDD format
+        end_date: End date for the total dataset in YYYYMMDD format
+        contract_stride: Number of days between each contract
+        interval_min: Interval in minutes for the underlying stock data
+        right: Option type (C for call, P for put)
+        target_tte: Target time to expiration in minutes
+        tte_tolerance: Tuple of (min, max) time to expiration tolerance in minutes
+        moneyness: Moneyness of the option contract (OTM, ATM, ITM)
+        target_band: Target band for moneyness selection
+        volatility_type: Type of historical volatility to use
+        volatility_scaled: Whether to scale strikes based on historical volatility
+        volatility_scalar: Scalar to adjust historical volatility
+        train_split: Proportion of total days to use for training
+        val_split: Proportion of total days to use for validation
+        clean_up: Whether to clean up the data after use
+        offline: Whether to load saved contracts from disk
+        save_dir: Directory to save/load contracts
+        verbose: Whether to print verbose output
 
+    Returns:
+        Training, validation, and test contract datasets.
     """
 
     # Set directories for saving or loading
@@ -106,7 +127,6 @@ def get_contract_datasets(
         )
     else:
         hist_vol = None
-
 
     # Get contiguous training, validation, and test (start_date, end_date) pairs in YYYYMMDD format
     total_days = (pd.to_datetime(end_date, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
