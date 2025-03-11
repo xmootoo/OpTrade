@@ -5,7 +5,13 @@ from datetime import datetime
 
 def get_tte_features(
     df: pd.DataFrame,
-    feats: List=["linear", "inverse", "sqrt", "inverse_sqrt", "exp_decay"],
+    feats: List=[
+        "tte",
+        "inverse",
+        "sqrt",
+        "inverse_sqrt",
+        "exp_decay"
+    ],
     exp: str="20250117",
 ) -> pd.DataFrame:
     """
@@ -69,7 +75,7 @@ def get_tte_features(
     # Generate requested features
     if "linear" in feats or "all" in feats:
         # Linear TTE (raw minutes)
-        result_df['tte_linear'] = result_df['tte_minutes'].astype('float64')
+        result_df['tte'] = result_df['tte_minutes'].astype('float64')
 
     if "inverse" in feats or "all" in feats:
         # Inverse TTE (1/minutes)
@@ -110,10 +116,11 @@ def get_tte_features(
 if __name__ == "__main__":
     # Create sample data
     from optrade.data.thetadata.get_data import get_data
+    from optrade.data.thetadata.contracts import Contract
     from rich.console import Console
     console = Console()
 
-    df = get_data(
+    contract = Contract(
         root="AAPL",
         start_date="20241107",
         end_date="20241108",
@@ -121,6 +128,10 @@ if __name__ == "__main__":
         strike=225,
         interval_min=1,
         right="C",
+    )
+
+    df = get_data(
+        contract=contract,
         clean_up=True,
         offline=False
     )
@@ -128,7 +139,7 @@ if __name__ == "__main__":
     # Generate TTE features
     result = get_tte_features(
         df=df,
-        feats=["linear", "inverse", "sqrt", "inverse_sqrt", "exp_decay"],
+        feats=["tte", "inverse", "sqrt", "inverse_sqrt", "exp_decay"],
         exp="20250117"
     )
 
