@@ -66,8 +66,8 @@ Using our primary source data, we can also can construct the following features:
 
 $$
 \begin{align*}
-    \text{option\_mid\_price} &= V_t = \frac{V_t^b+V_t^a}{2} \\
-    \text{stock\_mid\_price} &= S_t = \frac{S_t^b+S_t^a}{2} 
+    \text{option_mid_price} &= V_t = \frac{V_t^b+V_t^a}{2} \\
+    \text{stock_mid_price} &= S_t = \frac{S_t^b+S_t^a}{2} 
 \end{align*}
 $$
 
