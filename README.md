@@ -12,14 +12,13 @@ Currently, the project is focused on completing objective $(\textbf{I})$, with o
 
 
 
-## Table of Contents
+## Documentation
 1. [DATA.md](DATA.md)
 2. [FEATURES.md](FEATURES.md)
 2. [Installation](#installation)
 3. [Contact](#contact)
 
-[DATA.md](DATA.md) includes information on the comprehensive data pipeline, whereas [FEATURES.md](FEATURES.md) includes information
-on the selection of important predictors for option forecasting.
+The aove table provides relevant docuementation and information including [DATA.md](DATA.md), which provides information on the comprehensive data pipeline, and [FEATURES.md](FEATURES.md) which details the selection of important predictors for option forecasting.
 
 
 ## Installation
