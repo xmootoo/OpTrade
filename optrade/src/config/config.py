@@ -64,6 +64,8 @@ class Data(BaseModel):
     univariate: bool = Field(default=False, description="Whether to process a multivariate time series as univariate data (mixed together but separated by channel)")
     seq_load: bool = Field(default=False, description="Whether to use sequential dataloading. Loads train datasets first, and then test set at test time.")
     numpy_data: bool = Field(default=False, description="Whether to use numpy data in dataloading (will not be converted to torch tensors).")
+    difference_input: bool = Field(default=False, description="Whether to use 1st-order differencing on the input data for forecasting.")
+    scaling: bool = Field(default=False, description="Whether to use z-score normalize each channel using StandardScaler (scikit-learn).")
 
     # Option/Underlying Parameters
     root: str = Field(default="AAPL", description="The root symbol of the underlying security")
@@ -80,13 +82,17 @@ class Data(BaseModel):
     tte_tolerance: Tuple[int, int] = Field(default=(15,45), description="Tolerance range for selecting a contract if exact target_tte does not exist")
     contract_stride: int = Field(default=5, description="Stride length used to select multiple contracts at different dates")
     target_channels: List[int] = Field(default=[0], description="Target channels used in the target window.")
-    datetime_feats: List[str] = Field(default=["sin_timeofday"], description="Datetime features to use for the time series.")
-    core_feats: List[str] = Field(default=["option_mid_price"], description="Core features of option and underlying data")
-    tte_feats: List[str] = Field(default=["sqrt"], description="Time-to-Expiration (TTE) features for option contracts.")
     clean_up: bool = Field(default=True, description="Whether to clean up the CSV files after saving data from ThetaData API.")
     offline: bool = Field(default=False, description="Whether to use offline data instead of calling ThetaData API directly.")
     save_dir: str = Field(default="../historical_data/", description="Directory to save the data.")
     verbose: bool = Field(default=True, description="Verbose print for data loading.")
+    intraday: bool = Field(default=False, description="Whether to use intraday data for the dataset or allow crossover between different days.")
+
+    # Features
+    core_feats: List[str] = Field(default=["option_mid_price"], description="Core features of option and underlying data")
+    tte_feats: List[str] = Field(default=["sqrt"], description="Time-to-Expiration (TTE) features for option contracts.")
+    datetime_feats: List[str] = Field(default=["sin_minute_of_day"], description="Datetime features to use for the time series.")
+    target_channels: List[int] = Field(default=[0], description="Target channels used in the target window.")
 
 class Conformal(BaseModel):
     conf: bool = Field(default=False, description="Whether to use conformal prediction. This will split .")
@@ -99,9 +105,6 @@ class Train(BaseModel):
     optimizer: str = Field(default="adam", description="Optimizer for supervised learning: 'adam' or 'adamw'")
     criterion: str = Field(default="MSE", description="Criterion for supervised learning: 'MSE', 'SmoothL1', 'CrossEntropy', 'BCE', 'ChannelLossBCE', 'ChannelLossCE'")
     num_enc_layers: int = Field(default=3, description="Number of encoder layers in the model")
-    d_model: int = Field(default=128, description="Dimension of the model")
-    d_ff: int = Field(default=256, description="Dimension of the feedforward network model")
-    num_heads: int = Field(default=16, description="Number of heads in each MultiheadAttention block")
     dropout: float = Field(default=0.05, description="Dropout for some of the linears layers in PatchTSTOG")
     batch_first: bool = Field(default=True, description="Whether the first dimension is batch")
     norm_mode: str = Field(default="batch1d", description="Normalization mode: 'batch1d', 'batch2d', or 'layer'")
@@ -117,8 +120,8 @@ class Train(BaseModel):
     dataset_class: str = Field(default="forecasting", description="Task type: 'forecasting', 'forecasting_og', 'classification', 'JEPA', 'DualJEPA'")
     early_stopping: bool = Field(default=False, description="Early stopping for supervised learning.")
     head_type: str = Field(default="linear", description="Head type for supervised learning: 'linear' or 'mlp'") # CyclicalPatchedForecaster (usable)
-    num_kernels: int = Field(default=32, description="Number of convolutional kernels.")
     return_head: bool = Field(default=False, description="Whether to return the head of the model.")
+    channel_independent: bool = Field(default=False, description="Whether to use channel independent linear layers for the head.")
 
 class EarlyStopping(BaseModel):
     patience: int = Field(default=10, description="Patience for early stopping.")
@@ -177,14 +180,15 @@ class ModernTCN(BaseModel):
     dw_dims: List[int] = Field(default=[256], description="Depthwise dimension for each stage. Set to 256 for all stages. Make a list (in str format a,b,c,...) for multistaging, length equal to number of stages.")
 
 class EMForecaster(BaseModel):
-    patch_norm: str = Field(default="layer", description="Normalization mode for the PatchedForecaster model")
+    patch_norm: str = Field(default="none", description="Normalization mode for the PatchedForecaster model. Options: 'none', 'layer'")
     patch_act: str = Field(default="gelu", description="Activation function for the PatchedForecaster model")
     patch_embed_dim: int = Field(default=128, description="Embedding dimension for the PatchedForecaster model")
-    independent_patching: bool = Field(default=False, description="Whether to use independent patching for the PatchedForecaster model")
-    pos_enc: str = Field(default="learnable", description="Positional encoding for the PatchedForecaster model")
-    backbone_id: str = Field(default="TSMixer", description="Backbone for the EMForecaster class. Options: 'TSMixer', 'DLinear'.")
-    patch_model_id: str = Field(default="Linear", description="Patch model for the EMForecaster class. Options: 'Linear', 'TSMixer', 'DLinear'.")
-
+    pos_enc: str = Field(default="none", description="Positional encoding for the PatchedForecaster model. Options: 'none', 'learnable'")
+    patch_model_id: str = Field(default="TSMixer", description="Patch model for the EMForecaster class. Options: 'TSMixer', 'DLinear'.")
+    d_model: int = Field(default=24, description="The hidden MLP dimension for TSMixer when using patch_model_id='TSMixer'.")
+    dropout: float = Field(default=0.3, description="Dropout rate for the EMForecaster model.")
+    num_enc_layers: int = Field(default=2, description="Number of encoder layers for the EMForecaster model.")
+    moving_avg: int = Field(default=25, description="Moving average window for the EMForecaster model when patch_model_id='DLinear'.")
 
 class RecurrentModel(BaseModel):
     d_model: int = Field(default=16, description="Model dimension for the RecurrentModel.")
