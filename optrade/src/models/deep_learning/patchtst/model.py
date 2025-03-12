@@ -3,13 +3,11 @@ from torch import Tensor
 import torch.nn as nn
 from typing import Optional
 
-from backbone import PatchTSTBackbone
-
+from optrade.src.models.deep_learning.patchtst.backbone import PatchTSTBackbone
 from optrade.src.models.deep_learning.utils.revin import RevIN
 from optrade.src.models.deep_learning.utils.patcher import Patcher
 from optrade.src.models.deep_learning.utils.pos_enc import PositionalEncoding
 from optrade.src.models.deep_learning.utils.weight_init import xavier_init
-
 
 class PatchTST(nn.Module):
     def __init__(self,

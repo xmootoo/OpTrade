@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from enc_block import EncoderBlock
+from optrade.src.models.deep_learning.patchtst.enc_block import EncoderBlock
 from optrade.src.models.deep_learning.utils.utils import Reshape
 from typing import Optional
 
