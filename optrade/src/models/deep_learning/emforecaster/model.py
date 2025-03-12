@@ -119,7 +119,6 @@ class EMForecaster(nn.Module):
             nn.Linear(self.num_patches*self.patch_embed_dim, self.pred_len) for i in range(num_output_channels)
         ])
 
-
         # Weight initialization
         self.apply(lambda m: xavier_init(m, seed=seed))
 
