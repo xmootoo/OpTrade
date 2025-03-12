@@ -34,8 +34,7 @@ from optrade.src.utils.train.models import get_criterion, \
                              get_scheduler, \
                              compute_loss, \
                              model_update, \
-                             forward_pass, \
-                             check_gradients
+                             forward_pass
 
 from optrade.src.utils.train.logger import log_pydantic, epoch_logger, format_time_dynamic
 
@@ -91,8 +90,14 @@ class Experiment:
         """
         Initialize the dataloaders depending on the learning type and loader type.
         """
-        # if self.args.data.target_channels is None:
-        #     self.args.data.target_channels = range(len(self.args.data.core_feats) + len(self.args.data.tte_feats) + len(self.args.data.datetime_feats))
+        # Convert target_channels str to indices
+        self.channels = self.args.data.core_feats + self.args.data.tte_feats + self.args.data.datetime_feats
+
+        if self.args.data.target_channels is None:
+            self.target_channels_idx = range(len(self.channels))
+        else:
+            self.target_channels_idx = [self.channels.index(channel) for channel in self.args.data.target_channels]
+
         loaders = get_loaders(
             root=self.args.data.root,
             start_date=self.args.data.start_date,
@@ -123,7 +128,7 @@ class Experiment:
             verbose=self.args.data.verbose,
             scaling=self.args.data.scaling,
             intraday=self.args.data.intraday,
-            target_channels=self.args.data.target_channels,
+            target_channels=self.target_channels_idx,
             seq_len=self.args.data.seq_len,
             pred_len=self.args.data.pred_len,
             dtype=self.args.data.dtype,
