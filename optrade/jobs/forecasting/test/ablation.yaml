@@ -1,8 +1,7 @@
-job_name: "rf_emf/patched_forecaster"
+job_name: "forecasting/test"
 
 ablations:
-  exp.project_name: ["rf-emf-conf/main"]
-  data.dataset: ["rf_emf"]
+  exp.project_name: ["optrade1/AAPL"]
   exp.patch_model_id: ["TSMixer"]
   data.num_channels: [1]
   tsmixer.dropout: [0.3]
