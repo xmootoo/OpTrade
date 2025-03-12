@@ -1,0 +1,79 @@
+exp:
+  project_name: "optrade1/AAPL"
+  model_id: "EMForecaster"
+  learning_type: "sl"
+  seed_list: [54930]
+  seed: 54930
+  mae: True
+  rank_verbose: False
+  task: "forecasting"
+  neptune: True
+  gpu_id: 0
+
+data:
+  patch_dim: 8
+  patch_stride: -1
+  window_stride: 1
+  dtype: "float32"
+  seq_len: 32
+  pred_len: 4
+  train_split: 0.65
+  val_split: 0.2
+  num_channels: 1
+  num_workers: 4
+  scale: True
+
+  # Dataset
+  root: "AAPL"
+  start_date: "20230107"
+  end_date: "20231228"
+  contract_stride: 3
+  interval_min: 1
+  right: "C"
+  moneyness: "ATM"
+  target_band: 0.05
+  volatility_scaled: False
+  target_tte: 30
+  tte_tolerance: [15, 45]
+  target_channels: [0]
+  clean_up: False
+  offline: True
+  scaling: True
+
+  # Features
+  core_feats: [""]
+
+sl:
+  optimizer: "adam"
+  criterion: "MSE"
+  # scheduler: "onecycle"
+  dropout: 0.3
+  epochs: 10
+  batch_size: 64
+  lr: 1e-5
+  early_stopping: True
+  weight_decay: 1e-5
+  return_head: True
+
+  # RevIN
+  revin: True
+  revin_affine: True
+  revout: True
+  eps_revin: 1e-5
+
+# EMForecaster
+emf:
+  patch_norm: "none"
+  patch_act: "gelu"
+  patch_embed_dim: 128
+  num_enc_layers: 1
+  dropout: 0.3
+  patch_model_id: "TSMixer"
+  d_model: 128
+
+# scheduler:
+#   pct_start: 0.3
+#   lradj: "type3"
+
+early_stopping:
+  patience: 20
