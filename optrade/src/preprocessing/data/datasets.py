@@ -270,11 +270,11 @@ class ForecastingDataset(Dataset):
         input = self.data[idx:idx+self.seq_len]
 
         if self.target_channels:
-            target = self.data[idx+self.seq_len:idx+self.seq_len+self.pred_len][self.target_channels]
+            target = self.data[idx+self.seq_len:idx+self.seq_len+self.pred_len, self.target_channels]
         else:
             target = self.data[idx+self.seq_len:idx+self.seq_len+self.pred_len]
 
-        return input.transpose(0,1), target.tranpose(0,1)
+        return input.transpose(0,1), target.transpose(0,1)
 
 class CombinedForecastingDataset(Dataset):
     """
