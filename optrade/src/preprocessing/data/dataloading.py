@@ -22,10 +22,14 @@ from optrade.src.preprocessing.features.get_features import get_features
 from optrade.src.preprocessing.data.volatility import get_historical_volatility
 
 # Utils
-from optrade.src.utils.data.error import DataValidationError, OPTION_DATE_MISMATCH
+from optrade.src.utils.data.error import DataValidationError, INCOMPATIBLE_START_DATE, INCOMPATIBLE_END_DATE, MISSING_DATES, UNKNOWN_ERROR
 
 # Get absolute path for this script
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+
+# <------------- Debugging Above ------------->
 
 def get_contract_datasets(
     root: str = "AAPL",
@@ -79,7 +83,7 @@ def get_contract_datasets(
 
     # Set directories for saving or loading
     if save_dir is None:
-        save_dir = SCRIPT_DIR.parents[3] / "data" / "historical_data" / "contracts"
+        save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
 
     # Create a structured path based on key parameters
     contract_dir = (
@@ -319,8 +323,8 @@ def get_combined_dataset(
                 move_to_next_contract = True
 
             except DataValidationError as e:
-                if e.error_code == OPTION_DATE_MISMATCH:
-                    new_start_date = e.data_str
+                if e.error_code == INCOMPATIBLE_START_DATE:
+                    new_start_date = e.real_start_date
 
                     # Check if (exp - new_start_date) is within tte_tolerance. If not, move to the next contract
                     if pd.to_datetime(contract.exp, format='%Y%m%d') - pd.to_datetime(new_start_date, format='%Y%m%d') < pd.Timedelta(days=tte_tolerance[0]):
@@ -330,6 +334,20 @@ def get_combined_dataset(
                     else:
                         ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
                         contract.start_date = new_start_date
+                elif e.error_code == INCOMPATIBLE_END_DATE:
+                    new_start_date = e.real_start_date
+                    new_exp = e.real_end_date
+
+                    # Check if (new_exp - new_start_date) is within tte_tolerance. If not, move to the next contract
+                    if pd.to_datetime(new_exp, format='%Y%m%d') - pd.to_datetime(new_start_date, format='%Y%m%d') < pd.Timedelta(days=tte_tolerance[0]):
+                        ctx.log(f"Option contract start date and end date mismatch. New start date {new_start_date} is too close to new expiration {new_exp}. Moving to next contract.")
+                        move_to_next_contract = True
+                    # If tte_tolerance is satisfied, update contract expiration to the observed end date of option data
+                    else:
+                        # For other DataValidationError types, move to the next contract
+                        ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
+                        move_to_next_contract = True
+                        contract.exp = new_exp
                 else:
                     # For other DataValidationError types, move to the next contract
                     ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
@@ -438,6 +456,11 @@ def get_loaders(
     contract_dir: Optional[Path] = None,
     verbose: bool=False,
     scaling: bool=True,
+    intraday: bool=False,
+    target_channels: List[int]=[0],
+    seq_len: int=100,
+    pred_len: int=10,
+    dtype: str="float64",
 ) -> Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]:
     """
 
@@ -508,8 +531,14 @@ def get_loaders(
         datetime_feats=datetime_feats,
         tte_tolerance=tte_tolerance,
         clean_up=clean_up,
-        offline=offline
+        offline=offline,
+        intraday=intraday,
+        target_channels=target_channels,
+        seq_len=seq_len,
+        pred_len=pred_len,
+        dtype=dtype,
     )
+
     val_dataset = get_combined_dataset(
         contracts=val_contracts,
         core_feats=core_feats,
@@ -517,7 +546,12 @@ def get_loaders(
         datetime_feats=datetime_feats,
         tte_tolerance=tte_tolerance,
         clean_up=clean_up,
-        offline=offline
+        offline=offline,
+        intraday=intraday,
+        target_channels=target_channels,
+        seq_len=seq_len,
+        pred_len=pred_len,
+        dtype=dtype,
     )
     test_dataset = get_combined_dataset(
         contracts=test_contracts,
@@ -526,7 +560,12 @@ def get_loaders(
         datetime_feats=datetime_feats,
         tte_tolerance=tte_tolerance,
         clean_up=clean_up,
-        offline=offline
+        offline=offline,
+        intraday=intraday,
+        target_channels=target_channels,
+        seq_len=seq_len,
+        pred_len=pred_len,
+        dtype=dtype,
     )
 
     if scaling:

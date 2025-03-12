@@ -29,13 +29,16 @@ class RevIN(nn.Module):
         self.num_channels = num_channels
         self.eps = eps
         self.affine = affine
-        self.affine_weight = nn.Parameter(torch.ones(self.num_channels))
-        self.affine_bias = nn.Parameter(torch.zeros(self.num_channels))
+
 
         if target_channels is not None:
             self.target_channels = target_channels
+            self.affine_weight = nn.Parameter(torch.ones(len(target_channels)))
+            self.affine_bias = nn.Parameter(torch.zeros(len(target_channels)))
         else:
             self.target_channels = None
+            self.affine_weight = nn.Parameter(torch.ones(self.num_channels))
+            self.affine_bias = nn.Parameter(torch.zeros(self.num_channels))
 
     def forward(self, x, mode:str):
         """
@@ -68,29 +71,26 @@ class RevIN(nn.Module):
         x = x - self.mean
         x = (x / self.stdev)
         if self.affine:
-            x = x * self.affine_weight.unsqueeze(0).unsqueeze(-1) # Reshape: (1, num_channels, 1)
-            x = x + self.affine_bias.unsqueeze(0).unsqueeze(-1) # Reshape: (1, num_channels, 1)
+            if self.target_channels is not None:
+                x[:, self.target_channels, :] = x[:, self.target_channels, :] * self.affine_weight.unsqueeze(0).unsqueeze(-1) # Reshape: (1, num_channels, 1)
+                x[:, self.target_channels, :] = x[:, self.target_channels, :] + self.affine_bias.unsqueeze(0).unsqueeze(-1) # Reshape: (1, num_channels, 1)
+            else:
+                x = x * self.affine_weight.unsqueeze(0).unsqueeze(-1) # Reshape: (1, num_channels, 1)
+                x = x + self.affine_bias.unsqueeze(0).unsqueeze(-1) # Reshape: (1, num_channels, 1)
         return x
 
     def _denormalize(self, x):
-
-        # If target_channels enabled, then x is of shape (batch_size, len(target_channels), pred_len)
-        if self.target_channels is not None:
-            affine_bias = self.affine_bias[self.target_channels] # Select target channels
-            affine_weight = self.affine_weight[self.target_channels]
-            mean = self.mean[:, self.target_channels, :]
-            stdev = self.stdev[:, self.target_channels, :]
-        else:
-            affine_bias = self.affine_bias
-            affine_weight = self.affine_weight
-            mean = self.mean
-            stdev = self.stdev
-
         if self.affine:
-            x = x - affine_bias.unsqueeze(0).unsqueeze(-1)
-            x = x / (affine_weight.unsqueeze(0).unsqueeze(-1) + self.eps*self.eps)
-        x = x * mean
-        x = x + stdev
+            x = x - self.affine_bias.unsqueeze(0).unsqueeze(-1)
+            x = x / (self.affine_weight.unsqueeze(0).unsqueeze(-1) + self.eps*self.eps)
+
+        if self.target_channels is not None:
+            x = x * self.stdev[:, self.target_channels, :]
+            x = x + self.mean[:, self.target_channels, :]
+        else:
+            x = x * self.stdev
+            x = x + self.mean
+
         return x
 
 

@@ -20,9 +20,12 @@ class DataValidationError(Exception):
         self.end_date = real_end_date
 
         error_dict = {
-            MISSING_DATES: "Missing dates",
-            INCOMPATIBLE_START_DATE: "Option start_date mismatch",
-            INCOMPATIBLE_END_DATE: "Option start_date and end_date mismatch"}
+            INCOMPATIBLE_START_DATE: "Option data queried before contract start date",
+            INCOMPATIBLE_END_DATE: "Option data queried before contract start date, and data ends before specified expirations",
+            MISSING_DATES: "Option dates is a subset of stock dates, there are missing dates in between",
+            UNKNOWN_ERROR: "Unknown error"
+        }
+
         error_str = error_dict[error_code]
 
         # Log using ctx

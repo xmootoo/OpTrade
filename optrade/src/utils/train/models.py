@@ -120,7 +120,9 @@ def get_model(args, generator=torch.Generator()):
             patch_dim=args.data.patch_dim,
             patch_stride=args.data.patch_stride,
             patch_embed_dim=args.emf.patch_embed_dim,
-            pos_enc=args.emf.pos_enc
+            pos_enc=args.emf.pos_enc,
+            return_head=args.train.return_head,
+            target_channels=args.data.target_channels,
         )
     elif args.exp.model_id == "TSMixer":
         model = TSMixer(
@@ -205,7 +207,7 @@ def exclude_weight_decay(model, args):
 
     for name, param in model.named_parameters():
         if param.requires_grad:
-            if 'bias' in name or isinstance(param, (nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm, RevIN)):
+            if 'bias' in name or isinstance(param, (nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm)):
                 no_decay_params.append(param)
             else:
                 decay_params.append(param)
@@ -217,6 +219,7 @@ def exclude_weight_decay(model, args):
     ]
 
     return param_groups
+
 
 def get_scheduler(args, scheduler_type, training_mode, optimizer, num_batches=0):
     # if args.exp.sklearn:

@@ -7,7 +7,7 @@ exp:
   mae: True
   rank_verbose: False
   task: "forecasting"
-  neptune: True
+  neptune: False
   gpu_id: 0
 
 data:
@@ -41,16 +41,51 @@ data:
   scaling: True
 
   # Features
-  core_feats: [""]
+  core_feats: [
+      "option_returns",
+      "stock_returns",
+      # "distance_to_strike",
+      "moneyness",
+      "option_lob_imbalance",
+      "option_quote_spread",
+      "stock_lob_imbalance",
+      "stock_quote_spread",
+      # "option_mid_price",
+      # "option_bid_size",
+      # "option_bid",
+      # "option_ask_size",
+      # "option_close",
+      "option_volume",
+      "option_count",
+      # "stock_mid_price",
+      # "stock_bid_size",
+      # "stock_bid",
+      # "stock_ask_size",
+      # "stock_ask",
+      "stock_volume",
+      "stock_count",
+    ]
 
-sl:
+  # TTE features
+  tte_feats: ["sqrt", "exp_decay"]
+
+  # Datetime features
+  datetime_feats:
+    [
+      "sin_minute_of_day",
+      "cos_minute_of_day",
+      "sin_hour_of_week",
+      "cos_hour_of_week",
+    ]
+
+train:
   optimizer: "adam"
   criterion: "MSE"
   # scheduler: "onecycle"
   dropout: 0.3
   epochs: 10
   batch_size: 64
-  lr: 1e-5
+  lr: 1e-4
   early_stopping: True
   weight_decay: 1e-5
   return_head: True

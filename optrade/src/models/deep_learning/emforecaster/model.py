@@ -38,7 +38,6 @@ class EMForecaster(nn.Module):
         super(EMForecaster, self).__init__()
 
         """
-
         Patched-based forecasting model (univariate only).
 
         Args:

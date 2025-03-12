@@ -8,6 +8,7 @@ import shutil
 import random
 import time
 import neptune
+import yaml
 warnings.filterwarnings("ignore", message="h5py not installed, hdf5 features will not be supported.")
 
 # Rich console
@@ -33,9 +34,10 @@ from optrade.src.utils.train.models import get_criterion, \
                              get_scheduler, \
                              compute_loss, \
                              model_update, \
-                             forward_pass
+                             forward_pass, \
+                             check_gradients
 
-from sss.utils.logger import log_pydantic, epoch_logger, format_time_dynamic
+from optrade.src.utils.train.logger import log_pydantic, epoch_logger, format_time_dynamic
 
 class Experiment:
     def __init__(self, args):
@@ -78,23 +80,20 @@ class Experiment:
         """
         if self.args.exp.mps:
             self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-            self.print_master(f"MPS hardware acceleration activated.")
+            self.print_master("MPS hardware acceleration activated.")
         if torch.cuda.is_available():
             self.device = torch.device(f"cuda:{self.args.exp.gpu_id}")
         else:
             self.device = torch.device("cpu")
             self.print_master("CUDA not available. Running on CPU.")
 
-    def init_dataloaders(self, learning_type="sl", loader_type="train"):
+    def init_dataloaders(self):
         """
         Initialize the dataloaders depending on the learning type and loader type.
-
-        Args:
-            loader_type (str): Options: "train", "test", "all". "train" returns train and val loaders. "test" returns test loader. "all" returns all loaders.
-            learning_type (str): Options: "sl", "ssl", "downstream". "sl" is supervised learning. "ssl" is self-supervised learning. "downstream" is downstream learning.
         """
-
-        self.train_loader, self.val_loader, self.test_loader = get_loaders(
+        # if self.args.data.target_channels is None:
+        #     self.args.data.target_channels = range(len(self.args.data.core_feats) + len(self.args.data.tte_feats) + len(self.args.data.datetime_feats))
+        loaders = get_loaders(
             root=self.args.data.root,
             start_date=self.args.data.start_date,
             end_date=self.args.data.end_date,
@@ -121,45 +120,19 @@ class Experiment:
             pin_memory=self.args.data.pin_memory,
             clean_up=self.args.data.clean_up,
             offline=self.args.data.offline,
-            save_dir=self.args.data.save_dir,
             verbose=self.args.data.verbose,
+            scaling=self.args.data.scaling,
+            intraday=self.args.data.intraday,
+            target_channels=self.args.data.target_channels,
+            seq_len=self.args.data.seq_len,
+            pred_len=self.args.data.pred_len,
+            dtype=self.args.data.dtype,
         )
 
-        # # Deep learning (PyTorch) models
-        # if self.args.data.seq_load:
-        #     self.seq_load(loader_type, learning_type)
-        # else:
-        #     raise ValueError(f"Invalid dataloading option. Please set either data.seq_load or data.rank_seq_load to {True}.")
+        self.train_loader, self.val_loader, self.test_loader = loaders[:3]
 
-    # def seq_load(self, loader_type="train", learning_type="sl"):
-    #     self.console.log(f"Running sequential dataloading on rank ({loader_type}).")
-    #     self.free_memory()
-    #     loaders = get_loaders(self.args, learning_type, self.generator, self.args.sl.dataset_class, loader_type)
-
-    #     if loader_type=="train":
-    #         self.train_loader, self.val_loader = loaders[:2]
-    #         self.print_master(f"{len(self.train_loader.dataset)} train samples. {len(self.val_loader.dataset)} validation samples.")
-    #     elif loader_type=="test":
-    #         self.test_loader = loaders[0]
-    #         self.print_master(f"{len(self.test_loader.dataset)} test samples.")
-    #     elif loader_type=="all":
-    #         self.train_loader, self.val_loader, self.test_loader = loaders[:3]
-    #         if not self.args.exp.sklearn: self.print_master(f"{len(self.train_loader.dataset)} train samples. {len(self.val_loader.dataset)} validation samples. {len(self.test_loader.dataset)} test samples.")
-    #     else:
-    #         raise ValueError("Invalid loader type.")
-
-    def free_memory(self):
-        for k in ["train", "val", "test"]:
-            if hasattr(self, f"{k}_loader"):
-                loader = getattr(self, f"{k}_loader")
-                if hasattr(loader.dataset, 'close'):
-                    loader.dataset.close()
-                del loader
-                delattr(self, f"{k}_loader")
-
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        if self.args.data.scaling:
+            self.scaler = loaders[3]
 
     def init_model(self):
         """
@@ -175,15 +148,20 @@ class Experiment:
         """
             Initialize the optimizer
         """
-        self.optimizer = get_optim(self.args, self.model, self.args.sl.optimizer)
-        self.print_master(f"{self.args.sl.optimizer} optimizer initialized.")
+        self.optimizer = get_optim(self.args, self.model, self.args.train.optimizer)
+        self.print_master(f"{self.args.train.optimizer} optimizer initialized.")
 
     def init_logger(self):
         """
             Initialize the logger
         """
 
-        self.log_dir = os.path.join('logs', f"{self.args.exp.ablation_id}_{self.args.exp.model_id}_{self.args.exp.id}", str(self.args.exp.seed))
+        self.log_dir = os.path.join(
+            "logs",
+            f"{self.args.exp.ablation_id}_{self.args.exp.model_id}_{self.args.exp.id}",
+            str(self.args.exp.seed)
+        )
+
         if self.args.exp.neptune:
             # Initialize Neptune run with the time-based ID
             self.logger = neptune.init_run(
@@ -227,19 +205,18 @@ class Experiment:
             criterion (torch.nn): The loss function.
             val_loader (torch.utils.data.DataLoader): The validation data.
             scheduler (torch.optim.lr_scheduler): The learning rate scheduler.
+            mae (bool): Whether to log Mean Absolute Error (MAE).
+            early_stopping (bool): Whether to use early stopping or not, relative to validation evaluation.
         """
 
         # Deep learning (PyTorch) pipeline
         num_examples = len(train_loader.dataset)
         self.print_master(f"Training on {num_examples} examples...")
 
+        self.best_val_metric = float("inf")
         if early_stopping:
             self.init_earlystopping(best_model_path)
             self.print_master("Early stopping initialized.")
-
-        # Synchronize before training starts
-
-        self.best_val_metric = float("inf")
 
         # <--------------- Training --------------->
         for epoch in range(self.args.train.epochs):
@@ -297,15 +274,12 @@ class Experiment:
                 self.print_master("EarlyStopping activated, ending training.")
                 break
 
-
             # Checkpoint (online)
             if self.args.exp.neptune:
                 pass
             else:
                 run_time = time.time() - self.start_time
                 self.logger["parameters/running_time"] = format_time_dynamic(run_time)
-
-
 
     def validate(self, model, val_loader, model_id, criterion, mae, epoch, best_model_path, early_stopping):
         """
@@ -322,7 +296,7 @@ class Experiment:
 
         if self.args.exp.best_model_metric=="loss":
             val_metric = val_loss
-        elif self.args.exp.best_model_metric in {"acc", "ch_acc", "ch_f1"}:
+        elif self.args.exp.best_model_metric in {"acc"}:
             val_metric = -stats[self.args.exp.best_model_metric]
         else:
             raise ValueError(f"Invalid best model metric: {self.args.exp.best_model_metric}")
@@ -330,7 +304,6 @@ class Experiment:
         # Save best model and apply early stopping
         if early_stopping:
             self.early_stopping(val_metric, model)
-
         else:
             if val_metric < self.best_val_metric:
                 if self.args.exp.best_model_metric=="loss":
@@ -350,19 +323,19 @@ class Experiment:
         """
 
         # Load train loaders
-        self.init_dataloaders(loader_type="all", learning_type="sl")
+        self.init_dataloaders()
 
         # Initialize Model and Optimizer
         self.init_model()
         self.init_optimizer()
 
         # Get supervised criterions
-        self.criterion = get_criterion(self.args, self.args.sl.criterion)
-        self.print_master(f"{self.args.sl.criterion} initialized.")
+        self.criterion = get_criterion(self.args, self.args.train.criterion)
+        self.print_master(f"{self.args.train.criterion} initialized.")
 
         # Get supervised scheduler
-        if self.args.sl.scheduler != "None":
-            self.sl_scheduler = get_scheduler(self.args, self.args.sl.scheduler, "supervised", self.optimizer, len(self.train_loader))
+        if self.args.train.scheduler != "None":
+            self.sl_scheduler = get_scheduler(self.args, self.args.train.scheduler, "supervised", self.optimizer, len(self.train_loader))
         else:
             self.sl_scheduler = None
         self.print_master("Starting Supervised Training...")
@@ -378,7 +351,7 @@ class Experiment:
                    val_loader=self.val_loader,
                    scheduler=self.sl_scheduler,
                    mae=self.args.exp.mae,
-                   early_stopping=self.args.sl.early_stopping)
+                   early_stopping=self.args.train.early_stopping)
 
         # Upload best model to Neptune
         if self.args.exp.neptune and not self.args.exp.sklearn:
@@ -394,7 +367,6 @@ class Experiment:
                   criterion=self.criterion,
                   mae=self.args.exp.mae)
 
-
     def test(
         self,
         model: nn.Module,
@@ -403,9 +375,6 @@ class Experiment:
         criterion: nn.Module,
         mae: bool=False,
     ) -> None:
-
-        # Load data
-        self.init_dataloaders(loader_type="test", learning_type="sl")
 
         #<---Deep learning (PyTorch) pipeline--->
         # Load best model
