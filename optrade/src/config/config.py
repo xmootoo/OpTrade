@@ -81,7 +81,7 @@ class Data(BaseModel):
     target_tte: int = Field(default=30, description="Desired length of the contract in days. The find_optimal() method of the Contract class will attempt to the contract with the closests TTE")
     tte_tolerance: Tuple[int, int] = Field(default=(15,45), description="Tolerance range for selecting a contract if exact target_tte does not exist")
     contract_stride: int = Field(default=5, description="Stride length used to select multiple contracts at different dates")
-    target_channels: Optional[List[int]] = Field(default=[0], description="Target channels used in the target window.")
+    target_channels: Optional[List[str]] = Field(default=["option_returns"], description="Target channels used in the target window.")
     clean_up: bool = Field(default=True, description="Whether to clean up the CSV files after saving data from ThetaData API.")
     offline: bool = Field(default=False, description="Whether to use offline data instead of calling ThetaData API directly.")
     save_dir: str = Field(default="../historical_data/", description="Directory to save the data.")
