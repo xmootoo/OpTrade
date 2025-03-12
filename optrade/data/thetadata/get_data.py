@@ -8,7 +8,7 @@ from optrade.data.thetadata.contracts import Contract
 from optrade.data.thetadata.options import get_option_data
 from optrade.data.thetadata.stocks import get_stock_data
 from optrade.src.utils.data.clean_up import clean_up_dir
-from optrade.src.utils.data.error import DataValidationError, OPTION_DATE_MISMATCH, MISSING_DATES
+from optrade.src.utils.data.error import DataValidationError, INCOMPATIBLE_START_DATE, INCOMPATIBLE_END_DATE, MISSING_DATES, UNKNOWN_ERROR
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -132,23 +132,60 @@ def get_data(
     # Check lengths of option_df and stock_df match exactly
     if len(option_df) != len(stock_df):
 
-        # If lengths don't match, verify that option_df is a subset of stock_df
-        # starting at a later date but with identical dates once options begin
         real_start_date = option_df["datetime"].iloc[0]
-        stock_filtered = stock_df[stock_df["datetime"] >= real_start_date].reset_index(drop=True)
+        stock_filtered_start = stock_df[stock_df["datetime"] >= real_start_date].reset_index(drop=True)
 
-        if (option_df["datetime"]==stock_filtered["datetime"]).all():
+        real_end_date = option_df["datetime"].iloc[-1]
+        stock_filtered = stock_filtered_start[stock_filtered_start["datetime"] <= real_end_date].reset_index(drop=True)
+
+        print(f"Option dates: {len(option_df)}. Stock dates (all filtered): {len(stock_filtered)}")
+
+        # Verify if option_df starts earlier than stock_df
+        if option_df["datetime"].to_list()==stock_filtered_start["datetime"].to_list():
             real_start_date = real_start_date.strftime("%Y%m%d")
             queried_start_date = stock_df["datetime"].iloc[0].strftime("%Y%m%d")
             raise DataValidationError(
-                f"Date mismatch between option and stock data. Option data queried on {queried_start_date}, but the contract does not start until {real_start_date}.",
-                OPTION_DATE_MISMATCH, real_start_date)
-        else:
-            missing_dates = option_df.loc[~option_df["datetime"].isin(stock_df["datetime"]), "datetime"].unique()
+                f"Option data queried on start_date={queried_start_date}, but the contract doesn't start until start_date={real_start_date}.",
+                INCOMPATIBLE_START_DATE, real_start_date)
+
+        # Otherwise verify if option_df starts earlier AND later than stock_df
+        elif option_df["datetime"].to_list()==stock_filtered["datetime"].to_list():
+            real_start_date = real_start_date.strftime("%Y%m%d")
+            real_end_date = real_end_date.strftime("%Y%m%d")
+            queried_start_date = stock_df["datetime"].iloc[0].strftime("%Y%m%d")
+            queried_end_date = stock_df["datetime"].iloc[-1].strftime("%Y%m%d")
             raise DataValidationError(
-                f"Date mismatch between option and stock data. The discrepancy is not simply that stock data starts earlier. \
-                There are dates in options data that don't exist in stock data: {missing_dates}",
-                MISSING_DATES
+                f"Option data queried on start_date={queried_end_date} with exp={queried_end_date}, but the contract starts on start_date={real_start_date} and ends on {real_end_date}.",
+                INCOMPATIBLE_END_DATE, real_end_date)
+
+        # Otherwise verify if option_df is a continuous subset of stock data (i.e. missing dates in between start_date and end_date)
+        elif set(option_df["datetime"]).issubset(set(stock_filtered["datetime"])):
+            option_dates_set = set(option_df["datetime"])
+            stock_dates_set = set(stock_filtered["datetime"])
+
+            # Find dates in option data that don't exist in stock data
+            missing_in_stock = option_dates_set - stock_dates_set
+
+            # Find dates in stock data that don't exist in option data
+            missing_in_option = stock_dates_set - option_dates_set
+
+            error_message = "Date mismatch between option and stock data."
+
+            if missing_in_stock:
+                error_message += f"\nDates in option data missing from stock data: {sorted(missing_in_stock)[:5]}"
+                if len(missing_in_stock) > 5:
+                    error_message += f" ...{sorted(missing_in_option)[-5:-1]}. Total number of missing dates: {len(missing_in_stock)}."
+
+            if missing_in_option:
+                error_message += f"\nDates in stock data missing from option data: {sorted(missing_in_option)[:5]}"
+                if len(missing_in_option) > 5:
+                    error_message += f" ...{sorted(missing_in_option)[-5:-1]}. Total number of missing dates: {len(missing_in_option)}."
+
+            raise DataValidationError(error_message +"This is likely due to anomalous market events." , MISSING_DATES)
+        else:
+            raise DataValidationError(
+                f"Unknown error. Filtering stock data by start_date={real_start_date} and end_date={real_end_date} did not resolve the issue, and neither is option dates a subset of stock dates.",
+                UNKNOWN_ERROR
             )
 
     # Merge the two dataframes and save
@@ -182,9 +219,9 @@ if __name__ == "__main__":
 
     contract = Contract(
         root="AMZN",
-        start_date="20230118",
+        start_date="20230203",
         exp="20230217",
-        strike=97,
+        strike=136,
         interval_min=1,
         right="C")
 

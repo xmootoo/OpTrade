@@ -3,7 +3,9 @@ from rich.console import Console
 
 # Custom error codes
 MISSING_DATES = 1001
-OPTION_DATE_MISMATCH = 1002
+INCOMPATIBLE_START_DATE = 1002
+INCOMPATIBLE_END_DATE = 1003
+UNKNOWN_ERROR = 9999
 
 class DataValidationError(Exception):
     def __init__(self, message: str, error_code: int, data_str: Optional[str] = None):
@@ -11,7 +13,10 @@ class DataValidationError(Exception):
         self.error_code = error_code
         self.data_str = data_str
 
-        error_dict = {MISSING_DATES: "Missing dates", OPTION_DATE_MISMATCH: "Option date mismatch"}
+        error_dict = {
+            MISSING_DATES: "Missing dates",
+            INCOMPATIBLE_START_DATE: "Option start_date mismatch",
+            INCOMPATIBLE_END_DATE: "Option start_date and end_date mismatch"}
         error_str = error_dict[error_code]
 
         # Log using ctx
