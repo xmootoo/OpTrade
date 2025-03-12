@@ -99,7 +99,6 @@ def get_contract_datasets(
     else:
         contract_dir = contract_dir / f"target_band_{str(target_band).replace('.', 'p')}"
 
-
     # Offline loading (if already saved)
     if offline:
         if not all((
@@ -436,7 +435,7 @@ def get_loaders(
     pin_memory: bool = torch.cuda.is_available(),
     clean_up: bool = True,
     offline: bool = False,
-    save_dir: Optional[Path] = None,
+    contract_dir: Optional[Path] = None,
     verbose: bool=False,
     scaling: bool=True,
 ) -> Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]:
@@ -471,7 +470,7 @@ def get_loaders(
         pin_memory: Whether to pin memory for faster GPU transfer
         clean_up: Whether to clean up the data after use
         offline: Whether to load saved contracts from disk
-        save_dir: Directory to save/load contracts
+        contract_dir: Directory to save/load contracts
         verbose: Whether to print verbose output
         scaling: Whether to normalize the datasets
 
@@ -497,7 +496,7 @@ def get_loaders(
         val_split=val_split,
         clean_up=clean_up,
         offline=offline,
-        save_dir=save_dir,
+        save_dir=contract_dir,
         verbose=verbose,
     )
 
@@ -584,7 +583,7 @@ if __name__ == "__main__":
     target_tte=30
     tte_tolerance=(15, 45)
     moneyness="ATM"
-    volatility_scaled=False
+    volatility_scaled=True
     volatility_scalar=0.01
     volatility_type="period"
     target_band=0.05
@@ -621,7 +620,6 @@ if __name__ == "__main__":
         "stock_count",
     ]
 
-
     # Testing: get_loaders
     output = get_loaders(
         root=root,
@@ -645,7 +643,7 @@ if __name__ == "__main__":
         batch_size=32,
         clean_up=False,
         offline=False,
-        save_dir=None,
+        contract_dir=None,
         verbose=True,
         scaling=True,
     )
