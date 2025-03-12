@@ -5,21 +5,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 warnings.filterwarnings("ignore", message="h5py not installed")
+from optrade.src.models.deep_learning.utils.revin import RevIN
+
 
 # Supervised Models
-from time_series.models.patchtst_blind import PatchTST
-from time_series.models.recurrent import RecurrentModel
-from time_series.models.linear import Linear
-from time_series.models.dlinear import DLinear
-from time_series.models.modern_tcn import ModernTCN
-from time_series.models.timesnet import TimesNet
-from time_series.models.tsmixer import TSMixer
-from time_series.models.patched_forecaster import EMForecaster
+from optrade.src.models.deep_learning.patchtst.model import PatchTST
+from optrade.src.models.deep_learning.recurrent.model import RecurrentModel
+from optrade.src.models.deep_learning.linear.model import Linear
+from optrade.src.models.deep_learning.dlinear.model import DLinear
+# from optrade.src.models.deep_learning.modern_tcn.model import ModernTCN
+# from optrade.src.models.deep_learning.timesnet.model import TimesNet
+from optrade.src.models.deep_learning.tsmixer.model import TSMixer
+from optrade.src.models.deep_learning.emforecaster.model import EMForecaster
 
 # Optimizers and Schedulers
 from torch import optim
-from time_series.utils.schedulers import WarmupCosineSchedule, PatchTSTSchedule
-from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
+# from time_series.utils.schedulers import WarmupCosineSchedule, PatchTSTSchedule
+# from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
 
 def get_model(args, generator=torch.Generator()):
     if args.exp.model_id == "PatchTST":
@@ -42,43 +44,64 @@ def get_model(args, generator=torch.Generator()):
             eps_revin=args.train.eps_revin,
             patch_dim=args.data.patch_dim,
             stride=args.data.patch_stride,
+            return_head=args.train.return_head,
             head_type=args.train.head_type,
+            channel_independent=args.train.channel_independent, # Head only
+            target_channels=args.data.target_channels, # Head only
         )
     elif args.exp.model_id == "RecurrentModel":
         model = RecurrentModel(
-            d_model=args.rnn.d_model,
-            backbone_id=args.rnn.backbone_id,
-            num_enc_layers=args.rnn.num_enc_layers,
-            pred_len=args.data.pred_len,
-            bidirectional=args.rnn.bidirectional,
-            dropout=args.train.dropout,
+        d_model=args.rnn.d_model,
+        num_enc_layers=args.rnn.num_enc_layers,
+        pred_len=args.data.pred_len,
+        backbone_id=args.rnn.backbone_id,
+        bidirectional=args.rnn.bidirectional,
+        dropout=args.train.dropout,
+        seq_len=args.data.seq_len,
+        patching=args.data.patching,
+        patch_dim=args.data.patch_dim,
+        patch_stride=args.data.patch_stride,
+        num_channels=args.data.num_channels,
+        head_type=args.train.head_type,
+        norm_mode=args.train.norm_mode,
+        revin=args.train.revin,
+        revout=args.train.revout,
+        revin_affine=args.train.revin_affine,
+        eps_revin=args.train.eps_revin,
+        last_state=args.rnn.last_state,
+        avg_state=args.rnn.avg_state,
+        return_head=args.train.return_head,
+        channel_independent=args.train.channel_independent,
+        target_channels=args.data.target_channels,
+        )
+    elif args.exp.model_id == "Linear":
+        model = Linear(
             seq_len=args.data.seq_len,
-            patching=args.data.patching,
-            patch_dim=args.data.patch_dim,
-            patch_stride=args.data.patch_stride,
+            pred_len=args.data.pred_len,
             num_channels=args.data.num_channels,
-            head_type=args.train.head_type,
             norm_mode=args.train.norm_mode,
             revin=args.train.revin,
             revout=args.train.revout,
             revin_affine=args.train.revin_affine,
             eps_revin=args.train.eps_revin,
-            last_state=args.rnn.last_state,
-            avg_state=args.rnn.avg_state
+            channel_independent=args.train.channel_independent,
+            target_channels=args.data.target_channels,
         )
-    elif args.exp.model_id == "Linear":
-        model = Linear(in_features=args.data.seq_len,
-                       out_features=args.data.pred_len,
-                       norm_mode=args.train.norm_mode)
     elif args.exp.model_id == "DLinear":
-        model = DLinear(task=args.exp.task,
-                        seq_len=args.data.seq_len,
-                        pred_len=args.data.pred_len,
-                        num_channels=args.data.num_channels,
-                        num_classes=args.data.pred_len,
-                        moving_avg=args.dlinear.moving_avg,
-                        individual=args.dlinear.individual,
-                        return_head=args.train.return_head,
+        model = DLinear(
+            task=args.exp.task,
+            seq_len=args.data.seq_len,
+            pred_len=args.data.pred_len,
+            num_channels=args.data.num_channels,
+            num_classes=args.data.num_classes,
+            moving_avg=args.dlinear.moving_avg,
+            individual=args.dlinear.individual,
+            return_head=args.train.return_head,
+            revin=args.train.revin,
+            revout=args.train.revout,
+            revin_affine=args.train.revin_affine,
+            eps_revin=args.train.eps_revin,
+            target_channels=args.data.target_channels,
         )
     elif args.exp.model_id == "EMForecaster":
         model = EMForecaster(
@@ -92,54 +115,12 @@ def get_model(args, generator=torch.Generator()):
             revin_affine=args.train.revin_affine,
             eps_revin=args.train.eps_revin,
             patch_model_id=args.emf.patch_model_id,
-            backbone_id=args.emf.backbone_id,
             patch_norm=args.emf.patch_norm,
             patch_act=args.emf.patch_act,
             patch_dim=args.data.patch_dim,
             patch_stride=args.data.patch_stride,
             patch_embed_dim=args.emf.patch_embed_dim,
-            independent_patching=args.emf.independent_patching,
-            pos_enc=args.train.pos_enc
-        )
-    elif args.exp.model_id == "ModernTCN":
-        model = ModernTCN(
-            seq_len=args.data.seq_len,
-            pred_len=args.data.pred_len,
-            patch_dim=args.data.patch_dim,
-            patch_stride=args.data.patch_stride,
-            num_classes=args.data.pred_len,
-            num_channels=args.data.num_channels,
-            task=args.exp.task,
-            return_head=args.train.return_head,
-            dropout=args.train.dropout,
-            class_dropout=args.moderntcn.class_dropout,
-            ffn_ratio=args.moderntcn.ffn_ratio,
-            num_enc_layers=args.moderntcn.num_enc_layers,
-            large_size=args.moderntcn.large_size,
-            d_model=args.moderntcn.d_model,
-            revin=args.train.revin,
-            affine=args.train.revin_affine,
-            small_size=args.moderntcn.small_size,
-            dw_dims=args.moderntcn.dw_dims,
-        )
-    elif args.exp.model_id == "TimesNet":
-        model = TimesNet(
-            seq_len=args.data.seq_len,
-            pred_len=args.data.pred_len,
-            num_channels=args.data.num_channels,
-            d_model=args.timesnet.d_model,
-            d_ff=args.timesnet.d_ff,
-            num_enc_layers=args.timesnet.num_enc_layers,
-            num_kernels=args.timesnet.num_kernels,
-            c_out=args.timesnet.c_out,
-            top_k=args.timesnet.top_k,
-            dropout=args.train.dropout,
-            task=args.exp.task,
-            revin=args.train.revin,
-            revin_affine=args.train.revin_affine,
-            revout=args.train.revout,
-            eps_revin=args.train.eps_revin,
-            return_head=args.train.return_head,
+            pos_enc=args.emf.pos_enc
         )
     elif args.exp.model_id == "TSMixer":
         model = TSMixer(
@@ -153,12 +134,55 @@ def get_model(args, generator=torch.Generator()):
             revin_affine=args.train.revin_affine,
             revout=args.train.revout,
             eps_revin=args.train.eps_revin,
+            return_head=args.train.return_head,
+            target_channels=args.data.target_channels,
+            channel_independent=args.train.channel_independent,
         )
+    # elif args.exp.model_id == "ModernTCN":
+    #     model = ModernTCN(
+    #         seq_len=args.data.seq_len,
+    #         pred_len=args.data.pred_len,
+    #         patch_dim=args.data.patch_dim,
+    #         patch_stride=args.data.patch_stride,
+    #         num_classes=args.data.pred_len,
+    #         num_channels=args.data.num_channels,
+    #         task=args.exp.task,
+    #         return_head=args.train.return_head,
+    #         dropout=args.train.dropout,
+    #         class_dropout=args.moderntcn.class_dropout,
+    #         ffn_ratio=args.moderntcn.ffn_ratio,
+    #         num_enc_layers=args.moderntcn.num_enc_layers,
+    #         large_size=args.moderntcn.large_size,
+    #         d_model=args.moderntcn.d_model,
+    #         revin=args.train.revin,
+    #         affine=args.train.revin_affine,
+    #         small_size=args.moderntcn.small_size,
+    #         dw_dims=args.moderntcn.dw_dims,
+    #     )
+    # elif args.exp.model_id == "TimesNet":
+    #     model = TimesNet(
+    #         seq_len=args.data.seq_len,
+    #         pred_len=args.data.pred_len,
+    #         num_channels=args.data.num_channels,
+    #         d_model=args.timesnet.d_model,
+    #         d_ff=args.timesnet.d_ff,
+    #         num_enc_layers=args.timesnet.num_enc_layers,
+    #         num_kernels=args.timesnet.num_kernels,
+    #         c_out=args.timesnet.c_out,
+    #         top_k=args.timesnet.top_k,
+    #         dropout=args.train.dropout,
+    #         task=args.exp.task,
+    #         revin=args.train.revin,
+    #         revin_affine=args.train.revin_affine,
+    #         revout=args.train.revout,
+    #         eps_revin=args.train.eps_revin,
+    #         return_head=args.train.return_head,
+    #     )
     else:
         raise ValueError("Please select a valid model_id.")
     return model
 
-def get_optim(args, model, optimizer_type="adamw", flag="sl"):
+def get_optim(args, model, optimizer_type="adamw"):
     # if args.exp.sklearn:
     #     return None
 
@@ -168,13 +192,13 @@ def get_optim(args, model, optimizer_type="adamw", flag="sl"):
         raise ValueError("Please select a valid optimizer.")
     optimizer_class = optimizer_classes[optimizer_type]
 
-    param_groups = exclude_weight_decay(model, args, flag) # Exclude bias and normalization parameters from weight decay
+    param_groups = exclude_weight_decay(model, args) # Exclude bias and normalization parameters from weight decay
 
     optimizer = optimizer_class(param_groups) # Set optimizer
 
     return optimizer
 
-def exclude_weight_decay(model, args, flag="sl"):
+def exclude_weight_decay(model, args):
     # Separate parameters into those that will use weight decay and those that won't
     decay_params = []
     no_decay_params = []
@@ -188,7 +212,7 @@ def exclude_weight_decay(model, args, flag="sl"):
 
     # Create parameter groups
     param_groups = [
-        {'params': decay_params, 'weight_decay': eval(f"args.{flag}.weight_decay")},
+        {'params': decay_params, 'weight_decay': args.train.weight_decay},
         {'params': no_decay_params, 'weight_decay': 0.0}
     ]
 
