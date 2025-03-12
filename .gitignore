@@ -6,3 +6,4 @@ optrade.egg-info/
 test.py
 figures/
 logs/
+.neptune/
