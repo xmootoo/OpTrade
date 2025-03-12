@@ -145,8 +145,10 @@ def get_data(
             real_start_date = real_start_date.strftime("%Y%m%d")
             queried_start_date = stock_df["datetime"].iloc[0].strftime("%Y%m%d")
             raise DataValidationError(
-                f"Option data queried on start_date={queried_start_date}, but the contract doesn't start until start_date={real_start_date}.",
-                INCOMPATIBLE_START_DATE, real_start_date)
+                message=f"Option data queried on start_date={queried_start_date}, but the contract doesn't start until start_date={real_start_date}.",
+                error_code=INCOMPATIBLE_START_DATE,
+                real_start_date=real_start_date
+            )
 
         # Otherwise verify if option_df starts earlier AND later than stock_df
         elif option_df["datetime"].to_list()==stock_filtered["datetime"].to_list():
@@ -155,8 +157,11 @@ def get_data(
             queried_start_date = stock_df["datetime"].iloc[0].strftime("%Y%m%d")
             queried_end_date = stock_df["datetime"].iloc[-1].strftime("%Y%m%d")
             raise DataValidationError(
-                f"Option data queried on start_date={queried_end_date} with exp={queried_end_date}, but the contract starts on start_date={real_start_date} and ends on {real_end_date}.",
-                INCOMPATIBLE_END_DATE, real_end_date)
+                message=f"Option data queried on start_date={queried_end_date} with exp={queried_end_date}, but the contract starts on start_date={real_start_date} and ends on {real_end_date}.",
+                error_code=INCOMPATIBLE_END_DATE,
+                real_start_date=real_start_date,
+                real_end_date=real_end_date
+            )
 
         # Otherwise verify if option_df is a continuous subset of stock data (i.e. missing dates in between start_date and end_date)
         elif set(option_df["datetime"]).issubset(set(stock_filtered["datetime"])):
@@ -169,7 +174,7 @@ def get_data(
             # Find dates in stock data that don't exist in option data
             missing_in_option = stock_dates_set - option_dates_set
 
-            error_message = "Date mismatch between option and stock data."
+            error_message = ""
 
             if missing_in_stock:
                 error_message += f"\nDates in option data missing from stock data: {sorted(missing_in_stock)[:5]}"
@@ -181,11 +186,13 @@ def get_data(
                 if len(missing_in_option) > 5:
                     error_message += f" ...{sorted(missing_in_option)[-5:-1]}. Total number of missing dates: {len(missing_in_option)}."
 
-            raise DataValidationError(error_message +"This is likely due to anomalous market events." , MISSING_DATES)
+            raise DataValidationError(
+                message=error_message + "This discrepancy is likely due to anomalous market events.",
+                error_code=MISSING_DATES)
         else:
             raise DataValidationError(
-                f"Unknown error. Filtering stock data by start_date={real_start_date} and end_date={real_end_date} did not resolve the issue, and neither is option dates a subset of stock dates.",
-                UNKNOWN_ERROR
+                message=f"Unknown error. Filtering stock data by start_date={real_start_date} and end_date={real_end_date} did not resolve the issue, and neither is option dates a subset of stock dates.",
+                error_code=UNKNOWN_ERROR
             )
 
     # Merge the two dataframes and save
