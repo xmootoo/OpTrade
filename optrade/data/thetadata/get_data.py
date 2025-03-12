@@ -138,8 +138,6 @@ def get_data(
         real_end_date = option_df["datetime"].iloc[-1]
         stock_filtered = stock_filtered_start[stock_filtered_start["datetime"] <= real_end_date].reset_index(drop=True)
 
-        print(f"Option dates: {len(option_df)}. Stock dates (all filtered): {len(stock_filtered)}")
-
         # Verify if option_df starts earlier than stock_df
         if option_df["datetime"].to_list()==stock_filtered_start["datetime"].to_list():
             real_start_date = real_start_date.strftime("%Y%m%d")
@@ -175,16 +173,15 @@ def get_data(
             missing_in_option = stock_dates_set - option_dates_set
 
             error_message = ""
-
             if missing_in_stock:
-                error_message += f"\nDates in option data missing from stock data: {sorted(missing_in_stock)[:5]}"
-                if len(missing_in_stock) > 5:
-                    error_message += f" ...{sorted(missing_in_option)[-5:-1]}. Total number of missing dates: {len(missing_in_stock)}."
+                error_message += f"\nDates in option data missing from stock data: {sorted(missing_in_stock)[:3]}"
+                if len(missing_in_stock) > 3:
+                    error_message += f" ...{sorted(missing_in_option)[-3:-1]}. Total number of missing dates: {len(missing_in_stock)}."
 
             if missing_in_option:
-                error_message += f"\nDates in stock data missing from option data: {sorted(missing_in_option)[:5]}"
-                if len(missing_in_option) > 5:
-                    error_message += f" ...{sorted(missing_in_option)[-5:-1]}. Total number of missing dates: {len(missing_in_option)}."
+                error_message += f"\nDates in stock data missing from option data: {sorted(missing_in_option)[:3]}"
+                if len(missing_in_option) > 3:
+                    error_message += f" ...{sorted(missing_in_option)[-3:-1]}. Total number of missing dates: {len(missing_in_option)}."
 
             raise DataValidationError(
                 message=error_message + "This discrepancy is likely due to anomalous market events.",
