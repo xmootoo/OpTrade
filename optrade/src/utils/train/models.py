@@ -4,9 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from pydantic import BaseModel
 warnings.filterwarnings("ignore", message="h5py not installed")
-from optrade.src.models.deep_learning.utils.revin import RevIN
 
+from typing import List
 
 # Supervised Models
 from optrade.src.models.deep_learning.patchtst.model import PatchTST
@@ -17,13 +18,18 @@ from optrade.src.models.deep_learning.dlinear.model import DLinear
 # from optrade.src.models.deep_learning.timesnet.model import TimesNet
 from optrade.src.models.deep_learning.tsmixer.model import TSMixer
 from optrade.src.models.deep_learning.emforecaster.model import EMForecaster
+from optrade.src.models.deep_learning.utils.revin import RevIN
 
 # Optimizers and Schedulers
 from torch import optim
 # from time_series.utils.schedulers import WarmupCosineSchedule, PatchTSTSchedule
 # from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
 
-def get_model(args, generator=torch.Generator()):
+def get_model(
+    args: BaseModel,
+    generator=torch.Generator(),
+    target_channels_idx: List[int]=None,
+) -> nn.Module:
     if args.exp.model_id == "PatchTST":
         model = PatchTST(
             num_enc_layers=args.patchtst.num_enc_layers,
@@ -47,7 +53,7 @@ def get_model(args, generator=torch.Generator()):
             return_head=args.train.return_head,
             head_type=args.train.head_type,
             channel_independent=args.train.channel_independent, # Head only
-            target_channels=args.data.target_channels, # Head only
+            target_channels=target_channels_idx, # Head only
         )
     elif args.exp.model_id == "RecurrentModel":
         model = RecurrentModel(
@@ -72,7 +78,7 @@ def get_model(args, generator=torch.Generator()):
         avg_state=args.rnn.avg_state,
         return_head=args.train.return_head,
         channel_independent=args.train.channel_independent,
-        target_channels=args.data.target_channels,
+        target_channels=target_channels_idx,
         )
     elif args.exp.model_id == "Linear":
         model = Linear(
@@ -85,7 +91,7 @@ def get_model(args, generator=torch.Generator()):
             revin_affine=args.train.revin_affine,
             eps_revin=args.train.eps_revin,
             channel_independent=args.train.channel_independent,
-            target_channels=args.data.target_channels,
+            target_channels=target_channels_idx,
         )
     elif args.exp.model_id == "DLinear":
         model = DLinear(
@@ -101,7 +107,7 @@ def get_model(args, generator=torch.Generator()):
             revout=args.train.revout,
             revin_affine=args.train.revin_affine,
             eps_revin=args.train.eps_revin,
-            target_channels=args.data.target_channels,
+            target_channels=target_channels_idx,
         )
     elif args.exp.model_id == "EMForecaster":
         model = EMForecaster(
@@ -122,7 +128,7 @@ def get_model(args, generator=torch.Generator()):
             patch_embed_dim=args.emf.patch_embed_dim,
             pos_enc=args.emf.pos_enc,
             return_head=args.train.return_head,
-            target_channels=args.data.target_channels,
+            target_channels=target_channels_idx,
         )
     elif args.exp.model_id == "TSMixer":
         model = TSMixer(
@@ -137,7 +143,7 @@ def get_model(args, generator=torch.Generator()):
             revout=args.train.revout,
             eps_revin=args.train.eps_revin,
             return_head=args.train.return_head,
-            target_channels=args.data.target_channels,
+            target_channels=target_channels_idx,
             channel_independent=args.train.channel_independent,
         )
     # elif args.exp.model_id == "ModernTCN":

@@ -143,7 +143,7 @@ class Experiment:
         """
             Initialize the model.
         """
-        self.model = get_model(self.args, self.generator)
+        self.model = get_model(self.args, self.generator, self.target_channels_idx)
         self.model.to(self.device)
         num_params = self.count_parameters()
         self.logger["parameters/sl/num_params"] = num_params
