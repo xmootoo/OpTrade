@@ -5,7 +5,6 @@ exp:
   seed_list: [54930]
   seed: 54930
   mae: True
-  rank_verbose: False
   task: "forecasting"
   neptune: False
   gpu_id: 0
@@ -35,7 +34,7 @@ data:
   volatility_scaled: False
   target_tte: 30
   tte_tolerance: [15, 45]
-  target_channels: [0]
+  target_channels: ["option_returns"]
   clean_up: False
   offline: True
   scaling: True
@@ -56,26 +55,28 @@ data:
       # "option_ask_size",
       # "option_close",
       "option_volume",
-      "option_count",
+      # "option_count",
       # "stock_mid_price",
       # "stock_bid_size",
       # "stock_bid",
       # "stock_ask_size",
       # "stock_ask",
       "stock_volume",
-      "stock_count",
+      # "stock_count",
     ]
 
   # TTE features
-  tte_feats: ["sqrt", "exp_decay"]
+  tte_feats: [
+      "sqrt",
+      # "exp_decay"
+    ]
 
   # Datetime features
-  datetime_feats:
-    [
+  datetime_feats: [
       "sin_minute_of_day",
-      "cos_minute_of_day",
+      # "cos_minute_of_day",
       "sin_hour_of_week",
-      "cos_hour_of_week",
+      # "cos_hour_of_week",
     ]
 
 train:
