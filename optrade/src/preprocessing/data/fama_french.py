@@ -41,8 +41,6 @@ def get_fama_french_factors(
     ff_start_date = datetime.strptime(start_date, "%Y%m%d")
     ff_end_date = datetime.strptime(end_date, "%Y%m%d")
 
-    print(f"New start date: {start_date}")
-
     # Get stock data
     stock_data = get_stock_data_eod(
         root=root,
@@ -115,78 +113,149 @@ def get_fama_french_factors(
 
     return result
 
+def factor_categorization(factors: Dict[str, float], mode: str = "3_factor") -> Dict[str, str]:
+    """
+    Categorize a stock based on its Fama-French factor exposures.
+
+    Args:
+        factors (Dict[str, float]): Dictionary containing factor betas from get_fama_french_factors
+        mode (str): Mode for the Fama-French model ("3_factor" or "5_factor")
+
+    Returns:
+        Dict[str, str]: Dictionary with categorizations for each factor dimension using code-friendly naming
+    """
+    categorization = {}
+
+    # Market beta categorization
+    if factors['market_beta'] > 1.1:
+        categorization['market'] = "high_beta"
+    elif factors['market_beta'] < 0.9:
+        categorization['market'] = "low_beta"
+    else:
+        categorization['market'] = "market_beta"
+
+    # Size factor categorization
+    if factors['size_beta'] > 0.2:
+        categorization['size'] = "small_cap"
+    elif factors['size_beta'] < -0.2:
+        categorization['size'] = "large_cap"
+    else:
+        categorization['size'] = "neutral_size"
+
+    # Value factor categorization
+    if factors['value_beta'] > 0.2:
+        categorization['value'] = "value_stock"
+    elif factors['value_beta'] < -0.2:
+        categorization['value'] = "growth_stock"
+    else:
+        categorization['value'] = "neutral_style"
+
+    # For 5-factor model, add profitability and investment categorizations
+    if mode == "5_factor":
+        # Profitability factor categorization
+        if factors['profitability_beta'] > 0.2:
+            categorization['profitability'] = "robust_profitability"
+        elif factors['profitability_beta'] < -0.2:
+            categorization['profitability'] = "weak_profitability"
+        else:
+            categorization['profitability'] = "neutral_profitability"
+
+        # Investment factor categorization
+        if factors['investment_beta'] > 0.2:
+            categorization['investment'] = "conservative_investment"
+        elif factors['investment_beta'] < -0.2:
+            categorization['investment'] = "aggressive_investment"
+        else:
+            categorization['investment'] = "neutral_investment"
+
+    # Add a summary category
+    categories = []
+    if 'market' in categorization:
+        if categorization['market'] != "market_beta":
+            categories.append(categorization['market'])
+
+    if 'size' in categorization:
+        if categorization['size'] != "neutral_size":
+            categories.append(categorization['size'])
+
+    if 'value' in categorization:
+        if categorization['value'] != "neutral_style":
+            categories.append(categorization['value'])
+
+    if mode == "5_factor":
+        if 'profitability' in categorization:
+            if categorization['profitability'] != "neutral_profitability":
+                categories.append(categorization['profitability'])
+
+        if 'investment' in categorization:
+            if categorization['investment'] != "neutral_investment":
+                categories.append(categorization['investment'])
+
+    if categories:
+        categorization['summary'] = "_".join(categories)
+    else:
+        categorization['summary'] = "market_neutral"
+
+    # Add overall fit quality based on R-squared
+    if factors['r_squared'] > 0.7:
+        categorization['fit_quality'] = "strong_fit"
+    elif factors['r_squared'] > 0.4:
+        categorization['fit_quality'] = "moderate_fit"
+    else:
+        categorization['fit_quality'] = "weak_fit"
+
+    return categorization
+
+
 if __name__ == "__main__":
+    # Choose a well-known stock
+    symbol = "AAPL"
 
-    def test_fama_french_5factor():
-        """
-        Test the Fama-French 5-factor model exposure calculation.
-        """
-        # Choose a well-known stock
-        symbol = "AAPL"
+    # Set test period (1 year)
+    start_date = "20230101"  # YYYYMMDD format
+    end_date = "20231231"    # YYYYMMDD format
 
-        # Set test period (1 year)
-        start_date = "20230101"  # YYYYMMDD format
-        end_date = "20231231"    # YYYYMMDD format
+    print(f"Testing Fama-French 5-factor exposures for {symbol} from {start_date} to {end_date}")
 
-        print(f"Testing Fama-French 5-factor exposures for {symbol} from {start_date} to {end_date}")
+    # Calculate Fama-French exposures directly using the symbol
+    result = get_fama_french_factors(symbol, start_date, end_date, mode="5_factor")
 
-        # Calculate Fama-French exposures directly using the symbol
-        result = get_fama_french_factors(symbol, start_date, end_date, mode="5_factor")
+    # Print results
+    print("\nFama-French 5-Factor Exposures:")
+    print(f"Market Beta: {result['market_beta']:.4f}" if result['market_beta'] is not None else "Market Beta: None")
+    print(f"Size Beta (SMB): {result['size_beta']:.4f}" if result['size_beta'] is not None else "Size Beta: None")
+    print(f"Value Beta (HML): {result['value_beta']:.4f}" if result['value_beta'] is not None else "Value Beta: None")
+    print(f"Profitability Beta (RMW): {result['profitability_beta']:.4f}" if result['profitability_beta'] is not None else "Profitability Beta: None")
+    print(f"Investment Beta (CMA): {result['investment_beta']:.4f}" if result['investment_beta'] is not None else "Investment Beta: None")
+    print(f"R-squared: {result['r_squared']:.4f}" if result['r_squared'] is not None else "R-squared: None")
 
-        # Print results
-        print("\nFama-French 5-Factor Exposures:")
-        print(f"Market Beta: {result['market_beta']:.4f}" if result['market_beta'] is not None else "Market Beta: None")
-        print(f"Size Beta (SMB): {result['size_beta']:.4f}" if result['size_beta'] is not None else "Size Beta: None")
-        print(f"Value Beta (HML): {result['value_beta']:.4f}" if result['value_beta'] is not None else "Value Beta: None")
-        print(f"Profitability Beta (RMW): {result['profitability_beta']:.4f}" if result['profitability_beta'] is not None else "Profitability Beta: None")
-        print(f"Investment Beta (CMA): {result['investment_beta']:.4f}" if result['investment_beta'] is not None else "Investment Beta: None")
-        print(f"R-squared: {result['r_squared']:.4f}" if result['r_squared'] is not None else "R-squared: None")
+    # Categorize the stock based on its factor exposures
+    categorization = factor_categorization(result, mode="5_factor")
 
-        # Interpret results
-        if result['market_beta'] is not None:
-            print("\nInterpretation:")
+    # Add this code at the end of your if __name__ == "__main__": block
 
-            # Market beta interpretation
-            if result['market_beta'] > 1.1:
-                print("- High market sensitivity (beta > 1.1)")
-            elif result['market_beta'] < 0.9:
-                print("- Low market sensitivity (beta < 0.9)")
-            else:
-                print("- Market sensitivity close to market (beta ≈ 1)")
+    # Categorize the stock based on its factor exposures
+    categorization = factor_categorization(result, mode="5_factor")
 
-            # Size factor interpretation
-            if result['size_beta'] > 0.2:
-                print("- Behaves more like small-cap stocks (positive SMB exposure)")
-            elif result['size_beta'] < -0.2:
-                print("- Behaves more like large-cap stocks (negative SMB exposure)")
-            else:
-                print("- Neutral size exposure")
+    # Print the categorization results
+    print("\nStock Factor Categorization:")
+    print(f"Market: {categorization['market']}")
+    print(f"Size: {categorization['size']}")
+    print(f"Value: {categorization['value']}")
+    print(f"Profitability: {categorization['profitability']}")
+    print(f"Investment: {categorization['investment']}")
 
-            # Value factor interpretation
-            if result['value_beta'] > 0.2:
-                print("- Behaves more like value stocks (positive HML exposure)")
-            elif result['value_beta'] < -0.2:
-                print("- Behaves more like growth stocks (negative HML exposure)")
-            else:
-                print("- Neutral value/growth exposure")
+    # Print the summary and fit quality
+    print(f"\nSummary: {categorization['summary']}")
+    print(f"Fit Quality: {categorization['fit_quality']}")
 
-            # Profitability factor interpretation
-            if result['profitability_beta'] > 0.2:
-                print("- Associated with robust profitability (positive RMW exposure)")
-            elif result['profitability_beta'] < -0.2:
-                print("- Associated with weak profitability (negative RMW exposure)")
-            else:
-                print("- Neutral profitability exposure")
+    # Provide a brief interpretation of results
+    print("\nInterpretation:")
+    factors_present = categorization['summary'].split('_') if categorization['summary'] != 'market_neutral' else []
 
-            # Investment factor interpretation
-            if result['investment_beta'] > 0.2:
-                print("- Associated with conservative investment (positive CMA exposure)")
-            elif result['investment_beta'] < -0.2:
-                print("- Associated with aggressive investment (negative CMA exposure)")
-            else:
-                print("- Neutral investment exposure")
+    if factors_present:
+        print(f"This stock exhibits the following characteristics: {', '.join(factors_present)}")
+    else:
+        print("This stock exhibits market neutral behavior with no strong factor tilts.")
 
-        return result
-
-    if __name__ == "__main__":
-        test_fama_french_5factor()
+    print(f"The model explains {result['r_squared']*100:.1f}% of the stock's return variation.")
