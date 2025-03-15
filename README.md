@@ -14,7 +14,7 @@ A framework for forecasting and trading options using alpha term structures in A
 
 OpTrade leverages state-of-the-art deep learning and machine learning models for time series forecasting in options markets. The project has two main objectives:
 
-1. **Microstructure Analysis**: Discovering and forecasting alpha term structures to analyze market dynamics across various options contracts
+1. **Alpha Generation**: Discovering and forecasting alpha term structures to analyze market dynamics across various options contracts
 2. **Trading Strategy Development**: Translating these insights into actionable trading signals (planned for future implementation)
 
 Currently, the project is focused on completing the microstructure analysis framework.
