@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any, Union, Literal
+from typing import List, Optional, Dict, Any, Tuple
 from pydantic import BaseModel, Field, model_validator
 import pandas as pd
 import numpy as np
@@ -6,6 +6,7 @@ from enum import Enum
 import yfinance as yf
 
 from optrade.data.thetadata.stocks import get_stock_data_eod
+from optrade.src.preprocessing.data.fama_french import get_fama_french_factors, factor_categorization
 from optrade.src.utils.data.stock_categories import ThreeFactorLevel, FiveFactorLevel, SectorType, IndustryType
 
 class ContractUniverse(BaseModel):
@@ -36,11 +37,26 @@ class ContractUniverse(BaseModel):
     earnings_volatility: Optional[ThreeFactorLevel] = Field(default=None, description="The earnings volatility of the stock. Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%)")
 
     # Fama French Factors
-    market_beta: Optional[ThreeFactorLevel] = Field(default=None, description="The market beta of the stock. Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%)")
-    size_beta: Optional[ThreeFactorLevel] = Field(default=None, description="The size beta of the stock. Options: 'low' (small cap exposure), 'medium' (neutral), 'high' (large cap exposure)")
-    value_beta: Optional[ThreeFactorLevel] = Field(default=None, description="The value beta of the stock. Options: 'low' (growth exposure), 'medium' (neutral), 'high' (value exposure)")
-    profitability_beta: Optional[ThreeFactorLevel] = Field(default=None, description="The profitability beta of the stock. Options: 'low' (weak profitability), 'medium' (neutral), 'high' (robust profitability)")
-    investment_beta: Optional[ThreeFactorLevel] = Field(default=None, description="The investment beta of the stock. Options: 'low' (aggressive investment), 'medium' (neutral), 'high' (conservative investment)")
+    market_beta: Optional[str] = Field(default=None, description="The market beta of the stock. Options: 'high', 'low', 'neutral'")
+    size_beta: Optional[str] = Field(default=None, description="The size beta of the stock. Options: 'small_cap', 'large_cap', 'neutral'")
+    value_beta: Optional[str] = Field(default=None, description="The value beta of the stock. Options: 'value', 'growth', 'neutral'")
+    profitability_beta: Optional[str] = Field(default=None, description="The profitability beta of the stock. Options: 'robust', 'weak', 'neutral'")
+    investment_beta: Optional[str] = Field(default=None, description="The investment beta of the stock. Options: 'conservative', 'aggressive', 'neutral'")
+    ff_mode: str = Field(default=None, description="Mode for the Fama-French model ('3_factor' or '5_factor'). If None, no FF factors will be used for filtering.")
+
+    # Dataset factors
+    contract_stride: int = Field(default=1, description="Number of contracts to skip between each contract")
+    interval_min: int = Field(default=1, description="Interval in minutes for the data")
+    right: str = Field(default="C", description="Option type: 'C' for call, 'P' for put")
+    target_tte: int = Field(default=30, description="Target time to expiration in days")
+    tte_tolerance: Tuple[int, int] = Field(default=(25, 35), description="Tolerance range for time to expiration")
+    moneyness: str = Field(default="ATM", description="Moneyness of the option: 'ATM', 'OTM', 'ITM'")
+    target_band: float = Field(default=0.05, description="Target band for strike selection")
+    volatility_type: str = Field(default="historical", description="Type of volatility to use: 'historical', 'implied'")
+    volatility_scaled: bool = Field(default=True, description="Whether to used volatility-based strike selection")
+    volatility_scalar: float = Field(default=1.0, description="Scalar used for volatility-based strike selection, i.e. number of SDs of the current price")
+    train_split: float = Field(default=0.7, description="Train split ratio")
+    val_split: float = Field(default=0.15, description="Validation split ratio")
 
     # Attributes used to store information (do not initialize)
     fundamentals: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="Fundamental data for each stock")
@@ -141,6 +157,20 @@ class ContractUniverse(BaseModel):
                 self.fundamentals[root] = fundamental_data
             else:
                 self.roots.remove(root)
+
+    def get_fama_french_factors(self) -> None:
+            for root in self.roots:
+                try:
+                    ff_factors = get_fama_french_factors(
+                        root=root,
+                        start_date=self.start_date,
+                        end_date=self.end_date,
+                        mode=self.ff_mode,
+                    )
+                    ff_factor_categories = factor_categorization(ff_factors, mode=self.ff_mode)
+                    self.fundamentals[root].update(ff_factor_categories)
+                except:
+                    self.roots.remove(root)
 
     def filter_universe(self) -> None:
         """
@@ -251,29 +281,57 @@ class ContractUniverse(BaseModel):
         filtered_roots = filter_categorical("sector", self.sector)
         filtered_roots = filter_categorical("industry", self.industry)
 
+        # Fama French factors
+        if self.ff_mode is not None:
+            self.get_fama_french_factors()
+
+            # Define a function for direct FF categorical filtering
+            def filter_ff_direct(metric, desired_category):
+                if desired_category is None:
+                    return filtered_roots
+
+                result = []
+                for root in filtered_roots:
+                    if self.fundamentals[root][metric] == desired_category:
+                        result.append(root)
+
+                return result
+
+            # Apply FF factor filters directly using the specified categories
+            filtered_roots = filter_ff_direct("market_beta", self.market_beta)
+            filtered_roots = filter_ff_direct("size_beta", self.size_beta)
+            filtered_roots = filter_ff_direct("value_beta", self.value_beta)
+
+            if self.ff_mode == "5_factor":
+                filtered_roots = filter_ff_direct("profitability_beta", self.profitability_beta)
+                filtered_roots = filter_ff_direct("investment_beta", self.investment_beta)
+
         # Update roots to the filtered list
         self.roots = filtered_roots
-        print(f"Filtered universe contains {len(self.roots)} stocks")
 
-    def get_fama_french_factors(self) -> None:
-        pass
+
+
 
 
 if __name__ == "__main__":
     # Create a ContractUniverse instance
     universe = ContractUniverse(
-        sp_500=True,
-        volatility="medium",
+        # sp_500=True,
+        dow_jones=True,
+        # volatility="medium",
         # pe_ratio="low",
         # debt_to_equity="low",
         # beta="medium",
         # market_cap="low",
-        sector="technology",
+        # sector="technology",
         # industry="technology",
         # dividend_yield="low",
         # earnings_volatility="low",
         start_date="20210101",
-        end_date="20211001"
+        end_date="20211001",
+        # market_beta="neutral",
+        ff_mode="5_factor",
+        size_beta="large_cap",
     )
 
     # Fetch the S&P 500 constituents
