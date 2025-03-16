@@ -1,4 +1,3 @@
-import yfinance as yf
 import pandas as pd
 import pandas_datareader.data as web
 import statsmodels.api as sm
@@ -118,91 +117,55 @@ def factor_categorization(factors: Dict[str, float], mode: str = "3_factor") -> 
     Categorize a stock based on its Fama-French factor exposures.
 
     Args:
-        factors (Dict[str, float]): Dictionary containing factor betas from get_fama_french_factors
+        factors (Dict[str, float]): Dictionary containing factor betas for the stock
         mode (str): Mode for the Fama-French model ("3_factor" or "5_factor")
 
     Returns:
-        Dict[str, str]: Dictionary with categorizations for each factor dimension using code-friendly naming
+        Dict[str, str]: Dictionary with categorizations for each factor dimension
     """
     categorization = {}
 
     # Market beta categorization
     if factors['market_beta'] > 1.1:
-        categorization['market'] = "high_beta"
+        categorization['market_beta'] = "high"
     elif factors['market_beta'] < 0.9:
-        categorization['market'] = "low_beta"
+        categorization['market_beta'] = "low"
     else:
-        categorization['market'] = "market_beta"
+        categorization['market_beta'] = "neutral"
 
     # Size factor categorization
     if factors['size_beta'] > 0.2:
-        categorization['size'] = "small_cap"
+        categorization['size_beta'] = "small_cap"
     elif factors['size_beta'] < -0.2:
-        categorization['size'] = "large_cap"
+        categorization['size_beta'] = "large_cap"
     else:
-        categorization['size'] = "neutral_size"
+        categorization['size_beta'] = "neutral"
 
     # Value factor categorization
     if factors['value_beta'] > 0.2:
-        categorization['value'] = "value_stock"
+        categorization['value_beta'] = "value"
     elif factors['value_beta'] < -0.2:
-        categorization['value'] = "growth_stock"
+        categorization['value_beta'] = "growth"
     else:
-        categorization['value'] = "neutral_style"
+        categorization['value_beta'] = "neutral"
 
     # For 5-factor model, add profitability and investment categorizations
     if mode == "5_factor":
         # Profitability factor categorization
         if factors['profitability_beta'] > 0.2:
-            categorization['profitability'] = "robust_profitability"
+            categorization['profitability_beta'] = "robust"
         elif factors['profitability_beta'] < -0.2:
-            categorization['profitability'] = "weak_profitability"
+            categorization['profitability_beta'] = "weak"
         else:
-            categorization['profitability'] = "neutral_profitability"
+            categorization['profitability_beta'] = "neutral"
 
         # Investment factor categorization
         if factors['investment_beta'] > 0.2:
-            categorization['investment'] = "conservative_investment"
+            categorization['investment_beta'] = "conservative"
         elif factors['investment_beta'] < -0.2:
-            categorization['investment'] = "aggressive_investment"
+            categorization['investment_beta'] = "aggressive"
         else:
-            categorization['investment'] = "neutral_investment"
-
-    # Add a summary category
-    categories = []
-    if 'market' in categorization:
-        if categorization['market'] != "market_beta":
-            categories.append(categorization['market'])
-
-    if 'size' in categorization:
-        if categorization['size'] != "neutral_size":
-            categories.append(categorization['size'])
-
-    if 'value' in categorization:
-        if categorization['value'] != "neutral_style":
-            categories.append(categorization['value'])
-
-    if mode == "5_factor":
-        if 'profitability' in categorization:
-            if categorization['profitability'] != "neutral_profitability":
-                categories.append(categorization['profitability'])
-
-        if 'investment' in categorization:
-            if categorization['investment'] != "neutral_investment":
-                categories.append(categorization['investment'])
-
-    if categories:
-        categorization['summary'] = "_".join(categories)
-    else:
-        categorization['summary'] = "market_neutral"
-
-    # Add overall fit quality based on R-squared
-    if factors['r_squared'] > 0.7:
-        categorization['fit_quality'] = "strong_fit"
-    elif factors['r_squared'] > 0.4:
-        categorization['fit_quality'] = "moderate_fit"
-    else:
-        categorization['fit_quality'] = "weak_fit"
+            categorization['investment_beta'] = "neutral"
 
     return categorization
 
@@ -239,23 +202,8 @@ if __name__ == "__main__":
 
     # Print the categorization results
     print("\nStock Factor Categorization:")
-    print(f"Market: {categorization['market']}")
-    print(f"Size: {categorization['size']}")
-    print(f"Value: {categorization['value']}")
-    print(f"Profitability: {categorization['profitability']}")
-    print(f"Investment: {categorization['investment']}")
-
-    # Print the summary and fit quality
-    print(f"\nSummary: {categorization['summary']}")
-    print(f"Fit Quality: {categorization['fit_quality']}")
-
-    # Provide a brief interpretation of results
-    print("\nInterpretation:")
-    factors_present = categorization['summary'].split('_') if categorization['summary'] != 'market_neutral' else []
-
-    if factors_present:
-        print(f"This stock exhibits the following characteristics: {', '.join(factors_present)}")
-    else:
-        print("This stock exhibits market neutral behavior with no strong factor tilts.")
-
-    print(f"The model explains {result['r_squared']*100:.1f}% of the stock's return variation.")
+    print(f"Market: {categorization['market_beta']}")
+    print(f"Size: {categorization['size_beta']}")
+    print(f"Value: {categorization['value_beta']}")
+    print(f"Profitability: {categorization['profitability_beta']}")
+    print(f"Investment: {categorization['investment_beta']}")
