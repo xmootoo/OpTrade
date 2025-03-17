@@ -310,6 +310,12 @@ class ContractUniverse(BaseModel):
         self.roots = filtered_roots
 
 
+    def download_universe(self) -> None:
+        # TODO: Implement this method to download the universe of stocks
+        # - Universe List
+        # - ContractDataset(s) <- first generate an index of all these inside ContractUniverse
+        # - Raw Data pertaining to each ContractDataset
+        pass
 
 
 
