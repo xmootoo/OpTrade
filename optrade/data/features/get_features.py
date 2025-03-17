@@ -5,7 +5,7 @@ from typing import Optional, List
 from optrade.data.features.datetime_features import get_datetime_features
 from optrade.data.features.tte_features import get_tte_features
 
-def get_features(
+def transform_features(
     df: pd.DataFrame,
     core_feats: List[str],
     tte_feats: List[str],
@@ -172,7 +172,7 @@ if __name__ == "__main__":
         "stock_count",
     ]
 
-    df = get_features(
+    df = transform_features(
         df=df,
         core_feats=core_feats,
         tte_feats=tte_feats,

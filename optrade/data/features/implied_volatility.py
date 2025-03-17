@@ -172,7 +172,7 @@ if __name__ == "__main__":
 
     from optrade.data.thetadata.get_data import load_all_data
     from optrade.data.thetadata.contracts import Contract
-    from optrade.preprocessing.features.get_features import get_features
+    from optrade.preprocessing.features.transform_features import transform_features
 
     contract = Contract(
         root="AAPL",
@@ -193,7 +193,7 @@ if __name__ == "__main__":
     datetime_feats = ["sin_timeofday", "cos_timeofday", "dayofweek"]
 
 
-    df = get_features(
+    df = transform_features(
         df=df,
         core_feats=core_feats,
         tte_feats=tte_feats,
