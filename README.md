@@ -38,7 +38,6 @@ OpTrade includes state-of-the-art PyTorch deep learning architectures for time s
 ## Example Usage
 ### Single Contract
 ```py
-# Example 1: Single contract modeling
 # Step 1: Find and initialize the optimal contract
 from optrade.data.thetadata import Contract
 
@@ -46,7 +45,7 @@ contract = Contract.find_optimal(
     root="AAPL",
     start_date="20230103",  # First trading day of 2023
     target_tte=30,          # ~30 days to expiration
-    tte_tolerance=(20, 40),
+    tte_tolerance=(20, 40), # Min 20, max 40 days expiration
     interval_min=1,
     moneyness="ATM",        # At-the-money option
 )
