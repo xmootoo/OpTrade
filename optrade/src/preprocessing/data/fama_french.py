@@ -125,6 +125,8 @@ def factor_categorization(factors: Dict[str, float], mode: str = "3_factor") -> 
     """
     categorization = {}
 
+    print(f"Factors: {factors}")
+
     # Market beta categorization
     if factors['market_beta'] > 1.1:
         categorization['market_beta'] = "high"
