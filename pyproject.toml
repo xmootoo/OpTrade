@@ -5,12 +5,10 @@ description = "Options Forecasting and Trading Framework"
 authors = ["Xavier Mootoo <xmootoo@my.yorku.ca>"]
 license = "MIT"
 readme = "README.md"
-packages = [
-    { include = "optrade" }
-]
+packages = [{ include = "optrade" }]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.10,<4.0"
 numpy = "<=2.2.3"
 pandas = "^2.2.3"
 httpx = "^0.28.1"
@@ -19,6 +17,9 @@ pydantic = "^2.10.6"
 PyYAML = "6.0.2"
 neptune = "1.13.0"
 matplotlib = "3.10.0"
+yfinance = "^0.2.54"
+pandas-market-calendars = "^4.6.1"
+scikit-learn = "^1.6.1"
 
 [tool.poetry.group.dev]
 optional = true
