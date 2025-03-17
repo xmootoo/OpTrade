@@ -11,9 +11,9 @@ This structure allows time series models to learn both temporal dynamics and spa
 - [Datetime Features](#datetime-features)
 
 ## Usage
-Featurization is handled by [`get_features`](optrade/src/preprocessing/features/get_features.py), which includes several different subsets of features to choose from:
+Featurization is handled by [`transform_features`](optrade/src/preprocessing/features/transform_features.py), which includes several different subsets of features to choose from:
 ```py
-def get_features(
+def transform_features(
     df: pd.DataFrame,
     core_feats: List[str],
     tte_feats: List[str],
@@ -124,7 +124,7 @@ Compared to `distance_to_strike`, this feature is normalized and scale-invariant
 
 
 ## Time-to-Expiration Features
-The [`get_tte_features`](optrade/src/preprocessing/features/tte_features.py) is a component function of [`get_features`](optrade/src/preprocessing/features/get_features.py) providing various transformations of time-to-expiration data to capture theta decay effects (the reduction in option value over time):
+The [`get_tte_features`](optrade/src/preprocessing/features/tte_features.py) is a component function of [`transform_features`](optrade/src/preprocessing/features/transform_features.py) providing various transformations of time-to-expiration data to capture theta decay effects (the reduction in option value over time):
 ```py
 def get_tte_features(
     df: pd.DataFrame,
