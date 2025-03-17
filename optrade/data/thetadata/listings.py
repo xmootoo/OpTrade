@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # Custom modules
-from optrade.src.utils.data.clean_up import clean_up_dir
+from optrade.utils.data.clean_up import clean_up_dir
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_URL = "http://127.0.0.1:25510/v2"
 

@@ -5,7 +5,7 @@ import os
 
 # Custom modules
 from optrade.data.thetadata.listings import get_strikes
-from optrade.data.thetadata.stocks import get_stock_data
+from optrade.data.thetadata.stocks import load_stock_data
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -59,7 +59,7 @@ def find_optimal_strike(
 
 
     try:
-        stock_data = get_stock_data(
+        stock_data = load_stock_data(
             root=root,
             start_date=start_date,
             end_date=start_date,
@@ -70,7 +70,7 @@ def find_optimal_strike(
     except:
         # Shift start_date by 1 day if no data is found
         new_start_date = (pd.to_datetime(start_date, format='%Y%m%d') + pd.Timedelta(days=1)).strftime('%Y%m%d')
-        stock_data = get_stock_data(
+        stock_data = load_stock_data(
             root=root,
             start_date=new_start_date,
             end_date=new_start_date,

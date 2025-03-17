@@ -7,10 +7,10 @@ from pathlib import Path
 from rich.console import Console
 
 # Custom modules
-from optrade.src.utils.data.clean_up import clean_up_dir
+from optrade.utils.data.clean_up import clean_up_dir
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def get_stock_data(
+def load_stock_data(
     root: str="AAPL",
     start_date: str="20231107",
     end_date: str="20231107",
@@ -331,7 +331,7 @@ def get_stock_data_eod(
     return eod_df
 
 if __name__ == "__main__":
-    df = get_stock_data(clean_up=False, offline=False)
+    df = load_stock_data(clean_up=False, offline=False)
     print(df.head())
     df = get_stock_data_eod(root="BALL", start_date="20230101", end_date="20231231", clean_up=False, offline=False)
     print(df)

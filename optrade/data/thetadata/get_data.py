@@ -5,14 +5,14 @@ from typing import Optional
 
 # Custom modules
 from optrade.data.thetadata.contracts import Contract
-from optrade.data.thetadata.options import get_option_data
-from optrade.data.thetadata.stocks import get_stock_data
-from optrade.src.utils.data.clean_up import clean_up_dir
-from optrade.src.utils.data.error import DataValidationError, INCOMPATIBLE_START_DATE, INCOMPATIBLE_END_DATE, MISSING_DATES, UNKNOWN_ERROR
+from optrade.data.thetadata.options import load_option_data
+from optrade.data.thetadata.stocks import load_stock_data
+from optrade.utils.data.clean_up import clean_up_dir
+from optrade.utils.data.error import DataValidationError, INCOMPATIBLE_START_DATE, INCOMPATIBLE_END_DATE, MISSING_DATES, UNKNOWN_ERROR
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-def get_data(
+def load_all_data(
     contract: Contract,
     save_dir: Optional[str]=None,
     clean_up: bool=False,
@@ -79,7 +79,7 @@ def get_data(
                 "Please run with offline=False and clean_up=False first to download the required data."
             )
 
-    option_df = get_option_data(
+    option_df = load_option_data(
         root=contract.root,
         start_date=contract.start_date,
         end_date=contract.exp,
@@ -92,7 +92,7 @@ def get_data(
         offline=offline,
     )
 
-    stock_df = get_stock_data(
+    stock_df = load_stock_data(
         root=contract.root,
         start_date=contract.start_date,
         end_date=contract.exp,
@@ -234,5 +234,5 @@ if __name__ == "__main__":
 
     ctx.log(contract)
 
-    combined_df = get_data(contract=contract, clean_up=False, offline=False)
+    combined_df = load_all_data(contract=contract, clean_up=False, offline=False)
     print(combined_df.head())

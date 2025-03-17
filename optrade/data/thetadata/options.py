@@ -6,10 +6,10 @@ from typing import Optional
 from rich.console import Console
 
 # Custom modules
-from optrade.src.utils.data.clean_up import clean_up_dir
+from optrade.utils.data.clean_up import clean_up_dir
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def get_option_data(
+def load_option_data(
     root: str="AAPL",
     start_date: str="20241107",
     end_date: str="20241107",
@@ -269,7 +269,7 @@ def fill_open_zeros(group):
 
 if __name__ == "__main__":
 
-    df = get_option_data(
+    df = load_option_data(
         root="MSFT",
         start_date="20240105",
         end_date="20240205",

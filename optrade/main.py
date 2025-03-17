@@ -3,8 +3,8 @@ import json
 import argparse
 import sys
 from datetime import datetime
-from optrade.src.exp.exp import Experiment
-from optrade.src.config.config import load_config
+from optrade.exp.exp import Experiment
+from optrade.config.config import load_config
 import torch
 from dotenv import load_dotenv
 from rich.console import Console
