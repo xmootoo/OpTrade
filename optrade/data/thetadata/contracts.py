@@ -1,11 +1,16 @@
 from pydantic import BaseModel, Field
 from typing import Tuple, Optional
+import pandas as pd
 
 from rich.console import Console
+
+import datetime
+import pandas_market_calendars as mcal
 
 # Custom modules
 from optrade.data.thetadata.expirations import find_optimal_exp
 from optrade.data.thetadata.strikes import find_optimal_strike
+from optrade.utils.data.error import DataValidationError, MARKET_HOLIDAY, WEEKEND
 
 class Contract(BaseModel):
     """
@@ -32,13 +37,14 @@ class Contract(BaseModel):
         right: str = "C",
         target_tte: int = 30,
         tte_tolerance: Tuple[int, int] = (25, 35),
-        moneyness: str = "OTM",
+        moneyness: str = "ATM",
         target_band: float = 0.05,
         hist_vol: Optional[float] = None,
-        volatility_scaled: bool = True,
+        volatility_scaled: bool = False,
         volatility_scalar: float = 1.0,
     ) -> "Contract":
         """Find the optimal contract for a given security, start date, and approximate TTE."""
+
         exp, _ = find_optimal_exp(
             root=root,
             start_date=start_date,
@@ -49,8 +55,25 @@ class Contract(BaseModel):
 
         ctx = Console()
 
-        if hist_vol is not None:
-            ctx.log(f"Historical volatility: {hist_vol}")
+        # Validate if start_date is a trading day
+        date_obj = datetime.datetime.strptime(start_date, "%Y%m%d")
+
+        # Check if it's a weekend
+        if date_obj.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+            raise DataValidationError(
+                f"Start date {start_date} falls on a weekend. Markets are closed.",
+                WEEKEND
+            )
+
+        # Check if it's a market holiday
+        nyse = mcal.get_calendar("NYSE")
+        trading_days = nyse.valid_days(start_date=start_date, end_date=start_date)
+
+        if len(trading_days) == 0:
+            raise DataValidationError(
+                f"Start date {start_date} is a market holiday. Markets are closed.",
+                MARKET_HOLIDAY
+            )
 
         strike = find_optimal_strike(
             root=root,
@@ -74,6 +97,12 @@ class Contract(BaseModel):
             interval_min=interval_min,
             right=right
         )
+
+    def load_data(self) -> pd.DataFrame:
+        """Load data for the selected contract."""
+        # Import only when the method is called
+        from optrade.data.thetadata.get_data import load_all_data
+        return load_all_data(contract=self, clean_up=True, offline=False)
 
 if __name__ == "__main__":
     from rich.console import Console
