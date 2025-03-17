@@ -16,7 +16,7 @@ from optrade.data.thetadata.get_data import load_all_data
 from optrade.data.forecasting.datasets import ContractDataset, ForecastingDataset
 
 # Features
-from optrade.data.features.get_features import get_features
+from optrade.data.features.get_features import transform_features
 
 # Historical Volatility
 from optrade.utils.data.volatility import get_historical_volatility
@@ -303,7 +303,7 @@ def create_dataset(
                 )
 
                 # Select and add features
-                data = get_features(
+                data = transform_features(
                     df=df,
                     core_feats=core_feats,
                     tte_feats=tte_feats,

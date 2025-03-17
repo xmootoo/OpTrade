@@ -322,7 +322,6 @@ class IntradayForecastingDataset(Dataset):
     def __getitem__(self, idx):
         return self.input[idx], self.target[idx]
 
-
 if __name__=="__main__":
 
     # Define the parameters for the dataset

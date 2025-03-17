@@ -93,18 +93,22 @@ def get_windows(
 
 if __name__ == "__main__":
     from optrade.data.thetadata.get_data import load_all_data
-    from optrade.preprocessing.features.get_features import get_features
+    from optrade.data.features.get_features import transform_features
+    from optrade.data.thetadata.contracts import Contract
     from rich.console import Console
     console = Console()
 
-    df = load_all_data(
+    contract = Contract(
         root="AAPL",
         start_date="20241107",
-        end_date="20241114",
         exp="20250117",
         strike=225,
         interval_min=1,
-        right="C",
+        right="C"
+    )
+
+    df = load_all_data(
+        contract=contract,
         # save_dir="../historical_data/merged",
         clean_up=True,
         offline=False
@@ -136,7 +140,7 @@ if __name__ == "__main__":
         "stock_count",
     ]
 
-    df = get_features(
+    df = transform_features(
         df=df,
         core_feats=core_feats,
         tte_feats=tte_feats,

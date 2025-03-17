@@ -2,7 +2,6 @@ from typing import List, Optional, Dict, Any, Tuple
 from pydantic import BaseModel, Field, model_validator
 import pandas as pd
 import numpy as np
-from enum import Enum
 import yfinance as yf
 
 from optrade.data.thetadata.stocks import load_stock_data_eod
