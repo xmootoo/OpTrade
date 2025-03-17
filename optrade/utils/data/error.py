@@ -5,6 +5,8 @@ from rich.console import Console
 MISSING_DATES = 1001
 INCOMPATIBLE_START_DATE = 1002
 INCOMPATIBLE_END_DATE = 1003
+MARKET_HOLIDAY = 1004
+WEEKEND = 1005
 UNKNOWN_ERROR = 9999
 
 class DataValidationError(Exception):
@@ -23,6 +25,8 @@ class DataValidationError(Exception):
             INCOMPATIBLE_START_DATE: "Option data queried before contract start date",
             INCOMPATIBLE_END_DATE: "Option data queried before contract start date, and data ends before specified expirations",
             MISSING_DATES: "Option dates is a subset of stock dates, there are missing dates in between",
+            MARKET_HOLIDAY: "Market holiday",
+            WEEKEND: "Weekend",
             UNKNOWN_ERROR: "Unknown error"
         }
 
