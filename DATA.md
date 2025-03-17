@@ -21,10 +21,10 @@ This document details the data pipeline for options forecasting and trading, whi
 
 ## Data Sources  (ThetaData API)
 ### Option Data
-We utilize the [ThetaData API](https://http-docs.thetadata.us/) to obtain options data consolidated by the Options Price Reporting Authority (OPRA). The data includes quotes and OHLC metrics at 1-minute intervals during regular trading hours (9:30 AM - 4:00 PM EST). Note that this requires an active subscription to both the option and stock VALUE packages, although not free, are (relatively) cheap in comparison to other financial market data providers. To run any of the data scripts found in [`optrade/data/thetadata/`](optrade/data/thetadata/), a ThetaData terminal must running. The function [`get_option_data`](optrade/data/thetadata/options.py): 
+We utilize the [ThetaData API](https://http-docs.thetadata.us/) to obtain options data consolidated by the Options Price Reporting Authority (OPRA). The data includes quotes and OHLC metrics at 1-minute intervals during regular trading hours (9:30 AM - 4:00 PM EST). Note that this requires an active subscription to both the option and stock VALUE packages, although not free, are (relatively) cheap in comparison to other financial market data providers. To run any of the data scripts found in [`optrade/data/thetadata/`](optrade/data/thetadata/), a ThetaData terminal must running. The function [`load_option_data`](optrade/data/thetadata/options.py): 
 
 ```py
-def get_option_data(
+def load_option_data(
     root: str="AAPL", # Underlying security's root symbol
     start_date: str="20241107",
     end_date: str="20241107",
@@ -63,7 +63,7 @@ For more details see [`ThetaData (Option Quotes)`](https://http-docs.thetadata.u
 ### Underlying Security Data
 For the underlying security, the [`get_stock_data`](optrade/data/thetadata/stocks.py) function returns analogous data through UTP and CTA feeds with the lowest resolution at 1-minute intervals using the ThetaData API:
 ```py
-def get_stock_data(
+def load_stock_data(
     root: str="AAPL",
     start_date: str="20231107",
     end_date: str="20231107",
