@@ -39,7 +39,7 @@ OpTrade includes state-of-the-art PyTorch deep learning architectures for time s
 ### Single Contract
 ```py
 # Step 1: Find and initialize the optimal contract
-from optrade.data.thetadata import Contract
+from optrade.data import Contract
 
 contract = Contract.find_optimal(
     root="AAPL",
