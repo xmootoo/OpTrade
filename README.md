@@ -1,6 +1,6 @@
 # OpTrade
 
-A framework for forecasting and trading options using alpha term structures in American options markets.
+OpTrade provides a complete toolkit for quantitative research and development of options trading strategies. By abstracting away the complexity of data handling and experimental setup, researchers and traders can focus on what matters most: developing and testing alpha-generating ideas.
 
 <p align="center">
  <picture>
@@ -12,13 +12,14 @@ A framework for forecasting and trading options using alpha term structures in A
 
 ## Overview
 
-OpTrade leverages state-of-the-art deep learning and machine learning models for time series forecasting in options markets. The project has two main objectives:
+The framework focuses on two primary use cases:
 
 1. **Alpha Generation**: Discovering and forecasting alpha term structures to analyze market dynamics across various options contracts
 2. **Trading Strategy Development**: Translating these insights into actionable trading signals (planned for future implementation)
 
-Currently, the project is focused on completing the microstructure analysis framework.
+which includes a comprehensive data pipeline, allowing for easy-to-conduct experiments in a wide variety of precision-tuned market envinroments. Currently, the project is completing the alpha generation framework.
 
+<!-- 
 ## What is an Alpha Term Structure?
 
 An alpha term structure represents how excess returns (alpha) are expected to evolve over different time horizons. It is defined as:
@@ -35,7 +36,7 @@ This structure helps traders:
 - Determine optimal entry/exit points
 - Develop time-specific trading strategies
 - Manage risk (e.g., adjust positions) 
-- Select appropriate option expiration dates
+- Select appropriate option expiration dates -->
 
 ## Documentation
 This project includes extensive documentation that is essential for understanding the framework. Users are strongly encouraged to review these documents before usage.
