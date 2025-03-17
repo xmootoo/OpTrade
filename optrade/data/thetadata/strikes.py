@@ -94,7 +94,7 @@ def find_optimal_strike(
     # Calculate the target strike band
     if moneyness in ["ITM", "OTM"]:
 
-        print(f"Volatility scalar: {volatility_scalar}. Historical volatility: {hist_vol}")
+        # print(f"Volatility scalar: {volatility_scalar}. Historical volatility: {hist_vol}")
 
         # Get historical prices and calculate volatility
         if volatility_scaled:
