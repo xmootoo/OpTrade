@@ -10,14 +10,35 @@ OpTrade provides a complete toolkit for quantitative research and development of
  </picture>
 </p>
 
-## Overview
+<!-- ## Overview
 
 The framework focuses on two primary use cases:
 
 1. **Alpha Generation**: Discovering and forecasting alpha term structures to analyze market dynamics across various options contracts
 2. **Trading Strategy Development**: Translating these insights into actionable trading signals (planned for future implementation)
+ -->
 
-which includes a comprehensive data pipeline, allowing for easy-to-conduct experiments in a wide variety of precision-tuned market envinroments. Currently, the project is completing the alpha generation framework.
+## Key Features
+🔄 **Data Pipeline**  
+Our data pipeline integrates with ThetaData's API, providing cost-effective access to minute-level options and security data. The framework processes both NBBO quotes and OHLCVC metrics through an intelligent contract selection system that optimizes for user-defined parameters such as moneyness, expiration windows, and volatility-scaled strike selection.
+
+🌐 **Market Environments**  
+Custom market environments enable precise universe selection through multifaceted filtering of securities. The framework supports composition by major indices (S&P 500, NASDAQ 100, Dow Jones), factor-based screening (e.g., volatility, PE ratios, beta, market cap), and Fama-French model categorization.
+
+🧪 **Experimental Pipeline**  
+The experimentation framework offers modern PyTorch and scikit-learn models for options forecasting with integrated Neptune logging, flexible hyperparameter tuning, and robust model version control. It manages the complete model lifecycle from training through evaluation with support for both online and offline experiment tracking.
+
+🧮 **Featurization**  
+Several option market features are available, including mid-price derivations, order book imbalance metrics, quote spreads, and moneyness calculations. Time-to-expiration transformations capture theta decay effects through multiple mathematical representations, while specialized datetime features extract cyclical market patterns to model intraday seasonality and weekly option expiration effects.
+
+🤖 Models
+OpTrade includes state-of-the-art PyTorch deep learning architectures for time series forecasting alongside traditional machine learning models from scikit-learn, enabling researchers to leverage both cutting-edge DL approaches and proven quantitative techniques.
+
+
+
+
+
+
 
 <!-- 
 ## What is an Alpha Term Structure?
