@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from rich.console import Console
 
 from optrade.data.thetadata.contracts import Contract
+from optrade.utils.data.error import DataValidationError, MARKET_HOLIDAY, WEEKEND
 
 class ContractDataset:
     """
@@ -115,9 +116,15 @@ class ContractDataset:
                     if attempt_date > current_date:
                         self.ctx.log(f"Found valid contract at shifted date: {attempt_date_str}") if self.verbose else None
 
-                except Exception as e:
-                    self.ctx.log(f"Failed to find contract for {attempt_date_str}: {str(e)}") if self.verbose else None
-                    attempt_date += timedelta(days=1)
+                except DataValidationError as e:
+                    if e.error_code == WEEKEND:
+                        self.ctx.log(f"Skipping weekend: {attempt_date_str}") if self.verbose else None
+                        attempt_date += timedelta(days=1)
+                    elif e.error_code == MARKET_HOLIDAY:
+                        self.ctx.log(f"Skipping market holiday: {attempt_date_str}") if self.verbose else None
+                        attempt_date += timedelta(days=1)
+                    else:
+                        self.ctx.log(f"Unkown error: {str(e)}. Skipping date: {attempt_date_str}.") if self.verbose else None
 
                     # Check if we've run out of valid dates
                     if attempt_date > latest_start:
@@ -327,7 +334,7 @@ if __name__=="__main__":
     contracts = ContractDataset(root=root,
     total_start_date=total_start_date,
     total_end_date=total_end_date,
-    contract_stride=15,
+    contract_stride=1,
     interval_min=1,
     right="P",
     target_tte=3,
@@ -336,7 +343,8 @@ if __name__=="__main__":
     target_band=0.05,
     volatility_scaled= True,
     volatility_scalar= 1.0,
-    hist_vol=hist_vol)
+    hist_vol=hist_vol,
+    verbose=True)
 
     # Generate contracts
     contracts.generate_contracts()
