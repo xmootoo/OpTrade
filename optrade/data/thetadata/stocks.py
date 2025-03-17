@@ -333,5 +333,5 @@ def get_stock_data_eod(
 if __name__ == "__main__":
     df = get_stock_data(clean_up=False, offline=False)
     print(df.head())
-    df = get_stock_data_eod(root="AAPL", start_date="20230101", end_date="20231231", clean_up=False, offline=False)
+    df = get_stock_data_eod(root="BALL", start_date="20230101", end_date="20231231", clean_up=False, offline=False)
     print(df)
