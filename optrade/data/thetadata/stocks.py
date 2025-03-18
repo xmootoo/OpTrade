@@ -8,14 +8,14 @@ from rich.console import Console
 
 # Custom modules
 from optrade.utils.data.clean_up import clean_up_dir
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 def load_stock_data(
     root: str="AAPL",
     start_date: str="20231107",
     end_date: str="20231107",
     interval_min: int=1,
-    save_dir: str="../historical_data/stocks",
+    save_dir: Optional[str]=None,
     clean_up: bool=False,
     offline: bool=False,
 ) -> pd.DataFrame:
@@ -55,19 +55,23 @@ def load_stock_data(
         'venue': "utp_cta", # Merged UTP & CTA data
     }
 
-    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
-    if clean_up and not offline:
-        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "stocks")
-        save_dir = temp_dir
-
     # Set up directory structure
-    save_dir = os.path.join(save_dir, root, f'{start_date}_{end_date}')
-    os.makedirs(save_dir, exist_ok=True)
+    if save_dir is None:
+        save_dir = SCRIPT_DIR.parent / "historical_data" / "stocks"
+    else:
+        save_dir = Path(save_dir) / "stocks"
+
+    if clean_up and not offline:
+        temp_dir = SCRIPT_DIR.parent / "temp" / "stocks"
+        save_dir = Path(temp_dir)
+
+    save_dir = save_dir / root / f"{start_date}_{end_date}"
+    save_dir.mkdir(parents=True, exist_ok=True)
 
     # Define file paths
-    quote_file_path = os.path.join(save_dir, 'quote.csv')
-    ohlc_file_path = os.path.join(save_dir, 'ohlc.csv')
-    merged_file_path = os.path.join(save_dir, 'merged.csv')
+    quote_file_path = save_dir / "quote.csv"
+    ohlc_file_path = save_dir / "ohlc.csv"
+    merged_file_path = save_dir / "merged.csv"
 
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
@@ -209,7 +213,7 @@ def get_stock_data_eod(
     root: str="AAPL",
     start_date: str="20231107",
     end_date: str="20231107",
-    save_dir: str="../historical_data/stocks_eod",
+    save_dir: Optional[str]=None,
     clean_up: bool=False,
     offline: bool=False,
 ) -> pd.DataFrame:
@@ -242,17 +246,21 @@ def get_stock_data_eod(
         'use_csv': 'true',
     }
 
-    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
-    if clean_up and not offline:
-        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "stocks")
-        save_dir = temp_dir
-
     # Set up directory structure
-    save_dir = os.path.join(save_dir, root, f'{start_date}_{end_date}')
-    os.makedirs(save_dir, exist_ok=True)
+    if save_dir is None:
+        save_dir = SCRIPT_DIR.parent / "historical_data" / "stocks"
+    else:
+        save_dir = Path(save_dir) / "stocks"
+
+    if clean_up and not offline:
+        temp_dir = SCRIPT_DIR.parent / "temp" / "stocks"
+        save_dir = Path(temp_dir)
+
+    save_dir = save_dir / root / f"{start_date}_{end_date}"
+    save_dir.mkdir(parents=True, exist_ok=True)
 
     # Define file paths
-    eod_path = os.path.join(save_dir, 'eod.csv')
+    eod_path = save_dir / "eod.csv"
 
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
