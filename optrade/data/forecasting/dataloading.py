@@ -23,6 +23,7 @@ from optrade.utils.data.volatility import get_historical_volatility
 
 # Utils
 from optrade.utils.data.error import DataValidationError, INCOMPATIBLE_START_DATE, INCOMPATIBLE_END_DATE
+from optrade.utils.data.pathing import set_contract_dir
 
 # Get absolute path for this script
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -77,30 +78,36 @@ def create_contract_datasets(
         Training, validation, and test contract datasets.
     """
 
-    # Set directories for saving or loading
-    if save_dir is None:
-        save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
-    else:
-        # Convert string to Path object if save_dir is a string
-        save_dir = Path(save_dir)
-
-    # Create a structured path based on key parameters
-    contract_dir = (
-        save_dir /
-        root /
-        f"{start_date}_{end_date}" /
-        right /
-        f"contract_stride_{contract_stride}" /
-        f"interval_{interval_min}" /
-        f"target_tte_{target_tte}" /
-        f"moneyness_{moneyness}"
-    )
-
-    # Add volatility info to path if volatility_scaled is True
+    # Volatility-based selection of strikes (Optional)
     if volatility_scaled:
-        contract_dir = contract_dir / f"voltype_{volatility_type}_volscalar_{volatility_scalar}"
+        hist_vol = get_hist_vol(
+            root=root,
+            start_date=start_date,
+            end_date=end_date,
+            interval_min=interval_min,
+            volatility_window=train_split, # Use the ONLY training data to compute historical volatility (prevent data leakage)
+            volatility_type=volatility_type
+        )
     else:
-        contract_dir = contract_dir / f"target_band_{str(target_band).replace('.', 'p')}"
+        hist_vol = None
+
+    contract_dir = set_contract_dir(
+        SCRIPT_DIR=SCRIPT_DIR,
+        root=root,
+        start_date=total_start_date,
+        end_date=total_end_date,
+        contract_stride=contract_stride,
+        interval_min=interval_min,
+        right=right,
+        target_tte=target_tte,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        target_band=target_band,
+        volatility_scaled=volatility_scaled,
+        volatility_scalar=volatility_scalar,
+        hist_vol=hist_vol,
+        save_dir=save_dir
+    )
 
     # Offline loading (if already saved)
     if offline:
@@ -116,19 +123,6 @@ def create_contract_datasets(
         test_contracts = ContractDataset.load(contract_dir / "test_contracts.pkl")
         return train_contracts, val_contracts, test_contracts
 
-    # Volatility-based selection of strikes (Optional)
-    if volatility_scaled:
-        hist_vol = get_hist_vol(
-            root=root,
-            start_date=start_date,
-            end_date=end_date,
-            interval_min=interval_min,
-            volatility_window=train_split, # Use the ONLY training data to compute historical volatility (prevent data leakage)
-            volatility_type=volatility_type
-        )
-    else:
-        hist_vol = None
-
     # Get contiguous training, validation, and test (start_date, end_date) pairs in YYYYMMDD format
     total_days = (pd.to_datetime(end_date, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
     num_train_days = int(train_split * total_days)
@@ -143,7 +137,6 @@ def create_contract_datasets(
     test_dates = (test_start_date, end_date)
 
     # Create the training, validation, and test contract datasets
-    from rich.console import Console
     ctx = Console()
     ctx.log("------------CREATING TRAINING CONTRACTS------------") if verbose else None
     train_contracts = ContractDataset(
@@ -161,6 +154,7 @@ def create_contract_datasets(
         volatility_scaled=volatility_scaled,
         volatility_scalar=volatility_scalar,
         verbose=verbose,
+        save_dir=save_dir,
     ).generate_contracts()
 
     ctx.log("------------CREATING VALIDATION CONTRACTS------------") if verbose else None
@@ -179,6 +173,7 @@ def create_contract_datasets(
         volatility_scaled=volatility_scaled,
         volatility_scalar=volatility_scalar,
         verbose=verbose,
+        save_dir=save_dir,
     ).generate_contracts()
 
     ctx.log("------------CREATING TEST CONTRACTS------------") if verbose else None
@@ -197,17 +192,13 @@ def create_contract_datasets(
         volatility_scaled=volatility_scaled,
         volatility_scalar=volatility_scalar,
         verbose=verbose,
+        save_dir=save_dir,
     ).generate_contracts()
 
     if not clean_up:
-
-        # Create all directories
-        contract_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save with a simple name since the path contains all the parameter info
-        train_contracts.save(contract_dir / "train_contracts.pkl")
-        val_contracts.save(contract_dir / "val_contracts.pkl")
-        test_contracts.save(contract_dir / "test_contracts.pkl")
+        train_contracts.save("train_contracts.pkl")
+        val_contracts.save("val_contracts.pkl")
+        test_contracts.save("test_contracts.pkl")
 
     return train_contracts, val_contracts, test_contracts
 
