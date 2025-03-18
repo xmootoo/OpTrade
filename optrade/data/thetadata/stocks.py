@@ -209,7 +209,7 @@ def load_stock_data(
 
     return merged_df
 
-def get_stock_data_eod(
+def load_stock_data_eod(
     root: str="AAPL",
     start_date: str="20231107",
     end_date: str="20231107",

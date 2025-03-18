@@ -43,13 +43,14 @@ def load_all_data(
     """
 
     # Directory setup
-    options_dir = SCRIPT_DIR.parent / "historical_data" / "options"
-    stocks_dir = SCRIPT_DIR.parent / "historical_data" / "stocks"
-
     if save_dir is None:
         save_dir = SCRIPT_DIR.parent / "historical_data" / "combined"
+        options_dir = SCRIPT_DIR.parent / "historical_data" / "options"
+        stocks_dir = SCRIPT_DIR.parent / "historical_data" / "stocks"
     else:
-        save_dir = Path(save_dir)
+        save_dir = Path(save_dir) / "combined"
+        options_dir = Path(save_dir) / "options"
+        stocks_dir = Path(save_dir) / "stocks"
 
     if clean_up and not offline:
         temp_dir = SCRIPT_DIR.parent / "temp" / "combined"
