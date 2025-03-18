@@ -45,7 +45,7 @@ def create_contract_datasets(
     val_split: float = 0.1,
     clean_up: bool = True,
     offline: bool = False,
-    save_dir: Optional[Path] = None,
+    save_dir: Optional[str] = None,
     verbose: bool=False,
 ) -> Tuple[ContractDataset, ContractDataset, ContractDataset]:
     """
@@ -80,6 +80,9 @@ def create_contract_datasets(
     # Set directories for saving or loading
     if save_dir is None:
         save_dir = SCRIPT_DIR.parents[2] / "data" / "historical_data" / "contracts"
+    else:
+        # Convert string to Path object if save_dir is a string
+        save_dir = Path(save_dir)
 
     # Create a structured path based on key parameters
     contract_dir = (
@@ -256,13 +259,14 @@ def create_dataset(
     tte_feats: list,
     datetime_feats: list,
     tte_tolerance: Tuple[int, int],
-    clean_up: bool = True,
-    offline: bool = False,
-    intraday: bool = False,
+    clean_up: bool=True,
+    offline: bool=False,
+    intraday: bool=False,
     target_channels: list=[0],
     seq_len: int=100,
     pred_len: int=10,
     dtype: str="float64",
+    save_dir: Optional[str]=None,
 ) -> Dataset:
     """
     Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
@@ -298,6 +302,7 @@ def create_dataset(
             try:
                 df = load_all_data(
                     contract=contract,
+                    save_dir=save_dir,
                     clean_up=clean_up,
                     offline=offline,
                 )
