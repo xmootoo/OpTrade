@@ -4,10 +4,12 @@ import pandas as pd
 import os
 from typing import Optional
 from rich.console import Console
+from pathlib import Path
 
 # Custom modules
 from optrade.utils.data.clean_up import clean_up_dir
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 def load_option_data(
     root: str="AAPL",
@@ -17,7 +19,7 @@ def load_option_data(
     strike: int=225,
     interval_min: int=1,
     right: str="C",
-    save_dir: str="../historical_data/options",
+    save_dir: Optional[str]=None,
     clean_up: bool=False,
     offline: bool=False,
     count_ohlc_zeros: bool=False,
@@ -61,19 +63,29 @@ def load_option_data(
         'ivl': intervals,
     }
 
-    # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
+    if save_dir is None:
+            save_dir = SCRIPT_DIR.parent / "historical_data" / "options"
+    else:
+        save_dir = Path(save_dir) / "options"
+
     if clean_up and not offline:
-        temp_dir = os.path.join(os.path.dirname(SCRIPT_DIR), "temp", "options")
-        save_dir = temp_dir
+        temp_dir = SCRIPT_DIR.parent / "temp" / "options"
+        save_dir = Path(temp_dir)
 
     # Set up directory structure
-    save_dir = os.path.join(save_dir, root, right, f"{start_date}_{end_date}", f"{strike}strike_{exp}exp")
-    os.makedirs(save_dir, exist_ok=True)
+    save_dir = (
+        save_dir /
+        root /
+        right /
+        f"{start_date}_{end_date}" /
+        f"{strike}strike_{exp}exp"
+    )
+    save_dir.mkdir(parents=True, exist_ok=True)
 
     # Define file paths
-    quote_file_path = os.path.join(save_dir, 'quote.csv')
-    ohlc_file_path = os.path.join(save_dir, 'ohlc.csv')
-    merged_file_path = os.path.join(save_dir, 'merged.csv')
+    quote_file_path = save_dir / "quote.csv"
+    ohlc_file_path = save_dir / "ohlc.csv"
+    merged_file_path = save_dir / "merged.csv"
 
     # If offline mode is enabled, read and return the merged data. This assumes data is already saved.
     if offline:
