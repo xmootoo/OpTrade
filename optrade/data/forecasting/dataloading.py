@@ -309,6 +309,7 @@ def create_dataset(
                     tte_feats=tte_feats,
                     datetime_feats=datetime_feats,
                     strike=contract.strike,
+                    exp=contract.exp,
                 ).to_numpy()
 
                 # Convert to PyTorch dataset

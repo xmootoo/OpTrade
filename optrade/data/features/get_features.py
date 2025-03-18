@@ -11,6 +11,7 @@ def transform_features(
     tte_feats: List[str],
     datetime_feats: List[str],
     strike: Optional[int]=None,
+    exp: Optional[str]=None,
 ) -> pd.DataFrame:
 
     """
@@ -72,7 +73,7 @@ def transform_features(
 
     # Generate additional features
     df = get_datetime_features(df=df, feats=datetime_feats)
-    df = get_tte_features(df=df, feats=tte_feats)
+    df = get_tte_features(df=df, feats=tte_feats, exp=exp)
 
     if "option_returns" in core_feats:
         # Calculate option price returns and add to dataframe
