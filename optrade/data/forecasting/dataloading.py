@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
 import pandas as pd
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Union
 from pathlib import Path
 from rich.console import Console
 from sklearn.preprocessing import StandardScaler
@@ -246,10 +246,10 @@ def get_hist_vol(
 
 def create_dataset(
     contracts: ContractDataset,
-    core_feats: list,
-    tte_feats: list,
-    datetime_feats: list,
-    tte_tolerance: Tuple[int, int],
+    core_feats: List[str]=["option_returns"],
+    tte_feats: List[str]=["sqrt"],
+    datetime_feats: List[str]=["sin_timeofday"],
+    tte_tolerance: Tuple[int, int]=(25, 35),
     clean_up: bool=True,
     offline: bool=False,
     intraday: bool=False,
@@ -258,6 +258,7 @@ def create_dataset(
     pred_len: int=10,
     dtype: str="float64",
     save_dir: Optional[str]=None,
+    download_only: bool=False,
 ) -> Dataset:
     """
     Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
@@ -284,6 +285,9 @@ def create_dataset(
     ctx = Console()
     dataset_list = []
 
+    if download_only:
+        clean_up = offline = False
+
     for contract in contracts.contracts:
         # Flag to track if we should try the next contract
         move_to_next_contract = False
@@ -298,19 +302,22 @@ def create_dataset(
                     offline=offline,
                 )
 
-                # Select and add features
-                data = transform_features(
-                    df=df,
-                    core_feats=core_feats,
-                    tte_feats=tte_feats,
-                    datetime_feats=datetime_feats,
-                    strike=contract.strike,
-                    exp=contract.exp,
-                ).to_numpy()
+                if not download_only:
+                    # Select and add features
+                    data = transform_features(
+                        df=df,
+                        core_feats=core_feats,
+                        tte_feats=tte_feats,
+                        datetime_feats=datetime_feats,
+                        strike=contract.strike,
+                        exp=contract.exp,
+                    ).to_numpy()
 
-                # Convert to PyTorch dataset
-                dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
-                dataset_list.append(dataset)
+                    # Convert to PyTorch dataset
+                    dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
+                    dataset_list.append(dataset)
+                else:
+                    pass
 
                 # If we get here successfully, move to the next contract
                 move_to_next_contract = True
@@ -349,7 +356,10 @@ def create_dataset(
                 ctx.log(f"Unknown error for {contract}: {e}. Moving to next contract.")
                 move_to_next_contract = True
 
-    return ConcatDataset(dataset_list)
+    if download_only:
+        return
+    else:
+        return ConcatDataset(dataset_list)
 
 def normalize_concat_dataset(
     concat_dataset: ConcatDataset,
@@ -446,7 +456,7 @@ def create_dataloaders(
     pin_memory: bool = torch.cuda.is_available(),
     clean_up: bool = True,
     offline: bool = False,
-    contract_dir: Optional[Path] = None,
+    save_dir: Optional[str] = None,
     verbose: bool=False,
     scaling: bool=True,
     intraday: bool=False,
@@ -454,7 +464,8 @@ def create_dataloaders(
     seq_len: int=100,
     pred_len: int=10,
     dtype: str="float64",
-) -> Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]:
+) -> Union[Tuple[DataLoader, DataLoader, DataLoader],
+           Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]]:
     """
 
     Forms training, validation, and test dataloaders for option contract data.
@@ -512,7 +523,7 @@ def create_dataloaders(
         val_split=val_split,
         clean_up=clean_up,
         offline=offline,
-        save_dir=contract_dir,
+        save_dir=save_dir,
         verbose=verbose,
     )
 
@@ -567,6 +578,8 @@ def create_dataloaders(
             val_dataset=val_dataset,
             test_dataset=test_dataset
         )
+    else:
+        scaler = None
 
     # Create dataloaders for training, validation, and testing
     train_loader = DataLoader(
@@ -600,10 +613,7 @@ def create_dataloaders(
         pin_memory=pin_memory
     )
 
-    if scaling:
-        return train_loader, val_loader, test_loader, scaler
-    else:
-        return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, scaler
 
 if __name__ == "__main__":
     root="AMZN"
