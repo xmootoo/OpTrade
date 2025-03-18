@@ -4,12 +4,16 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from typing import List, Tuple, Iterator, Dict, Any, Optional
+from typing import Tuple, Iterator, Dict, Any, Optional
 from datetime import datetime, timedelta
 from rich.console import Console
 
+# Custom imports
 from optrade.data.thetadata.contracts import Contract
 from optrade.utils.data.error import DataValidationError, MARKET_HOLIDAY, WEEKEND
+from optrade.utils.data.pathing import set_contract_dir
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 class ContractDataset:
     """
@@ -36,6 +40,7 @@ class ContractDataset:
         volatility_scalar: float = 1.0,
         hist_vol: Optional[float] = None,
         verbose: bool = False,
+        save_dir: Optional[str] = None
     ) -> None:
         """
         Initialize the ContractDataset with the specified parameters.
@@ -73,6 +78,23 @@ class ContractDataset:
 
         self.ctx = Console()
         self.contracts = []
+        self.contract_dir = set_contract_dir(
+            SCRIPT_DIR=SCRIPT_DIR,
+            root=root,
+            start_date=total_start_date,
+            end_date=total_end_date,
+            contract_stride=contract_stride,
+            interval_min=interval_min,
+            right=right,
+            target_tte=target_tte,
+            tte_tolerance=tte_tolerance,
+            moneyness=moneyness,
+            target_band=target_band,
+            volatility_scaled=volatility_scaled,
+            volatility_scalar=volatility_scalar,
+            hist_vol=hist_vol,
+            save_dir=save_dir
+        )
 
     def generate_contracts(self) -> "ContractDataset":
         """
@@ -142,7 +164,7 @@ class ContractDataset:
                 # If no contract was found, advance by one day to try the next period
                 current_date += timedelta(days=1)
 
-            self.ctx.log(f"Next start date: {current_date}") if self.verbose else None
+            self.ctx.log(f"Next start date: {current_date.strftime('%Y%m%d')}") if self.verbose else None
 
         return self
 
@@ -196,7 +218,7 @@ class ContractDataset:
 
         return instance
 
-    def save(self, filepath: Optional[str] = None) -> str:
+    def save(self, filename: Optional[str] = None) -> None:
         """
         Save the dataset to a pickle file.
 
@@ -206,14 +228,8 @@ class ContractDataset:
         Returns:
             str: Path where the pickle file was saved
         """
-        if filepath is None:
-            # Generate default filename using dataset parameters
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.root}_contracts_{self.total_start_date}_{self.total_end_date}_{timestamp}.pkl"
-            filepath = Path("contract_data") / filename
-
-        # Ensure directory exists
-        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        self.contract_dir.mkdir(parents=True, exist_ok=True)
+        filepath = self.contract_dir / "contracts.pkl" if filename is None else self.contract_dir / filename
 
         # Convert to dictionary and save
         data = self.to_dict()
@@ -221,10 +237,9 @@ class ContractDataset:
             pickle.dump(data, f)
 
         self.ctx.log(f"Contract dataset saved to \"{filepath}\"") if self.verbose else None
-        return str(filepath)
 
     @classmethod
-    def load(cls, filepath: str) -> "ContractDataset":
+    def load(cls, contract_dir: Path, filename: Optional[str]=None) -> "ContractDataset":
         """
         Load a dataset from a pickle file.
 
@@ -234,6 +249,8 @@ class ContractDataset:
         Returns:
             ContractDataset: Reconstructed dataset with all contracts
         """
+        filepath = contract_dir / "contracts.pkl" if filename is None else contract_dir / filename
+
         with open(filepath, 'rb') as f:
             data = pickle.load(f)
 
@@ -329,44 +346,57 @@ if __name__=="__main__":
     total_start_date="20220101"
     total_end_date="20220301"
     hist_vol = 0.1
+    contract_stride=1
+    interval_min=1
+    right="P"
+    target_tte=3
+    tte_tolerance = (1,10)
+    moneyness = "ITM"
+    target_band = 0.05
+    volatility_scaled = True
+    volatility_scalar = 1.0
+    save_dir = None
 
     contracts = ContractDataset(root=root,
     total_start_date=total_start_date,
     total_end_date=total_end_date,
-    contract_stride=1,
-    interval_min=1,
-    right="P",
-    target_tte=3,
-    tte_tolerance= (1, 10),
-    moneyness="ITM",
-    target_band=0.05,
-    volatility_scaled= True,
-    volatility_scalar= 1.0,
+    contract_stride=contract_stride,
+    interval_min=interval_min,
+    right=right,
+    target_tte=target_tte,
+    tte_tolerance=tte_tolerance,
+    moneyness=moneyness,
+    target_band=target_band,
+    volatility_scaled=volatility_scaled,
+    volatility_scalar=volatility_scalar,
     hist_vol=hist_vol,
-    verbose=True)
+    verbose=True,
+    save_dir=save_dir)
 
     # Generate contracts
     contracts.generate_contracts()
 
     # Save the contracts
-    # contracts.save("contracts.pkl")
+    contracts.save()
+    print(f"Saving contracts to {contracts.contract_dir}")
 
     # Load the generated contracts into a fresh dataset
-    # dataset = ContractDataset.load("contracts.pkl")
-
-    # # Print out attributes
-    # print(f"Root: {contracts.root}")
-    # print(f"Total start date: {contracts.total_start_date}")
-    # print(f"Total end date: {contracts.total_end_date}")
-    # print(f"Contract stride: {contracts.contract_stride}")
-    # print(f"Interval min: {contracts.interval_min}")
-    # print(f"Right: {contracts.right}")
-    # print(f"Target TTE: {contracts.target_tte}")
-    # print(f"TTE tolerance: {contracts.tte_tolerance}")
-    # print(f"Moneyness: {contracts.moneyness}")
-    # print(f"Target band: {contracts.target_band}")
-    # print(f"Volatility scaled: {contracts.volatility_scaled}")
-    # print(f"Volatility scalar: {contracts.volatility_scalar}")
-    # print(f"Historical volatility: {contracts.hist_vol}")
-    # print(f"Number of contracts: {len(contracts)}")
-    # print(f"First contract: {contracts[0]}")
+    contract_dir = set_contract_dir(
+        SCRIPT_DIR=SCRIPT_DIR,
+        root=root,
+        start_date=total_start_date,
+        end_date=total_end_date,
+        contract_stride=contract_stride,
+        interval_min=interval_min,
+        right=right,
+        target_tte=target_tte,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        target_band=target_band,
+        volatility_scaled=volatility_scaled,
+        volatility_scalar=volatility_scalar,
+        hist_vol=hist_vol,
+        save_dir=save_dir
+    )
+    dataset = ContractDataset.load(contract_dir)
+    print(f"Loaded contracts from {dataset.contract_dir}")
