@@ -1,19 +1,24 @@
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Union
 from pydantic import BaseModel, Field, model_validator
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import torch
+from torch.utils.data import DataLoader
+from sklearn.preprocessing import StandardScaler
 
 from optrade.data.thetadata.stocks import load_stock_data_eod
 from optrade.utils.data.fama_french import get_fama_french_factors, factor_categorization
 from optrade.utils.data.stock_categories import ThreeFactorLevel, FiveFactorLevel, SectorType, IndustryType
+from optrade.data.forecasting.dataloading import create_contract_datasets, create_dataset, create_dataloaders
+from optrade.data.forecasting.datasets import ContractDataset
 
 class ContractUniverse(BaseModel):
     model_config = {"use_enum_values": True}
 
     # Date range for data retrieval
-    start_date: str = Field(default="2020101", description="Start date for data retrieval in YYYYMMDD format")
-    end_date: str = Field(default="2021101", description="End date for data retrieval in YYYYMMDD format")
+    start_date: str = Field(default=None, description="Start date for data retrieval in YYYYMMDD format")
+    end_date: str = Field(default=None, description="End date for data retrieval in YYYYMMDD format")
 
     # Stock collections (only one can be true at a time)
     sp_500: bool = Field(default=False, description="If True, use S&P 500 stocks as the candidate universe")
@@ -22,7 +27,7 @@ class ContractUniverse(BaseModel):
     russell_2000: bool = Field(default=False, description="If True, use Russell 2000 stocks as the candidate universe")
 
     # Candidate roots (used if no collection is selected)
-    candidate_roots: List[str] = Field(default=[""], description="Candidate root symbols, to be filtered by other parameters. Used only if no collection (sp_500, nasdaq_100, etc.) is selected")
+    candidate_roots: List[str] = Field(default=None, description="Candidate root symbols, to be filtered by other parameters. Used only if no collection (sp_500, nasdaq_100, etc.) is selected")
 
     # Factor filters
     volatility: Optional[FiveFactorLevel] = Field(default=None, description="The volatility of the stock. Options: 'very_low' (bottom 20%), 'low' (20-40%), 'medium' (40-60%), 'high' (60-80%), 'very_high' (top 20%)")
@@ -51,15 +56,18 @@ class ContractUniverse(BaseModel):
     tte_tolerance: Tuple[int, int] = Field(default=(25, 35), description="Tolerance range for time to expiration")
     moneyness: str = Field(default="ATM", description="Moneyness of the option: 'ATM', 'OTM', 'ITM'")
     target_band: float = Field(default=0.05, description="Target band for strike selection")
-    volatility_type: str = Field(default="historical", description="Type of volatility to use: 'historical', 'implied'")
-    volatility_scaled: bool = Field(default=True, description="Whether to used volatility-based strike selection")
+    volatility_type: str = Field(default="period", description="Type of volatility to use: 'period', 'annualized'")
+    volatility_scaled: bool = Field(default=False, description="Whether to used volatility-based strike selection")
     volatility_scalar: float = Field(default=1.0, description="Scalar used for volatility-based strike selection, i.e. number of SDs of the current price")
     train_split: float = Field(default=0.7, description="Train split ratio")
     val_split: float = Field(default=0.15, description="Validation split ratio")
+    save_dir: Optional[str] = Field(default=None, description="Directory to save the contract datasets")
+    verbose: bool = Field(default=True, description="Whether to print verbose output")
 
     # Attributes used to store information (do not initialize)
     fundamentals: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="Fundamental data for each stock")
     roots: List[str] = Field(default_factory=list, description="Root symbols of the stocks in the candidate universe")
+    contracts: Dict[str, Dict[str, ContractDataset]] = Field(default_factory=dict, description="Contract datasets for each stock")
 
     @model_validator(mode='after')
     def validate_universe_selection(self) -> 'ContractUniverse':
@@ -308,21 +316,113 @@ class ContractUniverse(BaseModel):
         # Update roots to the filtered list
         self.roots = filtered_roots
 
-
     def download_universe(self) -> None:
-        # TODO: Implement this method to download the universe of stocks
-        # - Universe List
-        # - ContractDataset(s) <- first generate an index of all these inside ContractUniverse
-        # - Raw Data pertaining to each ContractDataset
-        pass
+        # Download all data for the filtered universe
+        for root in self.roots:
 
+            # Download contracts
+            train_contracts, val_contracts, test_contracts = create_contract_datasets(
+                root=root,
+                start_date=self.start_date,
+                end_date=self.end_date,
+                contract_stride=self.contract_stride,
+                interval_min=self.interval_min,
+                right=self.right,
+                target_tte=self.target_tte,
+                tte_tolerance=self.tte_tolerance,
+                moneyness=self.moneyness,
+                target_band=self.target_band,
+                volatility_type=self.volatility_type,
+                volatility_scaled=self.volatility_scaled,
+                volatility_scalar=self.volatility_scalar,
+                train_split=self.train_split,
+                val_split=self.val_split,
+                clean_up=False, # Set to False to download data
+                offline=False, # Set to False to download data
+                save_dir=self.save_dir,
+                verbose=self.verbose,
+            )
 
+            self.contracts[root] = {
+                "train": train_contracts,
+                "val": val_contracts,
+                "test": test_contracts
+            }
+
+            # Download raw data
+            create_dataset(
+                contracts=train_contracts,
+                tte_tolerance=self.tte_tolerance,
+                download_only=True,
+            )
+            create_dataset(
+                contracts=val_contracts,
+                tte_tolerance=self.tte_tolerance,
+                download_only=True,
+            )
+            create_dataset(
+                contracts=test_contracts,
+                tte_tolerance=self.tte_tolerance,
+                download_only=True,
+            )
+
+    def get_loader(
+        self,
+        root: str,
+        load_dir: Optional[str]=None,
+        batch_size: int=32,
+        shuffle: bool=True,
+        drop_last: bool=False,
+        num_workers: int=4,
+        prefetch_factor: int=2,
+        pin_memory: bool = torch.cuda.is_available(),
+    ) -> Union[Tuple[DataLoader, DataLoader, DataLoader],
+               Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]]:
+
+        loaders = create_dataloaders(
+            root=root,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            contract_stride=self.contract_stride,
+            interval_min=self.interval_min,
+            right=self.right,
+            target_tte=self.target_tte,
+            tte_tolerance=self.tte_tolerance,
+            moneyness=self.moneyness,
+            target_band=self.target_band,
+            volatility_type=self.volatility_type,
+            volatility_scaled=self.volatility_scaled,
+            volatility_scalar=self.volatility_scalar,
+            train_split=self.train_split,
+            val_split=self.val_split,
+            core_feats=self.core_feats,
+            tte_feats=self.tte_feats,
+            datetime_feats=self.datetime_feats,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            drop_last=drop_last,
+            num_workers=num_workers,
+            prefetch_factor=prefetch_factor,
+            pin_memory=pin_memory,
+            clean_up=False,
+            offline=True if load_dir is not None else False,
+            save_dir=self.save_dir,
+            verbose=self.verbose,
+            scaling=self.scaling,
+            intraday=self.intraday,
+            target_channels=self.target_channels,
+            seq_len=self.seq_len,
+            pred_len=self.pred_len,
+            dtype=self.dtype,
+        )
+
+        return loaders
 
 if __name__ == "__main__":
     # Create a ContractUniverse instance
     universe = ContractUniverse(
-        # sp_500=True,
-        dow_jones=True,
+        sp_500=True,
+        # dow_jones=True,
         # volatility="medium",
         # pe_ratio="low",
         # debt_to_equity="low",
@@ -337,11 +437,13 @@ if __name__ == "__main__":
         # market_beta="neutral",
         ff_mode="5_factor",
         size_beta="large_cap",
+        volatility="high"
     )
 
     # Fetch the S&P 500 constituents
     universe.set_candidate_roots()
     universe.get_fundamentals()
+
     # print(universe.fundamentals["NVDA"],
           # universe.fundamentals["AAPL"],
           # universe.fundamentals["MMM"],
@@ -352,3 +454,5 @@ if __name__ == "__main__":
     # Filter the universe
     universe.filter_universe()
     print(f"Filtered universe: {universe.roots}")
+
+    universe.download_universe()
