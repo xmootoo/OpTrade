@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from optrade.models.deep_learning.patchtst.enc_block import EncoderBlock
-from optrade.models.deep_learning.utils.utils import Reshape
+from optrade.torch.models.patchtst.enc_block import EncoderBlock
+from optrade.torch.models.utils.utils import Reshape
 from typing import Optional
 
 class PatchTSTBackbone(nn.Module):

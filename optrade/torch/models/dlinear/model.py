@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from optrade.models.deep_learning.dlinear.series_decomp import series_decomp
-from optrade.models.deep_learning.utils.revin import RevIN
+from optrade.torch.models.dlinear.series_decomp import series_decomp
+from optrade.torch.models.utils.revin import RevIN
 
 from typing import Optional
 

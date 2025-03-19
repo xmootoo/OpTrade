@@ -10,15 +10,13 @@ warnings.filterwarnings("ignore", message="h5py not installed")
 from typing import List
 
 # Supervised Models
-from optrade.models.deep_learning.patchtst.model import PatchTST
-from optrade.models.deep_learning.recurrent.model import RecurrentModel
-from optrade.models.deep_learning.linear.model import Linear
-from optrade.models.deep_learning.dlinear.model import DLinear
-# from optrade.models.deep_learning.modern_tcn.model import ModernTCN
-# from optrade.models.deep_learning.timesnet.model import TimesNet
-from optrade.models.deep_learning.tsmixer.model import TSMixer
-from optrade.models.deep_learning.emforecaster.model import EMForecaster
-from optrade.models.deep_learning.utils.revin import RevIN
+from optrade.torch.models.patchtst.model import PatchTST
+from optrade.torch.models.recurrent.model import RecurrentModel
+from optrade.torch.models.linear.model import Linear
+from optrade.torch.models.dlinear.model import DLinear
+from optrade.torch.models.tsmixer.model import TSMixer
+from optrade.torch.models.emforecaster.model import EMForecaster
+from optrade.torch.models.utils.revin import RevIN
 
 # Optimizers and Schedulers
 from torch import optim
@@ -146,46 +144,6 @@ def get_model(
             target_channels=target_channels_idx,
             channel_independent=args.train.channel_independent,
         )
-    # elif args.exp.model_id == "ModernTCN":
-    #     model = ModernTCN(
-    #         seq_len=args.data.seq_len,
-    #         pred_len=args.data.pred_len,
-    #         patch_dim=args.data.patch_dim,
-    #         patch_stride=args.data.patch_stride,
-    #         num_classes=args.data.pred_len,
-    #         num_channels=args.data.num_channels,
-    #         task=args.exp.task,
-    #         return_head=args.train.return_head,
-    #         dropout=args.train.dropout,
-    #         class_dropout=args.moderntcn.class_dropout,
-    #         ffn_ratio=args.moderntcn.ffn_ratio,
-    #         num_enc_layers=args.moderntcn.num_enc_layers,
-    #         large_size=args.moderntcn.large_size,
-    #         d_model=args.moderntcn.d_model,
-    #         revin=args.train.revin,
-    #         affine=args.train.revin_affine,
-    #         small_size=args.moderntcn.small_size,
-    #         dw_dims=args.moderntcn.dw_dims,
-    #     )
-    # elif args.exp.model_id == "TimesNet":
-    #     model = TimesNet(
-    #         seq_len=args.data.seq_len,
-    #         pred_len=args.data.pred_len,
-    #         num_channels=args.data.num_channels,
-    #         d_model=args.timesnet.d_model,
-    #         d_ff=args.timesnet.d_ff,
-    #         num_enc_layers=args.timesnet.num_enc_layers,
-    #         num_kernels=args.timesnet.num_kernels,
-    #         c_out=args.timesnet.c_out,
-    #         top_k=args.timesnet.top_k,
-    #         dropout=args.train.dropout,
-    #         task=args.exp.task,
-    #         revin=args.train.revin,
-    #         revin_affine=args.train.revin_affine,
-    #         revout=args.train.revout,
-    #         eps_revin=args.train.eps_revin,
-    #         return_head=args.train.return_head,
-    #     )
     else:
         raise ValueError("Please select a valid model_id.")
     return model

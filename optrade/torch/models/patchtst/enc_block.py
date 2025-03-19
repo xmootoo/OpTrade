@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from optrade.models.deep_learning.utils.utils import Norm
+from optrade.torch.models.utils.utils import Norm
 
 class SupervisedHead(nn.Module):
     def __init__(self, linear_dim, pred_len, dropout=0.0):

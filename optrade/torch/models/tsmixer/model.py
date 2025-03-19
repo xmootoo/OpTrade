@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from optrade.models.deep_learning.utils.weight_init import xavier_init
-from optrade.models.deep_learning.utils.revin import RevIN
-from optrade.models.deep_learning.utils.utils import Reshape
+from optrade.torch.models.utils.weight_init import xavier_init
+from optrade.torch.models.utils.revin import RevIN
+from optrade.torch.models.utils.utils import Reshape
 
 from typing import Optional
 # Taken from: https://github.com/thuml/Time-Series-Library/blob/main/models/TSMixer.py

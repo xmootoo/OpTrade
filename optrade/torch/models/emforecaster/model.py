@@ -4,15 +4,15 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 # Layers and models
-from optrade.models.deep_learning.dlinear.model import DLinear
-from optrade.models.deep_learning.tsmixer.model import TSMixer
+from optrade.torch.models.dlinear.model import DLinear
+from optrade.torch.models.tsmixer.model import TSMixer
 
 # Weight initialization
-from optrade.models.deep_learning.utils.weight_init import xavier_init
+from optrade.torch.models.utils.weight_init import xavier_init
 
 # Util Layers
-from optrade.models.deep_learning.utils.revin import RevIN
-from optrade.models.deep_learning.utils.patcher import Patcher
+from optrade.torch.models.utils.revin import RevIN
+from optrade.torch.models.utils.patcher import Patcher
 
 class EMForecaster(nn.Module):
     def __init__(

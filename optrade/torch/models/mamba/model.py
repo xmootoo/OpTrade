@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 from mambapy.mamba import Mamba as MambaBackbone
 from mambapy.mamba import MambaConfig
-from optrade.models.deep_learning.utils.revin import RevIN
-from optrade.models.deep_learning.utils.patcher import Patcher
-from optrade.models.deep_learning.utils.weight_init import xavier_init
-from optrade.models.deep_learning.utils.pos_enc import PositionalEncoding
-from optrade.models.deep_learning.utils.utils import Reshape
+from optrade.torch.models.utils.revin import RevIN
+from optrade.torch.models.utils.patcher import Patcher
+from optrade.torch.models.utils.weight_init import xavier_init
+from optrade.torch.models.utils.pos_enc import PositionalEncoding
+from optrade.torch.models.utils.utils import Reshape
 
 from typing import Optional
 
