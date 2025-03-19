@@ -222,13 +222,15 @@ if __name__ == "__main__":
     #     volatility_scalar=1.0
     # )
 
-    contract = Contract(
-        root="AMZN",
-        start_date="20230203",
-        exp="20230217",
-        strike=136,
-        interval_min=1,
-        right="C")
+    contract = Contract.find_optimal(
+        root="AAPL",
+        start_date="20230103",  # First trading day of 2023
+        target_tte=30,          # Desired expiration: 30 days
+        tte_tolerance=(20, 40), # Min 20, max 40 days expiration
+        interval_min=1,         # Data requested at 1-min level
+        moneyness="ATM",        # At-the-money option
+    )
+
 
     from rich.console import Console
     ctx = Console()

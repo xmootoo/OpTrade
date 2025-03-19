@@ -16,7 +16,7 @@ def load_option_data(
     start_date: str="20241107",
     end_date: str="20241107",
     exp: Optional[str]="20250117",
-    strike: int=225,
+    strike: float=225,
     interval_min: int=1,
     right: str="C",
     save_dir: Optional[str]=None,
@@ -50,7 +50,7 @@ def load_option_data(
     BASE_URL = "http://127.0.0.1:25510/v2"  # all endpoints use this URL base
 
     intervals = str(interval_min * 60000) # Convert minutes to milliseconds
-    strike = str(strike * 1000) # Converts dollars to 1/10th cents
+    strike = str(int(strike * 1000)) # Converts dollars to 1/10th cents
 
     params = {
         'root': root,

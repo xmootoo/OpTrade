@@ -24,7 +24,7 @@ class Contract(BaseModel):
     root: str = Field(default="AAPL", description="Root symbol of the underlying security")
     start_date: str = Field(default="20241107", description="Start date in YYYYMMDD format")
     exp: str = Field(default="20241206", description="Expiration date in YYYYMMDD format")
-    strike: int = Field(default=225, description="Strike price")
+    strike: float = Field(default=225, description="Strike price")
     interval_min: int = Field(default=1, description="Interval in minutes")
     right: str = Field(default="C", description="Option type (C for call, P for put)")
 
@@ -42,6 +42,7 @@ class Contract(BaseModel):
         hist_vol: Optional[float] = None,
         volatility_scaled: bool = False,
         volatility_scalar: float = 1.0,
+        verbose: bool = True,
     ) -> "Contract":
         """Find the optimal contract for a given security, start date, and approximate TTE."""
 
@@ -61,8 +62,9 @@ class Contract(BaseModel):
         # Check if it's a weekend
         if date_obj.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
             raise DataValidationError(
-                f"Start date {start_date} falls on a weekend. Markets are closed.",
-                WEEKEND
+                message=f"Start date {start_date} falls on a weekend. Markets are closed.",
+                error_code=WEEKEND,
+                verbose=verbose
             )
 
         # Check if it's a market holiday
@@ -71,8 +73,9 @@ class Contract(BaseModel):
 
         if len(trading_days) == 0:
             raise DataValidationError(
-                f"Start date {start_date} is a market holiday. Markets are closed.",
-                MARKET_HOLIDAY
+                message=f"Start date {start_date} is a market holiday. Markets are closed.",
+                error_code=MARKET_HOLIDAY,
+                verbose=verbose
             )
 
         strike = find_optimal_strike(
