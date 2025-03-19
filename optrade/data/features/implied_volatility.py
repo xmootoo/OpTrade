@@ -63,7 +63,7 @@ def get_implied_volatility(
     df,
     dividend_yield: float=0.0052,
     volatility_guess: float=0.20,
-    strike: int=225,
+    strike: float=225,
 ) -> pd.DataFrame:
     """
     Calculate implied volatility for a dataframe of options using lambda function.
@@ -104,7 +104,7 @@ def single_implied_volatility(
     risk_free_rate: float,
     dividend_yield: float,
     tte: float,
-    strike: int,
+    strike: float,
     volatility_guess: float=0.20,
 ) -> float:
     """

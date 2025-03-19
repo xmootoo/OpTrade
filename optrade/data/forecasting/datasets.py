@@ -96,7 +96,7 @@ class ContractDataset:
             save_dir=save_dir
         )
 
-    def generate_contracts(self) -> "ContractDataset":
+    def generate(self) -> "ContractDataset":
         """
         Generate all contracts in the dataset based on configuration parameters.
         """
@@ -133,6 +133,7 @@ class ContractDataset:
                         hist_vol=self.hist_vol,
                         volatility_scaled=self.volatility_scaled,
                         volatility_scalar=self.volatility_scalar,
+                        verbose=self.verbose
                     )
 
                     if attempt_date > current_date:
@@ -374,7 +375,7 @@ if __name__=="__main__":
     save_dir=save_dir)
 
     # Generate contracts
-    contracts.generate_contracts()
+    contracts.generate()
 
     # Save the contracts
     contracts.save()

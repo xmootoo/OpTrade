@@ -28,7 +28,7 @@ from optrade.utils.data.pathing import set_contract_dir
 # Get absolute path for this script
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-def create_contract_datasets(
+def get_contract_datasets(
     root: str = "AAPL",
     start_date: str = "20231107",
     end_date: str = "20241114",
@@ -155,7 +155,7 @@ def create_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
-    ).generate_contracts()
+    ).generate()
 
     ctx.log("------------CREATING VALIDATION CONTRACTS------------") if verbose else None
     val_contracts = ContractDataset(
@@ -174,7 +174,7 @@ def create_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
-    ).generate_contracts()
+    ).generate()
 
     ctx.log("------------CREATING TEST CONTRACTS------------") if verbose else None
     test_contracts = ContractDataset(
@@ -193,7 +193,7 @@ def create_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
-    ).generate_contracts()
+    ).generate()
 
     if not clean_up:
         train_contracts.save("train_contracts.pkl")
@@ -244,7 +244,7 @@ def get_hist_vol(
     # Calculate historical volatility
     return get_historical_volatility(stock_data, volatility_type)
 
-def create_dataset(
+def get_forecasting_dataset(
     contracts: ContractDataset,
     core_feats: List[str]=["option_returns"],
     tte_feats: List[str]=["sqrt"],
@@ -259,6 +259,7 @@ def create_dataset(
     dtype: str="float64",
     save_dir: Optional[str]=None,
     download_only: bool=False,
+    verbose: bool=False,
 ) -> Dataset:
     """
     Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
@@ -277,6 +278,9 @@ def create_dataset(
         seq_len: Sequence length
         pred_len: Prediction length
         dtype: Data type for the PyTorch tensors
+        save_dir: Directory to save/load contracts
+        download_only: Whether to download data only
+        verbose: Whether to print verbose output
 
     Returns:
         Concatenated PyTorch dataset object
@@ -328,11 +332,13 @@ def create_dataset(
 
                     # Check if (exp - new_start_date) is within tte_tolerance. If not, move to the next contract
                     if pd.to_datetime(contract.exp, format='%Y%m%d') - pd.to_datetime(new_start_date, format='%Y%m%d') < pd.Timedelta(days=tte_tolerance[0]):
-                        ctx.log(f"Option contract start date mismatch. New start date {new_start_date} is too close to expiration {contract.exp}. Moving to next contract.")
+                        if verbose:
+                            ctx.log(f"Option contract start date mismatch. New start date {new_start_date} is too close to expiration {contract.exp}. Moving to next contract.")
                         move_to_next_contract = True
                     # If tte_tolerance is satisfied, update the contract with the new start date and try again
                     else:
-                        ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
+                        if verbose:
+                            ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
                         contract.start_date = new_start_date
                 elif e.error_code == INCOMPATIBLE_END_DATE:
                     new_start_date = e.real_start_date
@@ -340,20 +346,24 @@ def create_dataset(
 
                     # Check if (new_exp - new_start_date) is within tte_tolerance. If not, move to the next contract
                     if pd.to_datetime(new_exp, format='%Y%m%d') - pd.to_datetime(new_start_date, format='%Y%m%d') < pd.Timedelta(days=tte_tolerance[0]):
-                        ctx.log(f"Option contract start date and end date mismatch. New start date {new_start_date} is too close to new expiration {new_exp}. Moving to next contract.")
+                        if verbose:
+                            ctx.log(f"Option contract start date and end date mismatch. New start date {new_start_date} is too close to new expiration {new_exp}. Moving to next contract.")
                         move_to_next_contract = True
                     # If tte_tolerance is satisfied, update contract expiration to the observed end date of option data
                     else:
                         # For other DataValidationError types, move to the next contract
-                        ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
+                        if verbose:
+                            ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
                         move_to_next_contract = True
                         contract.exp = new_exp
                 else:
                     # For other DataValidationError types, move to the next contract
-                    ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
+                    if verbose:
+                        ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
                     move_to_next_contract = True
             except Exception as e:
-                ctx.log(f"Unknown error for {contract}: {e}. Moving to next contract.")
+                if verbose:
+                    ctx.log(f"Unknown error for {contract}: {e}. Moving to next contract.")
                 move_to_next_contract = True
 
     if download_only:
@@ -429,7 +439,7 @@ def normalize_datasets(
 
     return train_dataset, val_dataset, test_dataset, scaler
 
-def create_dataloaders(
+def get_forecasting_loaders(
     root: str = "AAPL",
     start_date: str = "20231107",
     end_date: str = "20241114",
@@ -505,7 +515,7 @@ def create_dataloaders(
         Training, validation, and test PyTorch dataloaders.
     """
 
-    train_contracts, val_contracts, test_contracts = create_contract_datasets(
+    train_contracts, val_contracts, test_contracts = get_contract_datasets(
         root=root,
         start_date=start_date,
         end_date=end_date,
@@ -528,7 +538,7 @@ def create_dataloaders(
     )
 
     # Get the combined datasets of contract data for training, validation, and testing
-    train_dataset = create_dataset(
+    train_dataset = get_forecasting_dataset(
         contracts=train_contracts,
         core_feats=core_feats,
         tte_feats=tte_feats,
@@ -541,9 +551,10 @@ def create_dataloaders(
         seq_len=seq_len,
         pred_len=pred_len,
         dtype=dtype,
+        verbose=verbose,
     )
 
-    val_dataset = create_dataset(
+    val_dataset = get_forecasting_dataset(
         contracts=val_contracts,
         core_feats=core_feats,
         tte_feats=tte_feats,
@@ -556,8 +567,9 @@ def create_dataloaders(
         seq_len=seq_len,
         pred_len=pred_len,
         dtype=dtype,
+        verbose=verbose,
     )
-    test_dataset = create_dataset(
+    test_dataset = get_forecasting_dataset(
         contracts=test_contracts,
         core_feats=core_feats,
         tte_feats=tte_feats,
@@ -570,6 +582,7 @@ def create_dataloaders(
         seq_len=seq_len,
         pred_len=pred_len,
         dtype=dtype,
+        verbose=verbose,
     )
 
     if scaling:
@@ -663,7 +676,7 @@ if __name__ == "__main__":
     ]
 
     # Testing: get_loaders
-    output = create_dataloaders(
+    output = get_forecasting_loaders(
         root=root,
         start_date=total_start_date,
         end_date=total_end_date,
@@ -685,7 +698,7 @@ if __name__ == "__main__":
         batch_size=32,
         clean_up=False,
         offline=False,
-        contract_dir=None,
+        save_dir=None,
         verbose=True,
         scaling=True,
     )
