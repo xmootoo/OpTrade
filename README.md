@@ -1,6 +1,6 @@
 # OpTrade
 
-OpTrade provides a complete toolkit for quantitative research and development of options trading strategies. By abstracting away the complexity of data handling and experimental setup, researchers and traders can focus on what matters most: developing and testing alpha-generating ideas.
+OpTrade is a complete toolkit for quantitative research and development of options trading strategies. By abstracting away the complexity of data handling and experimental setup, researchers and traders can focus on what matters most: developing and testing alpha-generating ideas.
 
 <p align="center">
  <picture>
@@ -18,25 +18,15 @@ The framework focuses on two primary use cases:
 2. **Trading Strategy Development**: Translating these insights into actionable trading signals (planned for future implementation)
  -->
 
-## Key Features
-🔄 **Data Pipeline**
-Our data pipeline integrates with ThetaData's API, providing cost-effective access to minute-level options and security data. The framework processes both NBBO quotes and OHLCVC metrics through an intelligent contract selection system that optimizes for user-defined parameters such as moneyness, expiration windows, and volatility-scaled strike selection.
+## Installation
+The recommended way to install OptTrade is via pip:
 
-🌐 **Market Environments**
-Custom market environments enable precise universe selection through multifaceted filtering of securities. The framework supports composition by major indices (S&P 500, NASDAQ 100, Dow Jones), factor-based screening (e.g., volatility, PE ratios, beta, market cap), and Fama-French model categorization.
-
-🧪 **Experimental Pipeline**
-The experimentation framework offers modern PyTorch and scikit-learn models for options forecasting with integrated Neptune logging, flexible hyperparameter tuning, and robust model version control. It manages the complete model lifecycle from training through evaluation with support for both online and offline experiment tracking.
-
-🧮 **Featurization**
-Several option market features are available, including mid-price derivations, order book imbalance metrics, quote spreads, and moneyness calculations. Time-to-expiration transformations capture theta decay effects through multiple mathematical representations, while specialized datetime features extract cyclical market patterns to model intraday seasonality and weekly option expiration effects.
-
-🤖 **Models**
-OpTrade includes state-of-the-art PyTorch deep learning architectures for time series forecasting alongside traditional machine learning models from scikit-learn, enabling researchers to leverage both cutting-edge DL approaches and proven quantitative techniques.
+```bash
+pip install optrade
+```
 
 
-## Example Usage
-### Single Contract
+### Example (Single Contract)
 ```py
 # Step 1: Find and initialize the optimal contract
 from optrade.data import Contract
@@ -69,17 +59,77 @@ data = transform_features(
     datetime_feats=["minute_of_day", "hour_of_week"],  # Time features
     strike=contract.strike,
     exp=contract.exp,
-)
+).values
 
 # Step 4: Create dataset for time series forecasting
 from optrade.data.forecasting import ForecastingDataset
+from torch.utils.data import DataLoader
 
-dataset = ForecastingDataset(
+torch_dataset = ForecastingDataset(
     data=data,
     seq_len=100,        # 100-minute lookback window
     pred_len=10,        # 10-minute forecast horizon
     target_channels=[0],  # Forecast option returns (first column)
 )
+
+torch_loader = DataLoader(torch_dataset)
+```
+
+## Overview
+
+🔄 **Data Pipeline**
+OpTrade integrates with ThetaData's API for affordable options and security data access (down to 1-min resolution). The framework processes NBBO quotes and OHLCVC metrics through a contract selection system optimizing for moneyness, expiration windows, and volatility-scaled strikes.
+
+🌐 **Market Environments**
+Built-in market environments enable precise universe selection through multifaceted filtering. OpTrade supports composition by major indices, fundamental-based screening (e.g., PE ratio, market cap), and Fama-French model categorization.
+
+🧪 **Experimental Pipeline**
+The experimentation framework supports PyTorch and scikit-learn for options forecasting with online Neptune logging, hyperparameter tuning, and model version control, supporting both online and offline experiment tracking.
+
+🧮 **Featurization**
+OpTrade provides option market features including mid-price derivations, order book imbalance metrics, quote spreads, and moneyness calculations. Time-to-expiration transformations capture theta decay effects, while datetime features extract cyclical market patterns for intraday seasonality.
+
+🤖 **Models**
+OpTrade includes several off-the-shelf PyTorch and scikit-learn models, including state-of-the-art architectures for time series forecasting alongside tried and true machine learning methods.
+
+## Advanced Usage
+### Multi-contract Data
+```py
+# Step 1: Find optimal contracts within date range
+from optrade.data import ContractDataset
+
+contract_dataset = ContractDataset(
+    root="AMZN",
+    total_start_date="20220101",
+    total_end_date="20220301",
+    contract_stride=1,
+    interval_min=1,
+    right="P",
+    target_tte=3,
+    tte_tolerance=(1,10),
+    moneyness="ITM",
+    target_band=0.05,
+    volatility_scaled=True,
+    volatility_scalar=0.1,
+    hist_vol=0.1117,
+)
+contract_dataset.generate()
+
+# Step 2: Transform market data into ML-ready dataset
+from optrade.data.torch import get_forecasting_dataset
+from torch.utils.data import DataLoader
+
+torch_dataset = get_forecasting_dataset(
+    contracts=contract_dataset,
+    core_feats=["option_returns"],
+    tte_feats=["sqrt"],
+    datetime_feats=["sin_minute_of_day"],
+    tte_tolerance=(25, 35),
+    seq_len=100,
+    pred_len=10,
+    verbose=True
+)
+torch_loader = DataLoader(torch_dataset)
 ```
 
 
@@ -112,12 +162,12 @@ This project includes extensive documentation that is essential for understandin
 | [DATA.md](DATA.md) | Information on the comprehensive data pipeline |
 | [FEATURES.md](FEATURES.md) | Details on the selection of important predictors for option forecasting |
 
-## Installation
 
-### Dependencies
+
+<!-- ### Dependencies
 - Python ≥ 3.11
-- Additional dependencies listed in `requirements.txt`
-
+- Additional dependencies listed in `requirements.txt` -->
+<!--
 ### Using conda (recommended)
 ```bash
 # Create and activate conda environment
@@ -140,7 +190,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 cd <project_root_directory> # Go to project root directory
 pip install -r requirements.txt
 pip install -e .
-```
+``` -->
 
 
 ## Contact
