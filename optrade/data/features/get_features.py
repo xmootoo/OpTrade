@@ -8,8 +8,8 @@ from optrade.data.features.tte_features import get_tte_features
 def transform_features(
     df: pd.DataFrame,
     core_feats: List[str],
-    tte_feats: List[str],
-    datetime_feats: List[str],
+    tte_feats: Optional[List[str]]=None,
+    datetime_feats: Optional[List[str]]=None,
     strike: Optional[int]=None,
     exp: Optional[str]=None,
 ) -> pd.DataFrame:
@@ -72,8 +72,11 @@ def transform_features(
     """
 
     # Generate additional features
-    df = get_datetime_features(df=df, feats=datetime_feats)
-    df = get_tte_features(df=df, feats=tte_feats, exp=exp)
+    if datetime_feats is not None:
+        df = get_datetime_features(df=df, feats=datetime_feats)
+
+    if tte_feats is not None and exp is not None:
+        df = get_tte_features(df=df, feats=tte_feats, exp=exp)
 
     if "option_returns" in core_feats:
         # Calculate option price returns and add to dataframe
@@ -121,8 +124,9 @@ def transform_features(
         df["option_quote_spread"] = (df["option_ask"] - df["option_bid"]) / ((df["option_ask"] + df["option_bid"])/2)
 
     # Select features
-    tte_index = ["tte_" + tte_feats[i] for i in range(len(tte_feats))]
-    datetime_index = ["dt_" + datetime_feats[i] for i in range(len(datetime_feats))]
+
+    tte_index = ["tte_" + tte_feats[i] for i in range(len(tte_feats))] if tte_feats is not None else []
+    datetime_index = ["dt_" + datetime_feats[i] for i in range(len(datetime_feats))] if datetime_feats is not None else []
     selected_feats = core_feats + tte_index + datetime_index
 
     return df[selected_feats]
