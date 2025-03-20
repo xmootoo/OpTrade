@@ -7,19 +7,26 @@ license = "MIT"
 readme = "README.md"
 packages = [{ include = "optrade" }]
 
+[tool.poetry.group.docs]
+optional = true
+[tool.poetry.group.docs.dependencies]
+sphinx = "^7.2.6"
+sphinx-rtd-theme = "^2.0.0"
+
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.10,<3.13"
 numpy = "<=2.2.3"
 pandas = "^2.2.3"
 httpx = "^0.28.1"
 rich = "^13.9.4"
 pydantic = "^2.10.6"
-PyYAML = "6.0.2"
+PyYAML = "^6.0"
 neptune = "1.13.0"
 matplotlib = "3.10.0"
 yfinance = "^0.2.54"
 pandas-market-calendars = "^4.6.1"
 scikit-learn = "^1.6.1"
+torch = "^2.6.0"
 
 [tool.poetry.group.dev]
 optional = true
