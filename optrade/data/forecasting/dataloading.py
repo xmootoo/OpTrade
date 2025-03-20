@@ -94,8 +94,8 @@ def get_contract_datasets(
     contract_dir = set_contract_dir(
         SCRIPT_DIR=SCRIPT_DIR,
         root=root,
-        start_date=total_start_date,
-        end_date=total_end_date,
+        start_date=start_date,
+        end_date=end_date,
         contract_stride=contract_stride,
         interval_min=interval_min,
         right=right,

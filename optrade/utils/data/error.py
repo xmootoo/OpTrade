@@ -15,7 +15,9 @@ class DataValidationError(Exception):
         message: str,
         error_code: int,
         real_start_date: Optional[str] = None,
-        real_end_date: Optional[str] = None):
+        real_end_date: Optional[str] = None,
+        verbose: bool=True):
+
         self.message = message
         self.error_code = error_code
         self.real_start_date = real_start_date
@@ -33,8 +35,9 @@ class DataValidationError(Exception):
         error_str = error_dict[error_code]
 
         # Log using ctx
-        ctx = Console()
-        ctx.log(f"[bold red]ERROR ({error_str}):[/bold red] {message}")
+        if verbose:
+            ctx = Console()
+            ctx.log(f"[bold red]ERROR ({error_str}):[/bold red] {message}")
 
         # Standard exception behavior remains the same
         super().__init__()
