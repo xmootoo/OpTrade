@@ -6,12 +6,12 @@
 OpTrade documentation
 =====================
 
-Welcome to OpTrade's documentation! OpTrade is a Python package for [brief description of what your package does].
+Welcome to OpTrade's documentation! OpTrade is a Python package for options forecasting and trading, providing tools for market data analysis, strategy development, and trading execution.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
+   
    installation
    usage
    api

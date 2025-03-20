@@ -1,16 +1,11 @@
 API Reference
 ============
 
-.. automodule:: optrade
-   :members:
-   :undoc-members:
-   :show-inheritance:
+This page provides auto-generated API documentation for the entire OpTrade package.
 
-Modules
--------
+.. autosummary::
+   :toctree: _autosummary
+   :template: module.rst
+   :recursive:
 
-.. toctree::
-   :maxdepth: 2
-
-   api/module1
-   api/module2
+   optrade
