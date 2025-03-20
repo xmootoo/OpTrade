@@ -10,3 +10,5 @@ logs/
 optrade/exp/scripts
 poetry.lock
 dist/
+.read
+requirements.in

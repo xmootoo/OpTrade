@@ -2,7 +2,7 @@
 name = "optrade"
 version = "0.0.1"
 description = "Options Forecasting and Trading Framework"
-authors = ["Xavier Mootoo <xmootoo@my.yorku.ca>"]
+authors = ["Xavier Mootoo"]
 license = "MIT"
 readme = "README.md"
 packages = [{ include = "optrade" }]
