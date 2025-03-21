@@ -6,7 +6,7 @@ import warnings
 from typing import Dict, Any
 warnings.filterwarnings('ignore', message='The argument \'date_parser\' is deprecated')
 
-from optrade.data.thetadata.stocks import load_stock_data_eod
+from optrade.data.thetadata import load_stock_data_eod
 
 def get_fama_french_factors(
     root: str,

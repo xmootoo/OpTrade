@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 
 # Custom modules
-from optrade.data.thetadata.get_data import load_all_data
+from optrade.data.thetadata import load_all_data
 
 def set_theme(theme: Literal['light', 'dark'] = 'light'):
     """Set the plotting theme parameters."""

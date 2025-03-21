@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 
-def get_historical_volatility(
+from optrade.data.thetadata import load_stock_data
+
+def get_historical_vol(
     stock_data: pd.DataFrame,
     volatility_type: str="period"
 ) -> float:
@@ -77,3 +79,45 @@ def get_historical_volatility(
         return period_vol * np.sqrt(252 / num_trading_days)
     else:
         raise ValueError(f"Invalid volatility type: {type}")
+
+def get_train_historical_vol(
+    root: str,
+    start_date: str,
+    end_date: str,
+    interval_min: int,
+    volatility_window: float,
+    volatility_type: str) -> pd.DataFrame:
+
+    """
+    Get historical volatility for a stock over a given time period.
+
+    Args:
+        root: Underlying stock symbol
+        start_date: Start date for the total dataset in YYYYMMDD format
+        end_date: End date for the total dataset in YYYYMMDD format
+        interval_min: Interval in minutes for the underlying stock data
+        volatility_window: Proportion of total days to use for historical volatility calculation
+        volatility_type: Type of historical volatility to use. Options: "daily", "period", "annualized".
+
+    Returns:
+        Historical volatility value based on the specified type.
+    """
+
+    # Calculate number of days to use for historical volatility
+    total_days = (pd.to_datetime(end_date, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
+    num_vol_days = int(volatility_window * total_days)
+    vol_end_date = (pd.to_datetime(start_date, format='%Y%m%d') + pd.Timedelta(days=num_vol_days)).strftime('%Y%m%d')
+
+    stock_data = load_stock_data(
+        root=root,
+        start_date=start_date,
+        end_date=end_date,
+        interval_min=interval_min,
+        clean_up=True,
+    )
+
+    # Select only the first num_vol_days for calculating volatility
+    stock_data = stock_data.loc[stock_data['datetime'] <= vol_end_date]
+
+    # Calculate historical volatility
+    return get_historical_vol(stock_data, volatility_type)

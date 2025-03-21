@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
 
-from optrade.data.thetadata.stocks import load_stock_data_eod
+from optrade.data.thetadata import load_stock_data_eod
 from optrade.utils.data.fama_french import get_fama_french_factors, factor_categorization
 from optrade.utils.data.stock_categories import ThreeFactorLevel, FiveFactorLevel, SectorType, IndustryType
 from optrade.data.forecasting.dataloading import get_contract_datasets, get_forecasting_dataset, get_forecasting_loaders
