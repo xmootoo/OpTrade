@@ -7,7 +7,8 @@ from datetime import datetime
 # Custom modules
 from optrade.data.thetadata import load_all_data
 
-def set_theme(theme: Literal['light', 'dark'] = 'light'):
+
+def set_theme(theme: Literal["light", "dark"] = "light"):
     """Set the plotting theme parameters."""
     base_params = {
         "text.usetex": True,
@@ -23,7 +24,7 @@ def set_theme(theme: Literal['light', 'dark'] = 'light'):
         "axes.grid": False,
     }
 
-    if theme == 'dark':
+    if theme == "dark":
         theme_params = {
             **base_params,
             "figure.facecolor": "black",
@@ -34,11 +35,11 @@ def set_theme(theme: Literal['light', 'dark'] = 'light'):
             "ytick.color": "white",
         }
         plot_colors = {
-            'face': 'black',
-            'text': 'white',
-            'line': 'white',
-            'grid': 'white',
-            'spine': 'white'
+            "face": "black",
+            "text": "white",
+            "line": "white",
+            "grid": "white",
+            "spine": "white",
         }
     else:  # light theme
         theme_params = {
@@ -51,15 +52,16 @@ def set_theme(theme: Literal['light', 'dark'] = 'light'):
             "ytick.color": "black",
         }
         plot_colors = {
-            'face': 'white',
-            'text': 'black',
-            'line': 'black',
-            'grid': 'gray',
-            'spine': 'black'
+            "face": "white",
+            "text": "black",
+            "line": "black",
+            "grid": "gray",
+            "spine": "black",
         }
 
     plt.rcParams.update(theme_params)
     return plot_colors
+
 
 # def analyze_time_series(
 #     data_list: List[np.ndarray],
@@ -181,13 +183,14 @@ def set_theme(theme: Literal['light', 'dark'] = 'light'):
 #         )
 #         plt.close()
 
+
 def analyze_time_series(
     data_list: List[np.ndarray],
     info_list: List[Dict],
     dates: np.ndarray,
     dpi: int = 600,
     output_format: str = "eps",
-    theme: Literal['light', 'dark'] = 'light',
+    theme: Literal["light", "dark"] = "light",
     save_dir: Optional[str] = None,
     volume: bool = True,
     volume_list: Optional[List[np.ndarray]] = None,
@@ -201,7 +204,9 @@ def analyze_time_series(
     colors = set_theme(theme)
 
     # Create output directory
-    output_dir = os.path.abspath(os.path.join(os.getcwd(), '..', '..', '..', 'optrade', 'figures', 'general'))
+    output_dir = os.path.abspath(
+        os.path.join(os.getcwd(), "..", "..", "..", "optrade", "figures", "general")
+    )
     os.makedirs(output_dir, exist_ok=True)
 
     for i in range(len(data_list)):
@@ -218,7 +223,9 @@ def analyze_time_series(
             # Reshape for StandardScaler
             volume_data_reshaped = volume_data.reshape(-1, 1)
             scaler = StandardScaler()
-            volume_data_normalized = scaler.fit_transform(volume_data_reshaped).squeeze()
+            volume_data_normalized = scaler.fit_transform(
+                volume_data_reshaped
+            ).squeeze()
 
             # Print normalized volume stats
             print(f"\nNormalized volume stats:")
@@ -244,25 +251,29 @@ def analyze_time_series(
 
         # Create figure with subplots
         if volume and volume_list is not None:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10),
-                                         gridspec_kw={'height_ratios': [3, 1]},
-                                         facecolor=colors['face'])
+            fig, (ax1, ax2) = plt.subplots(
+                2,
+                1,
+                figsize=(12, 10),
+                gridspec_kw={"height_ratios": [3, 1]},
+                facecolor=colors["face"],
+            )
             fig.subplots_adjust(hspace=0)
         else:
-            fig = plt.figure(figsize=(12, 8), facecolor=colors['face'])
+            fig = plt.figure(figsize=(12, 8), facecolor=colors["face"])
             ax1 = fig.add_subplot(111)
 
         # Plot price data
         x_indices = list(range(len(dates)))
-        ax1.plot(x_indices, data, color=colors['line'], linewidth=1.2)
+        ax1.plot(x_indices, data, color=colors["line"], linewidth=1.2)
 
         # Title and labels for price subplot
-        ax1.set_title(fr"\textbf{{{title}}}", fontsize=32, pad=20, color=colors['text'])
-        ax1.set_ylabel(r"\textrm{" + y_axis + r"}", fontsize=26, color='black')
+        ax1.set_title(rf"\textbf{{{title}}}", fontsize=32, pad=20, color=colors["text"])
+        ax1.set_ylabel(r"\textrm{" + y_axis + r"}", fontsize=26, color="black")
         ax1.set_ylim(global_min, global_max)
 
         # Set tick size for y-axis
-        ax1.tick_params(axis='y', labelsize=26)
+        ax1.tick_params(axis="y", labelsize=26)
 
         if volume and volume_list is not None:
             # Remove x-axis labels from price subplot
@@ -270,16 +281,24 @@ def analyze_time_series(
             ax1.set_xticks([])
 
             # Plot normalized volume bars
-            ax2.bar(x_indices, volume_data_normalized,
-                   color='royalblue', alpha=1.0,
-                   width=1.0)
+            ax2.bar(
+                x_indices,
+                volume_data_normalized,
+                color="royalblue",
+                alpha=1.0,
+                width=1.0,
+            )
 
             # Set y-axis limits for normalized volume
-            ax2.set_ylim(min(volume_data_normalized) * 1.1, max(volume_data_normalized) * 1.1)
+            ax2.set_ylim(
+                min(volume_data_normalized) * 1.1, max(volume_data_normalized) * 1.1
+            )
 
             # Style volume subplot
-            ax2.set_ylabel(r"\textrm{Normalized Volume ($\sigma$)}", fontsize=26, color='black')
-            ax2.tick_params(axis='y', labelsize=26)
+            ax2.set_ylabel(
+                r"\textrm{Normalized Volume ($\sigma$)}", fontsize=26, color="black"
+            )
+            ax2.tick_params(axis="y", labelsize=26)
 
             # Remove x-axis
             ax2.set_xticklabels([])
@@ -287,11 +306,11 @@ def analyze_time_series(
 
             # Style volume subplot spines
             for spine in ax2.spines.values():
-                spine.set_color(colors['spine'])
+                spine.set_color(colors["spine"])
                 spine.set_linewidth(1.5)
 
             # Make grid more visible
-            ax2.grid(True, axis='y', linestyle='-', alpha=0.3, color='gray')
+            ax2.grid(True, axis="y", linestyle="-", alpha=0.3, color="gray")
 
             plt.subplots_adjust(bottom=0.1)
         else:
@@ -300,20 +319,20 @@ def analyze_time_series(
 
         # Style the price subplot spines
         for spine in ax1.spines.values():
-            spine.set_color(colors['spine'])
+            spine.set_color(colors["spine"])
             spine.set_linewidth(1.5)
 
         # Add subtle grid to price subplot
-        ax1.grid(True, axis='y', linestyle='--', alpha=0.2, color=colors['grid'])
+        ax1.grid(True, axis="y", linestyle="--", alpha=0.2, color=colors["grid"])
 
         # Save with tight layout
         figure_name = info_list[i]["file_codename"]
         plt.savefig(
             os.path.join(output_dir, f"{figure_name}.{output_format}"),
             dpi=dpi,
-            bbox_inches='tight',
-            facecolor=colors['face'],
-            edgecolor='none'
+            bbox_inches="tight",
+            facecolor=colors["face"],
+            edgecolor="none",
         )
         plt.close()
 
@@ -329,7 +348,9 @@ def format_dates(dates):
         np.ndarray: Formatted date strings
     """
     # Create initial format with leading zeros
-    formatted_dates = [d.strftime('%b %d, %Y (%I:%M%p)').replace(' 0', ' ').lower() for d in dates]
+    formatted_dates = [
+        d.strftime("%b %d, %Y (%I:%M%p)").replace(" 0", " ").lower() for d in dates
+    ]
 
     # Capitalize month and handle day leading zeros
     capitalized = []
@@ -339,25 +360,18 @@ def format_dates(dates):
         rest = d[3:]  # Rest of the string
 
         # If day starts with 0, remove it (but keep it for single digit days)
-        if rest.startswith(' 0'):
-            rest = ' ' + rest[2:]
+        if rest.startswith(" 0"):
+            rest = " " + rest[2:]
 
         capitalized.append(month_part + rest)
 
     return np.array(capitalized)
 
 
-def plot_returns_distribution(
-    data: np.ndarray,
-    log: bool = False
-):
+def plot_returns_distribution(data: np.ndarray, log: bool = False):
     """
     Plot the distribution of (optionally log) returns for a given security.
     """
-
-
-
-
 
 
 # Example usage
@@ -365,39 +379,73 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Time Series Analysis")
-    parser.add_argument("root", type=str, default="AAPL", help="Root of security to analyze.")
-    parser.add_argument("mode", type=str, default="option", help="Whether to analyze option or underlying data. Options: 'option', 'stock', or 'both'.")
-    parser.add_argument("start_date", type=str, default="20241107", help="Start date for data in YYYYMMDD format.")
-    parser.add_argument("end_date", type=str, default="20241107", help="End date for data in YYYYMMDD format.")
-    parser.add_argument("exp", type=str, default="20250117", help="Expiration date for option in YYYYMMDD format.")
-    parser.add_argument("strike", type=int, default=225, help="Strike price for option.")
-    parser.add_argument("right", type=str, default="C", help="Option type, either 'C' for call or 'P' for put.")
-    parser.add_argument("output_format", type=str, default="eps", help="Output format for saving plots. Default is 'eps'.")
-    parser.add_argument("--volume", action="store_true", help="Include volume data in analysis.")
+    parser.add_argument(
+        "root", type=str, default="AAPL", help="Root of security to analyze."
+    )
+    parser.add_argument(
+        "mode",
+        type=str,
+        default="option",
+        help="Whether to analyze option or underlying data. Options: 'option', 'stock', or 'both'.",
+    )
+    parser.add_argument(
+        "start_date",
+        type=str,
+        default="20241107",
+        help="Start date for data in YYYYMMDD format.",
+    )
+    parser.add_argument(
+        "end_date",
+        type=str,
+        default="20241107",
+        help="End date for data in YYYYMMDD format.",
+    )
+    parser.add_argument(
+        "exp",
+        type=str,
+        default="20250117",
+        help="Expiration date for option in YYYYMMDD format.",
+    )
+    parser.add_argument(
+        "strike", type=int, default=225, help="Strike price for option."
+    )
+    parser.add_argument(
+        "right",
+        type=str,
+        default="C",
+        help="Option type, either 'C' for call or 'P' for put.",
+    )
+    parser.add_argument(
+        "output_format",
+        type=str,
+        default="eps",
+        help="Output format for saving plots. Default is 'eps'.",
+    )
+    parser.add_argument(
+        "--volume", action="store_true", help="Include volume data in analysis."
+    )
     args = parser.parse_args()
 
     # Set plot parameters
     right_name = "Call" if args.right == "C" else "Put"
-    map = {"option":
-                {
-                    "title": args.root,
-                    "codename": args.root,
-                    "file_codename": f"{args.root}_{args.right}_{args.exp}_{args.strike}",
-                    "y-axis": f"{right_name} Option Midprice",
-                    "x-axis": "Date"
-                },
-            "stock":
-                {
-                    "title": args.root,
-                    "codename": args.root,
-                    "file_codename": f"{args.root}_stock",
-                    "y-axis": "Underlying Midprice",
-                    "x-axis": "Date"
-                },
-        }
+    map = {
+        "option": {
+            "title": args.root,
+            "codename": args.root,
+            "file_codename": f"{args.root}_{args.right}_{args.exp}_{args.strike}",
+            "y-axis": f"{right_name} Option Midprice",
+            "x-axis": "Date",
+        },
+        "stock": {
+            "title": args.root,
+            "codename": args.root,
+            "file_codename": f"{args.root}_stock",
+            "y-axis": "Underlying Midprice",
+            "x-axis": "Date",
+        },
+    }
 
     from optrade.data.thetadata.contracts import Contract
-
 
     contract = Contract(
         root=args.root,
@@ -451,6 +499,6 @@ if __name__ == "__main__":
         info_list=info_list,
         dates=dates,
         volume_list=None,
-        dpi = 600,
+        dpi=600,
         output_format=args.output_format,
-        )
+    )
