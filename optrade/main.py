@@ -13,9 +13,14 @@ import warnings
 from pydantic import BaseModel
 from typing import Dict, Any
 
-warnings.filterwarnings("ignore", message="h5py not installed, hdf5 features will not be supported.")
+warnings.filterwarnings(
+    "ignore", message="h5py not installed, hdf5 features will not be supported."
+)
 
-def update_global_config(ablation_config: Dict[str, Any], global_config: BaseModel, ablation_id: int) -> BaseModel:
+
+def update_global_config(
+    ablation_config: Dict[str, Any], global_config: BaseModel, ablation_id: int
+) -> BaseModel:
     """
     Updates the global config for ablation studies and hyperparameter tuning. For example,
     if the ablation_config is {'global_config.sl.lr': 0.01}, then the global_config.sl.lr will be
@@ -23,7 +28,7 @@ def update_global_config(ablation_config: Dict[str, Any], global_config: BaseMod
     """
 
     for key, value in ablation_config.items():
-        parts = key.split('.')
+        parts = key.split(".")
         if len(parts) == 2:
             sub_model, param = parts
             if hasattr(global_config, sub_model):
@@ -50,6 +55,7 @@ def update_global_config(ablation_config: Dict[str, Any], global_config: BaseMod
     global_config.exp.ablation_id = ablation_id
 
     return global_config
+
 
 def main(job_name="test", ablation=None, ablation_id=1):
 
@@ -81,14 +87,21 @@ def main(job_name="test", ablation=None, ablation_id=1):
         console.log("Using single device")
         exp.run()
 
+
 if __name__ == "__main__":
     # Non-hyperparameter tuning
-    warnings.filterwarnings("ignore", message="h5py not installed, hdf5 features will not be supported.")
+    warnings.filterwarnings(
+        "ignore", message="h5py not installed, hdf5 features will not be supported."
+    )
     parser = argparse.ArgumentParser(description="Run experiment")
     parser.add_argument("job_name", type=str, default="test", help="Name of the job")
     parser.add_argument("--venv_test", action="store_true", help="Flag for venv test")
-    parser.add_argument("--ablation", type=str, default=None, help="Ablation study configuration")
-    parser.add_argument("--ablation_id", type=int, default=1, help="Ablation study configuration")
+    parser.add_argument(
+        "--ablation", type=str, default=None, help="Ablation study configuration"
+    )
+    parser.add_argument(
+        "--ablation_id", type=int, default=1, help="Ablation study configuration"
+    )
 
     args = parser.parse_args()
 
@@ -99,7 +112,11 @@ if __name__ == "__main__":
         if args.ablation is not None:
             try:
                 ablation = json.loads(args.ablation)
-                main(job_name=args.job_name, ablation=ablation, ablation_id=args.ablation_id)
+                main(
+                    job_name=args.job_name,
+                    ablation=ablation,
+                    ablation_id=args.ablation_id,
+                )
             except json.JSONDecodeError:
                 print("Error: Invalid JSON string for ablation configuration")
                 sys.exit(1)
