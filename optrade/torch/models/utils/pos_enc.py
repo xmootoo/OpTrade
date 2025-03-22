@@ -2,11 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
+
 class PositionalEncoding(nn.Module):
-    def __init__(self, patch_dim : int=16, d_model : int=128, num_patches : int=64):
+    def __init__(self, patch_dim: int = 16, d_model: int = 128, num_patches: int = 64):
         super(PositionalEncoding, self).__init__()
         self.projection = nn.Linear(patch_dim, d_model)  # P x D projection matrix
-        self.pos_encoding = nn.Parameter(torch.empty(num_patches, d_model))  # N x D positional encoding matrix
+        self.pos_encoding = nn.Parameter(
+            torch.empty(num_patches, d_model)
+        )  # N x D positional encoding matrix
 
         # Weight initialization
         init.xavier_uniform_(self.projection.weight)
@@ -22,9 +25,11 @@ class PositionalEncoding(nn.Module):
         """
 
         B, M, N, P = x.shape
-        x = x.view(B*M, N, P) # Reshape the tensor to (B * M, N, P). We process each channel independently.
+        x = x.view(
+            B * M, N, P
+        )  # Reshape the tensor to (B * M, N, P). We process each channel independently.
         x = self.projection(x) + self.pos_encoding.unsqueeze(0)
-        x = x.view(B, M, N, -1) # Reshape the tensor to (B, M, N, D).
+        x = x.view(B, M, N, -1)  # Reshape the tensor to (B, M, N, D).
 
         return x
 

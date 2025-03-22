@@ -5,7 +5,9 @@ from optrade.torch.models.utils.revin import RevIN
 from optrade.torch.models.utils.utils import Reshape
 
 from typing import Optional
+
 # Taken from: https://github.com/thuml/Time-Series-Library/blob/main/models/TSMixer.py
+
 
 class ResBlock(nn.Module):
     def __init__(
@@ -13,21 +15,22 @@ class ResBlock(nn.Module):
         seq_len,
         d_model,
         dropout,
-        num_channels,):
+        num_channels,
+    ):
         super(ResBlock, self).__init__()
 
         self.temporal = nn.Sequential(
             nn.Linear(seq_len, d_model),
             nn.GELU(),
             nn.Linear(d_model, seq_len),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
         self.channel = nn.Sequential(
             nn.Linear(num_channels, d_model),
             nn.GELU(),
             nn.Linear(d_model, num_channels),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
@@ -43,6 +46,7 @@ class ResBlock(nn.Module):
 
         return x
 
+
 class TSMixer(nn.Module):
     def __init__(
         self,
@@ -51,14 +55,14 @@ class TSMixer(nn.Module):
         num_enc_layers: int,
         d_model: int,
         num_channels: int,
-        dropout: float=0.,
-        revin: bool=True,
-        revin_affine: bool=True,
-        revout: bool=False,
-        eps_revin: float=1e-5,
-        return_head: bool=True,
-        target_channels: Optional[list]=None,
-        channel_independent: bool=False,
+        dropout: float = 0.0,
+        revin: bool = True,
+        revin_affine: bool = True,
+        revout: bool = False,
+        eps_revin: float = 1e-5,
+        return_head: bool = True,
+        target_channels: Optional[list] = None,
+        channel_independent: bool = False,
     ) -> None:
         super(TSMixer, self).__init__()
 
@@ -74,10 +78,12 @@ class TSMixer(nn.Module):
         self.return_head = return_head
 
         # Layers
-        self.backbone = nn.ModuleList([
-            ResBlock(seq_len, d_model, dropout, num_channels)
-            for _ in range(num_enc_layers)
-        ])
+        self.backbone = nn.ModuleList(
+            [
+                ResBlock(seq_len, d_model, dropout, num_channels)
+                for _ in range(num_enc_layers)
+            ]
+        )
 
         if channel_independent:
             self.head = nn.Linear(seq_len, pred_len)
@@ -88,8 +94,10 @@ class TSMixer(nn.Module):
                 num_output_channels = num_channels
 
             self.head = nn.Sequential(
-                Reshape(-1, num_output_channels*seq_len),
-                nn.Linear(num_output_channels*seq_len, num_output_channels*pred_len),
+                Reshape(-1, num_output_channels * seq_len),
+                nn.Linear(
+                    num_output_channels * seq_len, num_output_channels * pred_len
+                ),
                 Reshape(-1, num_output_channels, pred_len),
             )
 
@@ -108,7 +116,7 @@ class TSMixer(nn.Module):
             num_channels=self.num_channels,
             eps=self.eps_revin,
             affine=self.revin_affine,
-            target_channels=self.target_channels
+            target_channels=self.target_channels,
         )
 
     def forward(self, x):
@@ -117,17 +125,23 @@ class TSMixer(nn.Module):
         if self._revin:
             x = self.revin(x, mode="norm")
 
-        x = x.permute(0, 2, 1) # (batch_size, num_channels, seq_len) => (batch_size, seq_len, num_channels)
+        x = x.permute(
+            0, 2, 1
+        )  # (batch_size, num_channels, seq_len) => (batch_size, seq_len, num_channels)
         for i in range(self.num_enc_layers):
             x = self.backbone[i](x)
 
         if self.target_channels is not None:
-            x = x[:, :, self.target_channels].transpose(1, 2) # (batch_size, len(target_channels), seq_len)
+            x = x[:, :, self.target_channels].transpose(
+                1, 2
+            )  # (batch_size, len(target_channels), seq_len)
         else:
-            x = x.transpose(1, 2) # (batch_size, num_channels, seq_len)
+            x = x.transpose(1, 2)  # (batch_size, num_channels, seq_len)
 
         if self.return_head:
-            out = self.head(x) # (batch_size, seq_len, len(target_channels)) => (batch_size, len(target_channels), pred_len)
+            out = self.head(
+                x
+            )  # (batch_size, seq_len, len(target_channels)) => (batch_size, len(target_channels), pred_len)
         else:
             out = x
 
@@ -136,6 +150,7 @@ class TSMixer(nn.Module):
             out = self.revin(out, mode="denorm")
 
         return out
+
 
 # Test
 if __name__ == "__main__":
@@ -146,10 +161,10 @@ if __name__ == "__main__":
     num_enc_layers = 3
     d_model = 16
     dropout = 0.1
-    revin=True
-    revin_affine=True
-    revout=True
-    eps_revin=1e-5
+    revin = True
+    revin_affine = True
+    revout = True
+    eps_revin = 1e-5
 
     x = torch.rand(batch_size, num_channels, seq_len)
 
@@ -164,7 +179,7 @@ if __name__ == "__main__":
         revin_affine=revin_affine,
         revout=revout,
         eps_revin=eps_revin,
-        target_channels=[4,5],
+        target_channels=[4, 5],
         channel_independent=True,
     )
 

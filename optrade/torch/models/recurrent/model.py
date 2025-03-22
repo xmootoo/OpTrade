@@ -9,15 +9,17 @@ from optrade.torch.models.utils.pos_enc import PositionalEncoding
 from optrade.torch.models.utils.weight_init import xavier_init
 from optrade.torch.models.utils.utils import Reshape
 
+
 # TODO: Reimplement patching
 class RecurrentModel(nn.Module):
-    def __init__(self,
+    def __init__(
+        self,
         d_model,
         num_enc_layers,
         pred_len,
         backbone_id,
         bidirectional=False,
-        dropout=0.,
+        dropout=0.0,
         seq_len=512,
         patching=False,
         patch_dim=16,
@@ -33,7 +35,7 @@ class RecurrentModel(nn.Module):
         avg_state=False,
         return_head=True,
         channel_independent=False,
-        target_channels:Optional[list]=None
+        target_channels: Optional[list] = None,
     ) -> None:
         super(RecurrentModel, self).__init__()
 
@@ -88,32 +90,42 @@ class RecurrentModel(nn.Module):
         if patching:
             self._patching = True
             self.patcher = Patcher(patch_dim, patch_stride)
-            self.pos_enc = nn.Linear(patch_dim, d_model) if avg_state else PositionalEncoding(patch_dim, d_model, self.num_patches)
+            self.pos_enc = (
+                nn.Linear(patch_dim, d_model)
+                if avg_state
+                else PositionalEncoding(patch_dim, d_model, self.num_patches)
+            )
         else:
             self._patching = None
 
         # Backbone
-        if self.backbone_id=="LSTM":
-            self.backbone = nn.LSTM(input_size=self.input_size,
-                                hidden_size=d_model,
-                                num_layers=num_enc_layers,
-                                batch_first=True,
-                                dropout=dropout,
-                                bidirectional=bidirectional)
-        elif self.backbone_id=="RNN":
-            self.backbone = nn.RNN(input_size=self.input_size,
-                                hidden_size=d_model,
-                                num_layers=num_enc_layers,
-                                batch_first=True,
-                                dropout=dropout,
-                                bidirectional=bidirectional)
-        elif self.backbone_id=="GRU":
-            self.backbone = nn.GRU(input_size=self.input_size,
-                                hidden_size=d_model,
-                                num_layers=num_enc_layers,
-                                batch_first=True,
-                                dropout=dropout,
-                                bidirectional=bidirectional)
+        if self.backbone_id == "LSTM":
+            self.backbone = nn.LSTM(
+                input_size=self.input_size,
+                hidden_size=d_model,
+                num_layers=num_enc_layers,
+                batch_first=True,
+                dropout=dropout,
+                bidirectional=bidirectional,
+            )
+        elif self.backbone_id == "RNN":
+            self.backbone = nn.RNN(
+                input_size=self.input_size,
+                hidden_size=d_model,
+                num_layers=num_enc_layers,
+                batch_first=True,
+                dropout=dropout,
+                bidirectional=bidirectional,
+            )
+        elif self.backbone_id == "GRU":
+            self.backbone = nn.GRU(
+                input_size=self.input_size,
+                hidden_size=d_model,
+                num_layers=num_enc_layers,
+                batch_first=True,
+                dropout=dropout,
+                bidirectional=bidirectional,
+            )
         else:
             raise ValueError("Invalid backbone_id. Options: 'LSTM', 'RNN', 'GRU'.")
 
@@ -125,31 +137,32 @@ class RecurrentModel(nn.Module):
         elif last_state or avg_state:
             head_dim = d_model
 
-
-        num_output_channels = len(target_channels) if target_channels is not None else num_channels
-        if head_type=="linear":
+        num_output_channels = (
+            len(target_channels) if target_channels is not None else num_channels
+        )
+        if head_type == "linear":
             self.head = nn.Sequential(
-                nn.Linear(head_dim, num_output_channels*pred_len),
+                nn.Linear(head_dim, num_output_channels * pred_len),
                 Reshape(-1, num_output_channels, pred_len),
             )
-        elif head_type=="mlp":
+        elif head_type == "mlp":
             self.head = nn.Sequential(
-                nn.Linear(head_dim, head_dim//2),
+                nn.Linear(head_dim, head_dim // 2),
                 nn.GELU(),
-                nn.Linear(head_dim//2, num_output_channels*pred_len),
+                nn.Linear(head_dim // 2, num_output_channels * pred_len),
                 Reshape(-1, num_output_channels, pred_len),
             )
 
         if not (last_state or avg_state):
             self.head = nn.Sequential(
-                Reshape(-1, seq_len*d_model),
+                Reshape(-1, seq_len * d_model),
                 self.head,
             )
         self.flatten = nn.Flatten(start_dim=-2)
 
         # Final Normalization Layer
         norm_dim = d_model
-        self.norm = nn.LayerNorm(norm_dim) if norm_mode=="layer" else nn.Identity()
+        self.norm = nn.LayerNorm(norm_dim) if norm_mode == "layer" else nn.Identity()
 
         # Weight initialization
         self.apply(xavier_init)
@@ -160,14 +173,14 @@ class RecurrentModel(nn.Module):
             num_channels=self.num_channels,
             eps=self.eps_revin,
             affine=self.revin_affine,
-            target_channels=self.target_channels
+            target_channels=self.target_channels,
         )
 
     def compute_backbone(self, x):
         if self.backbone_id in {"RNN", "GRU"}:
             out, hn = self.backbone(x)
             last_hn = hn[-1]
-        elif self.backbone_id =="LSTM":
+        elif self.backbone_id == "LSTM":
             out, (hn, _) = self.backbone(x)
             last_hn = hn[-1]
         else:
@@ -185,11 +198,15 @@ class RecurrentModel(nn.Module):
 
         # Ensure input is correct
         if len(x.shape) == 2:
-            x = x.unsqueeze(-2) if self._patching else x.unsqueeze(-1) #: (B, L) -> (B, L, 1)
+            x = (
+                x.unsqueeze(-2) if self._patching else x.unsqueeze(-1)
+            )  #: (B, L) -> (B, L, 1)
 
         # RevIN
         if self._revin:
-            x = self.revin(x, mode="norm") # Patched version:(B, M, L). Non-patched version: (B, L, 1)
+            x = self.revin(
+                x, mode="norm"
+            )  # Patched version:(B, M, L). Non-patched version: (B, L, 1)
 
         x = x.transpose(1, 2)
 
@@ -205,11 +222,15 @@ class RecurrentModel(nn.Module):
 
         # Normalization
         if self.last_state:
-            x = self.norm(last_hn) # Select last hidden state: (B, D)
+            x = self.norm(last_hn)  # Select last hidden state: (B, D)
         elif self.avg_state:
-            x = self.norm(torch.mean(out, dim=1)) # Average over sequence length. Patched version: (B*M, D). Non-patched version: (B, D).
+            x = self.norm(
+                torch.mean(out, dim=1)
+            )  # Average over sequence length. Patched version: (B*M, D). Non-patched version: (B, D).
         else:
-            x = self.norm(out) # Patched version: (B*M, N, D). Non-patched version: (B, L, D)
+            x = self.norm(
+                out
+            )  # Patched version: (B*M, N, D). Non-patched version: (B, L, D)
 
         # # Reshape for patching
         # if self._patching:
@@ -219,8 +240,7 @@ class RecurrentModel(nn.Module):
         if self.return_head:
             # x = x.transpose(0,1)
             print(f"Shape before head: {x.shape}")
-            x = self.head(self.dropout(x)) # (B, pred_len)
-
+            x = self.head(self.dropout(x))  # (B, pred_len)
 
         print(f"x after head: {x.shape}")
         # RevOUT
@@ -229,7 +249,8 @@ class RecurrentModel(nn.Module):
 
         return x
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # <---Non-patched version (classification)--->
     # Define model parameters
     batch_size = 32
@@ -238,7 +259,6 @@ if __name__ == '__main__':
     pred_len = 96
     d_model = 64
     num_enc_layers = 5
-
 
     # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -273,7 +293,6 @@ if __name__ == '__main__':
 
     print(f"Input shape: {x.shape}")
     print(f"Output shape: {output.shape}")
-
 
     # #<--Patched Version (forecasting)--->
     # # Define model parameters
@@ -314,6 +333,5 @@ if __name__ == '__main__':
     # # Pass the data through the model
     # output = model(x)
     # output = output.to(device)
-
 
     # print(f"Output shape: {output.shape}")

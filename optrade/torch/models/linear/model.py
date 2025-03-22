@@ -6,6 +6,7 @@ from optrade.torch.models.utils.revin import RevIN
 from optrade.torch.models.utils.weight_init import xavier_init
 from optrade.torch.models.utils.utils import Reshape
 
+
 class Linear(nn.Module):
     def __init__(
         self,
@@ -17,8 +18,8 @@ class Linear(nn.Module):
         revout=False,
         revin_affine=False,
         eps_revin=1e-5,
-        channel_independent:bool=False,
-        target_channels:Optional[list]=None,
+        channel_independent: bool = False,
+        target_channels: Optional[list] = None,
     ) -> None:
         super(Linear, self).__init__()
 
@@ -41,12 +42,13 @@ class Linear(nn.Module):
         if channel_independent:
             self.backbone = nn.Linear(seq_len, pred_len)
         else:
-            self.backbone = nn.ModuleList([
-                Reshape(-1, num_channels*seq_len),
-                nn.Linear(num_channels*seq_len, num_channels*pred_len),
-                Reshape(-1, num_channels, pred_len)
-            ])
-
+            self.backbone = nn.ModuleList(
+                [
+                    Reshape(-1, num_channels * seq_len),
+                    nn.Linear(num_channels * seq_len, num_channels * pred_len),
+                    Reshape(-1, num_channels, pred_len),
+                ]
+            )
 
         if target_channels is not None:
             self.target_channels = target_channels
@@ -54,11 +56,16 @@ class Linear(nn.Module):
             if channel_independent:
                 self.head = nn.Linear(pred_len, pred_len)
             else:
-                self.head = nn.ModuleList([
-                    Reshape(-1, len(target_channels)*pred_len),
-                    nn.Linear(len(target_channels)*pred_len, len(target_channels)*pred_len),
-                    Reshape(-1, len(target_channels), pred_len)
-                ])
+                self.head = nn.ModuleList(
+                    [
+                        Reshape(-1, len(target_channels) * pred_len),
+                        nn.Linear(
+                            len(target_channels) * pred_len,
+                            len(target_channels) * pred_len,
+                        ),
+                        Reshape(-1, len(target_channels), pred_len),
+                    ]
+                )
 
         # Weight initialization
         self.apply(xavier_init)
@@ -69,7 +76,7 @@ class Linear(nn.Module):
             num_channels=self.num_channels,
             eps=self.eps_revin,
             affine=self.revin_affine,
-            target_channels=self.target_channels
+            target_channels=self.target_channels,
         )
 
     def forward(self, x):
@@ -83,11 +90,13 @@ class Linear(nn.Module):
                 x = module(x)
             out = x
         else:
-            out = self.backbone(x) # (batch_size, num_channels, pred_len)
+            out = self.backbone(x)  # (batch_size, num_channels, pred_len)
 
         # Head
         if self.target_channels is not None:
-            out = out[:, self.target_channels, :] # (batch_size, len(target_channels), pred_len)
+            out = out[
+                :, self.target_channels, :
+            ]  # (batch_size, len(target_channels), pred_len)
             B, C, L = out.size()
 
             if not self.channel_independent:
@@ -95,7 +104,7 @@ class Linear(nn.Module):
                     out = module(out)
             else:
                 out = self.head(out)
-            out = out.reshape(B, C, -1) # (batch_size, len(target_channels), pred_len)
+            out = out.reshape(B, C, -1)  # (batch_size, len(target_channels), pred_len)
 
         # RevOUT
         if self.revout:
@@ -112,15 +121,14 @@ if __name__ == "__main__":
     pred_len = 96
     x = torch.randn(batch_size, num_channels, seq_len)
 
-
     model = Linear(
         seq_len=seq_len,
         pred_len=pred_len,
         num_channels=num_channels,
-        target_channels=[1,3],
+        target_channels=[1, 3],
         revin=True,
         revout=True,
-        revin_affine=False
+        revin_affine=False,
     )
 
     output = model(x)

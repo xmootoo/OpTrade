@@ -10,27 +10,29 @@ from optrade.torch.models.utils.utils import Reshape
 
 from typing import Optional
 
+
 class Mamba(nn.Module):
-    def __init__(self,
+    def __init__(
+        self,
         d_model,
         num_enc_layers,
         pred_len,
-        num_channels: int=1,
-        revin: bool=False,
-        revout: bool=False,
-        revin_affine: bool=False,
-        eps_revin: float=1e-5,
-        head_type: str="linear",
-        norm_mode: str="layer",
-        patching: bool=False,
-        patch_dim: int=16,
-        patch_stride: int=8,
-        seq_len: int=512,
-        last_state: bool=True,
-        dropout: float=0.,
-        channel_independent: bool=False,
-        target_channels: Optional[list]=None,
-    )-> None:
+        num_channels: int = 1,
+        revin: bool = False,
+        revout: bool = False,
+        revin_affine: bool = False,
+        eps_revin: float = 1e-5,
+        head_type: str = "linear",
+        norm_mode: str = "layer",
+        patching: bool = False,
+        patch_dim: int = 16,
+        patch_stride: int = 8,
+        seq_len: int = 512,
+        last_state: bool = True,
+        dropout: float = 0.0,
+        channel_independent: bool = False,
+        target_channels: Optional[list] = None,
+    ) -> None:
         super(Mamba, self).__init__()
 
         # Parameters
@@ -66,26 +68,28 @@ class Mamba(nn.Module):
 
         # Head
         # head_dim = self.num_patches * d_model if patching else d_model
-        num_output_channels = len(target_channels) if target_channels is not None else num_channels
-        if head_type=="linear":
+        num_output_channels = (
+            len(target_channels) if target_channels is not None else num_channels
+        )
+        if head_type == "linear":
             if channel_independent:
                 self.head = nn.Linear(seq_len, pred_len)
             elif target_channels is not None or not channel_independent:
                 self.head = nn.Sequential(
-                    Reshape(-1, num_output_channels*seq_len),
-                    nn.Linear(num_output_channels*seq_len, num_output_channels*pred_len),
-                    Reshape(-1, num_output_channels, pred_len)
+                    Reshape(-1, num_output_channels * seq_len),
+                    nn.Linear(
+                        num_output_channels * seq_len, num_output_channels * pred_len
+                    ),
+                    Reshape(-1, num_output_channels, pred_len),
                 )
                 print("Selecting correct head")
-        elif head_type=="mlp":
+        elif head_type == "mlp":
             self.head = nn.Sequential(
-                nn.Linear(head_dim, head_dim),
-                nn.GELU(),
-                nn.Linear(head_dim, pred_len)
+                nn.Linear(head_dim, head_dim), nn.GELU(), nn.Linear(head_dim, pred_len)
             )
 
         # Final Normalization Layer
-        self.norm = nn.LayerNorm(d_model) if norm_mode=="layer" else nn.Identity()
+        self.norm = nn.LayerNorm(d_model) if norm_mode == "layer" else nn.Identity()
 
         # Weight initialization
         self.apply(xavier_init)
@@ -96,7 +100,7 @@ class Mamba(nn.Module):
             num_channels=self.num_channels,
             eps=self.eps_revin,
             affine=self.revin_affine,
-            target_channels=self.target_channels
+            target_channels=self.target_channels,
         )
 
     def forward(self, x):
@@ -121,39 +125,49 @@ class Mamba(nn.Module):
         """
 
         if not self._patching:
-            x = x.transpose(1, 2) # (B, M, L) -> (B, L, M)
+            x = x.transpose(1, 2)  # (B, M, L) -> (B, L, M)
 
         # RevIN
         if self._revin:
-            x = self.revin(x, mode="norm") # Patched version:(B, M, L). Non-patched version: (B, L, M)
+            x = self.revin(
+                x, mode="norm"
+            )  # Patched version:(B, M, L). Non-patched version: (B, L, M)
 
         # Patching
         if self._patching:
-            x = self.patcher(x) # (B, M, N, P)
-            x = self.pos_enc(x) # (B, M, N, D)
+            x = self.patcher(x)  # (B, M, N, P)
+            x = self.pos_enc(x)  # (B, M, N, D)
             B, M, N, D = x.shape
-            x = x.view(B*M, N, D)
+            x = x.view(B * M, N, D)
 
         # Mamba forward pass
         print(f"Shape before backbone: {x.shape}")
-        x = self.backbone(x) # Patched version: (B*M, N, D). Non-patched version: (B, L, M)
+        x = self.backbone(
+            x
+        )  # Patched version: (B*M, N, D). Non-patched version: (B, L, M)
 
         # Normalization
-        x = self.norm(x) # Patched version: (B*M, N, D). Non-patched version: (B, L, M)
+        x = self.norm(x)  # Patched version: (B*M, N, D). Non-patched version: (B, L, M)
 
         # Apply head
         if self.last_state and not self._patching:
-            x = x[:, :, self.target_channels] if self.target_channels is not None else x # (B, L, num_output_channels)
-            x = x.transpose(1, 2) # (B, num_output_channels, L)
+            x = (
+                x[:, :, self.target_channels] if self.target_channels is not None else x
+            )  # (B, L, num_output_channels)
+            x = x.transpose(1, 2)  # (B, num_output_channels, L)
         elif self._patching:
-            x = x.view(B, M, N*D) # (B, M, N*D)
+            x = x.view(B, M, N * D)  # (B, M, N*D)
         else:
-            raise ValueError("Invalid configuration for the Mamba model. Please check the parameters.")
+            raise ValueError(
+                "Invalid configuration for the Mamba model. Please check the parameters."
+            )
 
         # Head
         print(f"Shape before head: {x.shape}")
         print(f"Parameter sizes of head: {[p.size() for p in self.head.parameters()]}")
-        x = self.head(x) # Patched version: ? Non-patched version: (B, pred_len, num_output_channels)
+        x = self.head(
+            x
+        )  # Patched version: ? Non-patched version: (B, pred_len, num_output_channels)
 
         # RevOUT
         if self.revout:
@@ -165,7 +179,7 @@ class Mamba(nn.Module):
         return x
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     # <---Non-patched version--->
     # Define model parameters
     batch_size = 32
@@ -200,7 +214,6 @@ if __name__=="__main__":
 
     print(f"Input shape: {x.shape}")
     print(f"Output shape: {output.shape}")
-
 
     # #<--Patched Version (forecasting)--->
     # # Define model parameters

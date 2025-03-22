@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class moving_avg(nn.Module):
     """
     Moving average block to highlight the trend of time series
@@ -19,6 +20,7 @@ class moving_avg(nn.Module):
         x = self.avg(x.permute(0, 2, 1))
         x = x.permute(0, 2, 1)
         return x
+
 
 class series_decomp(nn.Module):
     """

@@ -1,12 +1,13 @@
 import torch
 import torch.nn as nn
 
+
 class Patcher(nn.Module):
     """
     Splits the input time series into patches.
     """
 
-    def __init__(self, patch_dim : int=16, stride : int=8):
+    def __init__(self, patch_dim: int = 16, stride: int = 8):
         super(Patcher, self).__init__()
         self.patch_dim = patch_dim
         self.stride = stride
@@ -27,21 +28,29 @@ class Patcher(nn.Module):
         N = int((L - self.patch_dim) / self.stride) + 2
 
         # Pad the time series with the last value on each channel repeated S times
-        last_column = x[:, :, -1:] # index
+        last_column = x[:, :, -1:]  # index
         padding = last_column.repeat(1, 1, self.stride)
         x = torch.cat((x, padding), dim=2)
 
         # Extract patches
-        patches = x.unfold(dimension=2, size=self.patch_dim, step=self.stride) # Unfold the input tensor to extract patches.
-        patches = patches.contiguous().view(B, M, N, self.patch_dim) # Reshape the tensor to (B, M, N, P).
-        patches_combined = patches.view(B * M, N, self.patch_dim) # Reshape the tensor to (B * M, N, P).
+        patches = x.unfold(
+            dimension=2, size=self.patch_dim, step=self.stride
+        )  # Unfold the input tensor to extract patches.
+        patches = patches.contiguous().view(
+            B, M, N, self.patch_dim
+        )  # Reshape the tensor to (B, M, N, P).
+        patches_combined = patches.view(
+            B * M, N, self.patch_dim
+        )  # Reshape the tensor to (B * M, N, P).
 
         return patches
+
 
 class VerticalPatcher(nn.Module):
     """
     Splits the input time series into patches, vertically stacking channels within each patch.
     """
+
     def __init__(self, patch_dim: int = 16, stride: int = 8):
         super(VerticalPatcher, self).__init__()
         self.patch_dim = patch_dim

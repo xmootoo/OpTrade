@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from optrade.torch.models.utils.utils import Norm
 
+
 class SupervisedHead(nn.Module):
     def __init__(self, linear_dim, pred_len, dropout=0.0):
         super().__init__()
@@ -29,6 +30,7 @@ class SupervisedHead(nn.Module):
         x = self.dropout(x)
         return x
 
+
 class EncoderBlock(nn.Module):
     """
     Args:
@@ -39,22 +41,38 @@ class EncoderBlock(nn.Module):
         norm: The type of normalization to use. Either "batch1d", "batch2d", or "layer".
     """
 
-    def __init__(self, d_model, d_ff, num_heads, num_channels, num_patches, attn_dropout=0.0, ff_dropout=0.0, batch_first=True,
-                 norm_mode="batch1d"):
+    def __init__(
+        self,
+        d_model,
+        d_ff,
+        num_heads,
+        num_channels,
+        num_patches,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        batch_first=True,
+        norm_mode="batch1d",
+    ):
         super(EncoderBlock, self).__init__()
 
         # Layers
-        self.attn = _MultiheadAttention(num_heads=num_heads, d_model=d_model, dropout=attn_dropout,
-            batch_first=batch_first)
-        self.ff = nn.Sequential(nn.Linear(d_model, d_ff),
-                                nn.GELU(),
-                                nn.Dropout(ff_dropout),
-                                nn.Linear(d_ff, d_model))
+        self.attn = _MultiheadAttention(
+            num_heads=num_heads,
+            d_model=d_model,
+            dropout=attn_dropout,
+            batch_first=batch_first,
+        )
+        self.ff = nn.Sequential(
+            nn.Linear(d_model, d_ff),
+            nn.GELU(),
+            nn.Dropout(ff_dropout),
+            nn.Linear(d_ff, d_model),
+        )
 
         # Normalization
         self.norm = Norm(norm_mode, num_channels, num_patches, d_model)
 
-    def forward(self, x:torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: Input tensor of shape (batch_size, num_patches, d_model).
@@ -64,7 +82,9 @@ class EncoderBlock(nn.Module):
 
         # Multihead Attention -> Add & Norm
         attn_out, _ = self.attn(x, x, x)
-        attn_norm = self.norm(attn_out + x) # Treat the input as the query, key and value for MHA.
+        attn_norm = self.norm(
+            attn_out + x
+        )  # Treat the input as the query, key and value for MHA.
 
         # Feedforward layer -> Add & Norm
         fc_out = self.ff(attn_norm)
@@ -72,21 +92,26 @@ class EncoderBlock(nn.Module):
 
         return fc_norm
 
+
 class _MultiheadAttention(nn.Module):
     """
     Multihead Attention mechanism from the Vanilla Transformer, with some preset parameters for the PatchTST model.
     """
 
-    def __init__(self, num_heads:int, d_model:int, dropout=0.0, batch_first=True):
+    def __init__(self, num_heads: int, d_model: int, dropout=0.0, batch_first=True):
         super(_MultiheadAttention, self).__init__()
 
         # Layers
-        self.attn = nn.MultiheadAttention(embed_dim=d_model,
-                                          num_heads=num_heads,
-                                          dropout=dropout,
-                                          batch_first=batch_first)
+        self.attn = nn.MultiheadAttention(
+            embed_dim=d_model,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=batch_first,
+        )
 
-    def forward(self, Q:torch.Tensor, K:torch.Tensor, V:torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor
+    ) -> torch.Tensor:
         """
         Args:
             Q: Query embedding of shape: (batch_size, num_patches, d_model).

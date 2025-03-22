@@ -14,27 +14,29 @@ from optrade.torch.models.utils.weight_init import xavier_init
 from optrade.torch.models.utils.revin import RevIN
 from optrade.torch.models.utils.patcher import Patcher
 
+
 class EMForecaster(nn.Module):
     def __init__(
         self,
-        args:BaseModel,
-        seed:int = 42,
-        seq_len:int = 336,
-        pred_len:int = 96,
-        num_channels:int = 1,
-        revin:bool = True,
-        revout:bool = True,
-        revin_affine:bool = True,
-        eps_revin:float = 1e-5,
-        patch_model_id:str = "TSMixer",
-        patch_norm:str = "none",
-        patch_act:str = "GeLU",
-        patch_dim:int = 24,
-        patch_stride:int = 12,
+        args: BaseModel,
+        seed: int = 42,
+        seq_len: int = 336,
+        pred_len: int = 96,
+        num_channels: int = 1,
+        revin: bool = True,
+        revout: bool = True,
+        revin_affine: bool = True,
+        eps_revin: float = 1e-5,
+        patch_model_id: str = "TSMixer",
+        patch_norm: str = "none",
+        patch_act: str = "GeLU",
+        patch_dim: int = 24,
+        patch_stride: int = 12,
         patch_embed_dim: int = 128,
-        pos_enc:str = "none",
-        return_head:bool = True,
-        target_channels: Optional[list]=None) -> None:
+        pos_enc: str = "none",
+        return_head: bool = True,
+        target_channels: Optional[list] = None,
+    ) -> None:
         super(EMForecaster, self).__init__()
 
         """
@@ -74,9 +76,9 @@ class EMForecaster(nn.Module):
         self.eps_revin = eps_revin
         self.num_channels = num_channels
 
-        if patch_stride==-1:
-            self.patch_stride = self.patch_dim //2
-        elif patch_stride==-2:
+        if patch_stride == -1:
+            self.patch_stride = self.patch_dim // 2
+        elif patch_stride == -2:
             self.patch_stride = self.patch_dim
         else:
             self.patch_stride = patch_stride
@@ -96,7 +98,9 @@ class EMForecaster(nn.Module):
 
         # Positional encoding
         if pos_enc == "learnable":
-            self.pos_enc = nn.Parameter(torch.randn(1, self.num_channels, self.num_patches * patch_embed_dim))
+            self.pos_enc = nn.Parameter(
+                torch.randn(1, self.num_channels, self.num_patches * patch_embed_dim)
+            )
         elif pos_enc == "none":
             self.pos_enc = 0
 
@@ -114,9 +118,12 @@ class EMForecaster(nn.Module):
         else:
             num_output_channels = len(target_channels)
 
-        self.head = nn.ModuleList([
-            nn.Linear(self.num_patches*self.patch_embed_dim, self.pred_len) for i in range(num_output_channels)
-        ])
+        self.head = nn.ModuleList(
+            [
+                nn.Linear(self.num_patches * self.patch_embed_dim, self.pred_len)
+                for i in range(num_output_channels)
+            ]
+        )
 
         # Weight initialization
         self.apply(lambda m: xavier_init(m, seed=seed))
@@ -126,11 +133,17 @@ class EMForecaster(nn.Module):
         outputs = []
         for i in range(len(self.patch_model)):
             channel_input = x[:, i, :, :]  # (batch_size, num_patches, patch_dim)
-            channel_output = self.patch_model[i](channel_input)  # (batch_size, num_patches, patch_embed_dim)
-            outputs.append(channel_output.view(-1, 1, self.num_patches, self.patch_embed_dim))
+            channel_output = self.patch_model[i](
+                channel_input
+            )  # (batch_size, num_patches, patch_embed_dim)
+            outputs.append(
+                channel_output.view(-1, 1, self.num_patches, self.patch_embed_dim)
+            )
 
         # Stack the outputs along the channel dimension
-        x = torch.stack(outputs, dim=1)  # (batch_size, num_channels, num_patches, patch_embed_dim)
+        x = torch.stack(
+            outputs, dim=1
+        )  # (batch_size, num_channels, num_patches, patch_embed_dim)
 
         return x
 
@@ -141,28 +154,42 @@ class EMForecaster(nn.Module):
             x = self.revin(x, mode="norm")
 
         # Patching
-        x = self.patcher(x).squeeze() # (batch_size, num_channels, num_patches, patch_dim)
+        x = self.patcher(
+            x
+        ).squeeze()  # (batch_size, num_channels, num_patches, patch_dim)
 
         # Activation function (optional)
-        x = self.patch_act(x) # (batch_size, num_channels, num_patches, patch_dim)
+        x = self.patch_act(x)  # (batch_size, num_channels, num_patches, patch_dim)
 
         # Patch model
-        x = self.forward_patch_model(x) # (batch_size, num_channels, num_patches, patch_embed_dim)
+        x = self.forward_patch_model(
+            x
+        )  # (batch_size, num_channels, num_patches, patch_embed_dim)
 
         if self.return_head:
             # Flatten
-            x = x.view(-1, self.num_channels, self.num_patches*self.patch_embed_dim) # (B, 1, num_patches * patch_embed_dim)
+            x = x.view(
+                -1, self.num_channels, self.num_patches * self.patch_embed_dim
+            )  # (B, 1, num_patches * patch_embed_dim)
 
             # Positional Encoding
-            x = x + self.pos_enc # (B, self.num_channels, num_patches * patch_embed_dim)
+            x = (
+                x + self.pos_enc
+            )  # (B, self.num_channels, num_patches * patch_embed_dim)
 
             # Base Model + Linear Head
             outputs = []
             for i in range(len(self.head)):
-                channel_input = x[:, i, :] # (batch_size, num_patches * patch_embed_dim)
-                channel_output = self.head[i](channel_input) # (batch_size, pred_len)
-                outputs.append(channel_output.view(-1, 1, self.pred_len)) # (batch_size, 1, pred_len)
-            x = torch.stack(outputs, dim=1).squeeze(2) # (batch_size, num_output_channels, pred_len)
+                channel_input = x[
+                    :, i, :
+                ]  # (batch_size, num_patches * patch_embed_dim)
+                channel_output = self.head[i](channel_input)  # (batch_size, pred_len)
+                outputs.append(
+                    channel_output.view(-1, 1, self.pred_len)
+                )  # (batch_size, 1, pred_len)
+            x = torch.stack(outputs, dim=1).squeeze(
+                2
+            )  # (batch_size, num_output_channels, pred_len)
 
             # RevOUT
             if self.revout:
@@ -178,49 +205,55 @@ class EMForecaster(nn.Module):
             num_channels=self.num_channels,
             eps=self.eps_revin,
             affine=self.revin_affine,
-            target_channels=self.target_channels
+            target_channels=self.target_channels,
         )
 
     def get_patch_model(self) -> nn.Module:
         if self.patch_model_id == "DLinear":
-            return nn.ModuleList([
-                nn.Sequential(
-                    DLinear(
-                        task="forecasting",
-                        seq_len=self.patch_dim,
-                        pred_len=self.patch_embed_dim,
-                        num_channels=self.num_patches,
-                        moving_avg=self.args.emf.moving_avg,
-                        individual=False,
-                        return_head=False
+            return nn.ModuleList(
+                [
+                    nn.Sequential(
+                        DLinear(
+                            task="forecasting",
+                            seq_len=self.patch_dim,
+                            pred_len=self.patch_embed_dim,
+                            num_channels=self.num_patches,
+                            moving_avg=self.args.emf.moving_avg,
+                            individual=False,
+                            return_head=False,
+                        )
                     )
-                ) for i in range(self.num_channels)
-            ])
+                    for i in range(self.num_channels)
+                ]
+            )
         elif self.patch_model_id == "TSMixer":
-            return nn.ModuleList([
-                nn.Sequential(
-                    nn.Linear(self.patch_dim, self.patch_embed_dim),
-                    TSMixer(
-                        seq_len=self.patch_embed_dim,
-                        pred_len=1,
-                        num_enc_layers=self.args.emf.num_enc_layers,
-                        d_model=self.args.emf.d_model,
-                        num_channels=self.num_patches,
-                        dropout=self.args.emf.dropout,
-                        revin=False,
-                        revin_affine=False,
-                        revout=False,
-                        return_head=False
+            return nn.ModuleList(
+                [
+                    nn.Sequential(
+                        nn.Linear(self.patch_dim, self.patch_embed_dim),
+                        TSMixer(
+                            seq_len=self.patch_embed_dim,
+                            pred_len=1,
+                            num_enc_layers=self.args.emf.num_enc_layers,
+                            d_model=self.args.emf.d_model,
+                            num_channels=self.num_patches,
+                            dropout=self.args.emf.dropout,
+                            revin=False,
+                            revin_affine=False,
+                            revout=False,
+                            return_head=False,
+                        ),
                     )
-                ) for i in range(self.num_channels)
-            ])
+                    for i in range(self.num_channels)
+                ]
+            )
         elif self.patch_model_id == "Linear":
             return NotImplementedError
         else:
             raise NotImplementedError
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     from optrade.config.config import Global
 
     args = Global()
@@ -233,15 +266,16 @@ if __name__=="__main__":
     x = torch.randn(batch_size, num_channels, seq_len)
 
     model = EMForecaster(
-    args=args,
-    seq_len=seq_len,
-    pred_len=pred_len,
-    num_channels=num_channels,
-    patch_model_id="TSMixer",
-    revin=True,
-    revout = True,
-    revin_affine = True,
-    target_channels=[6, 3, 1],)
+        args=args,
+        seq_len=seq_len,
+        pred_len=pred_len,
+        num_channels=num_channels,
+        patch_model_id="TSMixer",
+        revin=True,
+        revout=True,
+        revin_affine=True,
+        target_channels=[6, 3, 1],
+    )
 
     y = model(x)
     print(f"Model output: {y.shape}")
