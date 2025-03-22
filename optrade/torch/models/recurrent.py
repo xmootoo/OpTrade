@@ -11,7 +11,7 @@ from optrade.torch.utils.utils import Reshape
 
 
 # TODO: Reimplement patching
-class RecurrentModel(nn.Module):
+class Model(nn.Module):
     def __init__(
         self,
         d_model,
@@ -37,7 +37,7 @@ class RecurrentModel(nn.Module):
         channel_independent=False,
         target_channels: Optional[list] = None,
     ) -> None:
-        super(RecurrentModel, self).__init__()
+        super(Model, self).__init__()
 
         """
         A Recurrent Neural Network (RNN) class that host a variety of different recurrent architectures including LSTM, Mamba, GRU, and the classic RNN.
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     x = torch.randn(batch_size, num_channels, seq_len).to(device)  # (B, M, L)
 
-    model = RecurrentModel(
+    model = Model(
         d_model=d_model,
         num_enc_layers=num_enc_layers,
         pred_len=pred_len,
