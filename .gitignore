@@ -12,3 +12,4 @@ poetry.lock
 dist/
 .read
 requirements.in
+docs/_build/
