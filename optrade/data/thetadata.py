@@ -332,8 +332,9 @@ def load_stock_data(
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for
     stocks across multiple exchanges, aggregated by interval_min (lowest resolution: 1min).
 
-    *NOTE: Data from OHLC ends at 15:59:00, while quote data ends at 16:00:00, so for simplicity we
-    remove all rows with 16:00:00 in datetime from quote data, before merging quote and OHLC data.
+    .. note::
+       Data from OHLC ends at 15:59:00, while quote data ends at 16:00:00, so for simplicity we
+       remove all rows with 16:00:00 in datetime from quote data, before merging quote and OHLC data.
 
     Args:
         root (str): The root symbol of the underlying security.
@@ -833,8 +834,9 @@ def load_option_data(
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for
     options across multiple exchanges, aggregated by interval_min (lowest resolution: 1min).
 
-    *NOTE: Data from OHLC ends at 15:59:00, while quote data ends at 16:00:00, so for simplicity we
-    remove all rows with 16:00:00 in datetime from quote data, before merging quote and OHLC data.
+    .. note::
+       Data from OHLC ends at 15:59:00, while quote data ends at 16:00:00, so for simplicity we
+       remove all rows with 16:00:00 in datetime from quote data, before merging quote and OHLC data.
 
     Args:
         root (str): The root symbol of the underlying security.
@@ -1123,8 +1125,9 @@ def load_all_data(
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for
     combined stocks and options across multiple exchanges, aggregated by interval_min (lowest resolution: 1min).
 
-    *NOTE: Data from OHLC ends at 15:59:00, while quote data ends at 16:00:00, so for simplicity we
-    remove all rows with 16:00:00 in datetime from quote data, before merging quote and OHLC data.
+    .. note::
+       Data from OHLC ends at 15:59:00, while quote data ends at 16:00:00, so for simplicity we
+       remove all rows with 16:00:00 in datetime from quote data, before merging quote and OHLC data.
 
     Args:
         root (str): The root symbol of the underlying security.

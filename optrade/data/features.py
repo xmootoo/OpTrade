@@ -33,7 +33,7 @@ def dt_features(
             Defaults to 16:00:00.
 
     Returns:
-        Original DataFrame with additional datetime feature columns, prefixed with dt_.
+        Original DataFrame with additional datetime feature columns, prefixed with dt\\_.
 
     Examples:
         Basic usage:
@@ -45,7 +45,7 @@ def dt_features(
         >>> feats = ["minute_of_day", "day_of_week"]
         >>> result = dt_features(data, feats)
         >>> result.columns
-        ["datetime", "dt_minute_of_day", "dt_day_of_week"]
+        Index(['datetime', 'dt_minute_of_day', 'dt_day_of_week'], dtype='object')
 
         Using custom datetime column name:
 
@@ -54,9 +54,8 @@ def dt_features(
         ... })
         >>> result = dt_features(data, feats, dt_col="timestamp")
         >>> result.columns
-        ["timestamp", "dt_minute_of_day", "dt_day_of_week"]
+        Index(['timestamp', 'dt_minute_of_day', 'dt_day_of_week'], dtype='object')
     """
-
     # Create a copy to avoid modifying the original
     result_df = df.copy()
 
@@ -183,20 +182,20 @@ def tte_features(
 
     Args:
         df (pd.DataFrame): DataFrame containing datetime column in format "YYYY-MM-DD HH:MM:SS".
-                           The function will try to identify a datetime column if not explicitly named "datetime".
+            The function will try to identify a datetime column if not explicitly named "datetime".
         feats (List): List of features to generate. Options include:
-                     - "linear": raw TTE in minutes
-                     - "inverse": 1/TTE (in minutes)
-                     - "sqrt": √(TTE minutes)
-                     - "inverse_sqrt": 1/√(TTE minutes)
-                     - "exp_decay": exp(-TTE/contract_length)
+            - "linear": raw TTE in minutes
+            - "inverse": 1/TTE (in minutes)
+            - "sqrt": √(TTE minutes)
+            - "inverse_sqrt": 1/√(TTE minutes)
+            - "exp_decay": exp(-TTE/contract_length)
         exp (str): The expiration date of the option in YYYYMMDD format. The expiration time
-                  is assumed to be 16:30 (4:30 PM) on the expiration date.
+            is assumed to be 16:30 (4:30 PM) on the expiration date.
 
     Returns:
         pd.DataFrame: The original DataFrame with additional TTE feature columns. Each requested
-                     feature will be added with a prefix "tte_" (e.g., "tte_inverse").
-                     All TTE features are guaranteed to be float64 type.
+            feature will be added with a prefix "tte\\_" (e.g., "tte\\_inverse").
+            All TTE features are guaranteed to be float64 type.
     """
     if feats == []:
         return df
@@ -355,53 +354,53 @@ def transform_features(
         - cos_hour_of_week: Cosine of hour of the week
 
     Examples:
-        Basic usage with core features only:
+        Basic usage::
 
-        from optrade.data.thetadata.contracts import Contract
+            from optrade.data.thetadata.contracts import Contract
+            contract = Contract()
+            df = contract.load_data()
 
-        contract = Contract()
-        df = contract.load_data()
+            # TTE features
+            tte_feats = ["sqrt", "exp_decay"]
 
-        # TTE features
-        tte_feats = ["sqrt", "exp_decay"]
+            # Datetime features
+            datetime_feats = ["sin_minute_of_day", "cos_minute_of_day",
+                              "sin_hour_of_week", "cos_hour_of_week"]
 
-        # Datetime features
-        datetime_feats = ["sin_minute_of_day", "cos_minute_of_day", "sin_hour_of_week", "cos_hour_of_week"]
+            # Select features
+            core_feats = [
+                "option_returns",
+                "stock_returns",
+                "distance_to_strike",
+                "moneyness",
+                "option_lob_imbalance",
+                "option_quote_spread",
+                "stock_lob_imbalance",
+                "stock_quote_spread",
+                "option_mid_price",
+                "option_bid_size",
+                "option_bid",
+                "option_ask_size",
+                "option_close",
+                "option_volume",
+                "option_count",
+                "stock_mid_price",
+                "stock_bid_size",
+                "stock_bid",
+                "stock_ask_size",
+                "stock_ask",
+                "stock_volume",
+                "stock_count",
+            ]
 
-        # Select features
-        core_feats = [
-            "option_returns",
-            "stock_returns",
-            "distance_to_strike",
-            "moneyness",
-            "option_lob_imbalance",
-            "option_quote_spread",
-            "stock_lob_imbalance",
-            "stock_quote_spread",
-            "option_mid_price",
-            "option_bid_size",
-            "option_bid",
-            "option_ask_size",
-            "option_close",
-            "option_volume",
-            "option_count",
-            "stock_mid_price",
-            "stock_bid_size",
-            "stock_bid",
-            "stock_ask_size",
-            "stock_ask",
-            "stock_volume",
-            "stock_count",
-        ]
-
-        df = transform_features(
-            df=df,
-            core_feats=core_feats,
-            tte_feats=tte_feats,
-            datetime_feats=datetime_feats,
-            strike=contract.strike,
-            exp=contract.exp
-        )
+            df = transform_features(
+                df=df,
+                core_feats=core_feats,
+                tte_feats=tte_feats,
+                datetime_feats=datetime_feats,
+                strike=contract.strike,
+                exp=contract.exp
+            )
     """
 
     # Generate additional features

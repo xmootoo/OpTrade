@@ -15,11 +15,6 @@ def main():
     print("Installing project with Poetry...")
     subprocess.check_call(["poetry", "install", "--with=docs", "--no-interaction"])
 
-    # Note: make_templates_dir.py has been removed as requested
-
-    # We're using autosummary instead of sphinx-apidoc, so we don't need to run generate_apidoc.py
-    # The autosummary extension will handle generating documentation for all modules automatically
-
     return 0
 
 if __name__ == "__main__":
