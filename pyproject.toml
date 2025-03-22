@@ -27,6 +27,7 @@ yfinance = "^0.2.54"
 pandas-market-calendars = "^4.6.1"
 scikit-learn = "^1.6.1"
 torch = "^2.6.0"
+pandas-datareader = "^0.10.0"
 
 [tool.poetry.group.dev]
 optional = true
