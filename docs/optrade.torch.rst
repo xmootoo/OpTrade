@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    optrade.torch.models
+   optrade.torch.utils
 
 Module contents
 ---------------
