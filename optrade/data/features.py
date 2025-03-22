@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
 
+
 def dt_features(
     df: pd.DataFrame,
     feats: List[str],
@@ -70,7 +71,11 @@ def dt_features(
                 dt_col = datetime_cols[0]
             else:
                 # As a fallback, look for any column with a name containing "date" or "time"
-                time_related_cols = [col for col in df.columns if "date" in col.lower() or "time" in col.lower()]
+                time_related_cols = [
+                    col
+                    for col in df.columns
+                    if "date" in col.lower() or "time" in col.lower()
+                ]
                 if time_related_cols:
                     dt_col = time_related_cols[0]
                 else:
@@ -102,18 +107,26 @@ def dt_features(
     if "sin_minute_of_day" in feats or "cos_minute_of_day" in feats:
         time_minutes = result_df[dt_col].dt.hour * 60 + result_df[dt_col].dt.minute
         # Normalize to [0, 2π] across trading day
-        normalized_time = 2 * np.pi * (time_minutes - open_minutes) / trading_minutes_per_day
+        normalized_time = (
+            2 * np.pi * (time_minutes - open_minutes) / trading_minutes_per_day
+        )
 
         if "sin_minute_of_day" in feats:
-            result_df["dt_sin_minute_of_day"] = np.sin(normalized_time).astype("float64")
+            result_df["dt_sin_minute_of_day"] = np.sin(normalized_time).astype(
+                "float64"
+            )
         if "cos_minute_of_day" in feats:
-            result_df["dt_cos_minute_of_day"] = np.cos(normalized_time).astype("float64")
+            result_df["dt_cos_minute_of_day"] = np.cos(normalized_time).astype(
+                "float64"
+            )
 
     if "day_of_week" in feats:
         result_df["dt_day_of_week"] = result_df[dt_col].dt.day_of_week.astype("float64")
 
     # Hour of week features - considering a 5-day trading week
-    if any(f in feats for f in ["hour_of_week", "sin_hour_of_week", "cos_hour_of_week"]):
+    if any(
+        f in feats for f in ["hour_of_week", "sin_hour_of_week", "cos_hour_of_week"]
+    ):
         # Calculate total trading hours in a week (5 trading days)
         trading_hours_per_day = trading_minutes_per_day / 60
         total_trading_hours_per_week = 5 * trading_hours_per_day
@@ -128,7 +141,9 @@ def dt_features(
         # Then add hours elapsed in the current day
         time_minutes = result_df[dt_col].dt.hour * 60 + result_df[dt_col].dt.minute
         # Only count minutes during market hours
-        market_minutes = np.maximum(0, np.minimum(time_minutes - open_minutes, trading_minutes_per_day))
+        market_minutes = np.maximum(
+            0, np.minimum(time_minutes - open_minutes, trading_minutes_per_day)
+        )
         hours_from_current_day = market_minutes / 60
 
         # Total hours elapsed in the trading week
@@ -136,18 +151,27 @@ def dt_features(
 
         if "hour_of_week" in feats:
             # Normalize to [0, 1] across the trading week
-            result_df["dt_hour_of_week"] = (hours_elapsed / total_trading_hours_per_week).astype("float64")
+            result_df["dt_hour_of_week"] = (
+                hours_elapsed / total_trading_hours_per_week
+            ).astype("float64")
 
         if "sin_hour_of_week" in feats or "cos_hour_of_week" in feats:
             # Normalize to [0, 2π] across the trading week
-            normalized_week_time = 2 * np.pi * hours_elapsed / total_trading_hours_per_week
+            normalized_week_time = (
+                2 * np.pi * hours_elapsed / total_trading_hours_per_week
+            )
 
             if "sin_hour_of_week" in feats:
-                result_df["dt_sin_hour_of_week"] = np.sin(normalized_week_time).astype("float64")
+                result_df["dt_sin_hour_of_week"] = np.sin(normalized_week_time).astype(
+                    "float64"
+                )
             if "cos_hour_of_week" in feats:
-                result_df["dt_cos_hour_of_week"] = np.cos(normalized_week_time).astype("float64")
+                result_df["dt_cos_hour_of_week"] = np.cos(normalized_week_time).astype(
+                    "float64"
+                )
 
     return result_df
+
 
 def tte_features(
     df: pd.DataFrame,
@@ -174,7 +198,7 @@ def tte_features(
                      feature will be added with a prefix "tte_" (e.g., "tte_inverse").
                      All TTE features are guaranteed to be float64 type.
     """
-    if feats==[]:
+    if feats == []:
         return df
 
     # Create a copy to avoid modifying the original
@@ -197,7 +221,11 @@ def tte_features(
             dt_col = datetime_cols[0]
         else:
             # As a fallback, look for any column with a name containing "date" or "time"
-            time_related_cols = [col for col in df.columns if "date" in col.lower() or "time" in col.lower()]
+            time_related_cols = [
+                col
+                for col in df.columns
+                if "date" in col.lower() or "time" in col.lower()
+            ]
             if time_related_cols:
                 dt_col = time_related_cols[0]
             else:
@@ -208,7 +236,9 @@ def tte_features(
         result_df[dt_col] = pd.to_datetime(df[dt_col], errors="coerce")
 
     # Calculate TTE in minutes as float64
-    result_df["tte_minutes"] = (exp_datetime - result_df[dt_col]).dt.total_seconds().astype("float64") / 60
+    result_df["tte_minutes"] = (
+        exp_datetime - result_df[dt_col]
+    ).dt.total_seconds().astype("float64") / 60
 
     # Calculate maximum TTE (contract length in minutes)
     contract_length = result_df["tte_minutes"].max()
@@ -222,9 +252,7 @@ def tte_features(
         # Inverse TTE (1/minutes)
         # Handle potential division by zero with np.inf handling
         result_df["tte_inverse"] = np.where(
-            result_df["tte_minutes"] > 0,
-            1 / result_df["tte_minutes"],
-            np.inf
+            result_df["tte_minutes"] > 0, 1 / result_df["tte_minutes"], np.inf
         ).astype("float64")
 
     if "sqrt" in feats or "all" in feats:
@@ -235,14 +263,14 @@ def tte_features(
         # Inverse square root of TTE
         # Handle potential division by zero
         result_df["tte_inverse_sqrt"] = np.where(
-            result_df["tte_minutes"] > 0,
-            1 / np.sqrt(result_df["tte_minutes"]),
-            np.inf
+            result_df["tte_minutes"] > 0, 1 / np.sqrt(result_df["tte_minutes"]), np.inf
         ).astype("float64")
 
     if "exp_decay" in feats or "all" in feats:
         # Exponential decay with lambda = 1/contract_length
-        result_df["tte_exp_decay"] = np.exp(-result_df["tte_minutes"] / contract_length).astype("float64")
+        result_df["tte_exp_decay"] = np.exp(
+            -result_df["tte_minutes"] / contract_length
+        ).astype("float64")
 
     # Remove intermediate calculation if not requested
     if "linear" not in feats and "all" not in feats:
@@ -253,14 +281,15 @@ def tte_features(
 
     return result_df
 
+
 def transform_features(
     df: pd.DataFrame,
     core_feats: List[str],
-    tte_feats: Optional[List[str]]=None,
-    datetime_feats: Optional[List[str]]=None,
-    strike: Optional[float]=None,
-    exp: Optional[str]=None,
-    keep_datetime: bool=False,
+    tte_feats: Optional[List[str]] = None,
+    datetime_feats: Optional[List[str]] = None,
+    strike: Optional[float] = None,
+    exp: Optional[str] = None,
+    keep_datetime: bool = False,
 ) -> pd.DataFrame:
     """
     Selects and transforms features from a DataFrame based on specified feature lists.
@@ -403,12 +432,13 @@ def transform_features(
         if first_time.hour == 9 and first_time.minute == 30:
             df = df.iloc[1:].reset_index(drop=True)
 
-
     if "distance_to_strike" in core_feats:
-        assert strike is not None, "Strike price required for distance_to_strike feature"
+        assert (
+            strike is not None
+        ), "Strike price required for distance_to_strike feature"
 
         # Calculate distance to strike and add to dataframe
-        distance = (float(strike) - df["stock_mid_price"])
+        distance = float(strike) - df["stock_mid_price"]
         df["distance_to_strike"] = distance
 
     if "moneyness" in core_feats:
@@ -419,32 +449,42 @@ def transform_features(
 
     if "stock_lob_imbalance" in core_feats:
         # Calculate limit order book (LOB) imbalance and add to dataframe
-        df["stock_lob_imbalance"] = (df["stock_ask_size"] - df["stock_bid_size"]) / (df["stock_bid_size"] + df["stock_ask_size"])
+        df["stock_lob_imbalance"] = (df["stock_ask_size"] - df["stock_bid_size"]) / (
+            df["stock_bid_size"] + df["stock_ask_size"]
+        )
 
     if "option_lob_imbalance" in core_feats:
         # Calculate limit order book (LOB) imbalance and add to dataframe
-        df["option_lob_imbalance"] = (df["option_ask_size"] - df["option_bid_size"]) / (df["option_bid_size"] + df["option_ask_size"])
+        df["option_lob_imbalance"] = (df["option_ask_size"] - df["option_bid_size"]) / (
+            df["option_bid_size"] + df["option_ask_size"]
+        )
 
     if "stock_quote_spread" in core_feats:
         # Calculate stock quote spread normalized by mid-price
-        df["stock_quote_spread"] = (df["stock_ask"] - df["stock_bid"]) / ((df["stock_ask"] + df["stock_bid"])/2)
+        df["stock_quote_spread"] = (df["stock_ask"] - df["stock_bid"]) / (
+            (df["stock_ask"] + df["stock_bid"]) / 2
+        )
 
     if "option_quote_spread" in core_feats:
         # Calculate option quote spread normalized by mid-price
-        df["option_quote_spread"] = (df["option_ask"] - df["option_bid"]) / ((df["option_ask"] + df["option_bid"])/2)
+        df["option_quote_spread"] = (df["option_ask"] - df["option_bid"]) / (
+            (df["option_ask"] + df["option_bid"]) / 2
+        )
 
     # Select features
-    tte_index = ["tte_" + tte_feats[i] for i in range(len(tte_feats))] if tte_feats is not None else []
-    datetime_index = ["dt_" + datetime_feats[i] for i in range(len(datetime_feats))] if datetime_feats is not None else []
+    tte_index = (
+        ["tte_" + tte_feats[i] for i in range(len(tte_feats))]
+        if tte_feats is not None
+        else []
+    )
+    datetime_index = (
+        ["dt_" + datetime_feats[i] for i in range(len(datetime_feats))]
+        if datetime_feats is not None
+        else []
+    )
     selected_feats = core_feats + tte_index + datetime_index
 
     if keep_datetime:
         selected_feats += ["datetime"]
-
-    from rich.console import Console
-
-    ctx = Console()
-    ctx.log(f"Selected feats: {selected_feats}")
-    ctx.log(df.columns)
 
     return df[selected_feats]

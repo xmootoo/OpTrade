@@ -12,7 +12,11 @@ from optrade.data.contracts import get_contract_datasets
 
 # Datasets
 from optrade.data.contracts import ContractDataset
-from optrade.utils.data.error import DataValidationError, INCOMPATIBLE_START_DATE, INCOMPATIBLE_END_DATE
+from optrade.utils.error_handlers import (
+    DataValidationError,
+    INCOMPATIBLE_START_DATE,
+    INCOMPATIBLE_END_DATE,
+)
 
 # Features
 from optrade.data.features import transform_features
@@ -20,47 +24,59 @@ from optrade.data.features import transform_features
 # Get absolute path for this script
 SCRIPT_DIR = Path(__file__).resolve().parent
 
+
 class ForecastingDataset(Dataset):
     """
     Args:
         data (torch.Tensor): Tensor of shape (num_time_steps, num_features)
         seq_len (int): Length of the lookback window
         pred_len (int): Length of the forecast window
-        target_channels (list): Channels to forecast. By default target_channels=[0], which corresponds to the
+        target_channels (list): Channels to forecast. By default target_channels=["option_returns"], which corresponds to the
                                 option midprice returns. If None, all channels will be returned for the target.
-        dtype (str): Desired data type of the tensor.
-    **getitem**:
-        Returns:
-            input (torch.Tensor): Lookback window of shape (seq_len, num_features) transposed to (num_features, seq_len)
-            target (torch.Tensor): Target window of shape (pred_len, len(target_channels)) transposed to (len(target_channels), pred_len)
+        dtype (str): Desired data type of the tensor. Default is "float32".
     """
+
     def __init__(
         self,
-        data: Union[torch.Tensor, np.ndarray],
+        data: pd.DataFrame,
         seq_len: int,
         pred_len: int,
-        target_channels: Optional[List[int]] = [0],
-        dtype: str = "float32"
+        target_channels: Optional[List[str]] = None,
+        dtype: str = "float32",
     ) -> None:
-        self.dtype = eval("torch." + dtype)
-        if not torch.is_tensor(data):
-            self.data = torch.from_numpy(data).type(self.dtype)
-        else:
-            self.data = data.type(self.dtype)
+        self.data = torch.tensor(data.to_numpy(), dtype=eval("torch." + dtype))
         self.seq_len = seq_len
         self.pred_len = pred_len
-        self.target_channels = target_channels
+
+        if target_channels is not None and len(target_channels) > 0:
+            feature_names = data.columns.to_list()
+            self.target_channels_idx = [
+                feature_names.index(channel) for channel in target_channels
+            ]
 
     def __len__(self) -> int:
         return self.data.shape[0] - self.seq_len - self.pred_len
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        input = self.data[idx:idx+self.seq_len]
+        """
+        Args:
+            idx (int): Index of the starting point of the lookback window
+
+        Returns:
+            input (torch.Tensor): Lookback window of shape (num_features, seq_len)
+            target (torch.Tensor): Target window of shape (len(target_channels), pred_len) if target_channels is not None, otherwise
+                                   (num_features, pred_len).
+        """
+        input = self.data[idx : idx + self.seq_len]
         if self.target_channels:
-            target = self.data[idx+self.seq_len:idx+self.seq_len+self.pred_len, self.target_channels]
+            target = self.data[
+                idx + self.seq_len : idx + self.seq_len + self.pred_len,
+                self.target_channels_idx,
+            ]
         else:
-            target = self.data[idx+self.seq_len:idx+self.seq_len+self.pred_len]
+            target = self.data[idx + self.seq_len : idx + self.seq_len + self.pred_len]
         return input.transpose(0, 1), target.transpose(0, 1)
+
 
 def normalize_concat_dataset(
     concat_dataset: ConcatDataset,
@@ -85,6 +101,7 @@ def normalize_concat_dataset(
 
         # Replace data with normalized version
         dataset.data = torch.tensor(normalized_data, dtype=dtype)
+
 
 def normalize_datasets(
     train_dataset: ConcatDataset,
@@ -130,22 +147,23 @@ def normalize_datasets(
 
     return train_dataset, val_dataset, test_dataset, scaler
 
+
 def get_forecasting_dataset(
     contracts: ContractDataset,
-    core_feats: List[str]=["option_returns"],
-    tte_feats: List[str]=["sqrt"],
-    datetime_feats: List[str]=["sin_timeofday"],
-    tte_tolerance: Tuple[int, int]=(25, 35),
-    clean_up: bool=True,
-    offline: bool=False,
-    intraday: bool=False,
-    target_channels: list=[0],
-    seq_len: int=100,
-    pred_len: int=10,
-    dtype: str="float64",
-    save_dir: Optional[str]=None,
-    download_only: bool=False,
-    verbose: bool=False,
+    seq_len: int,
+    pred_len: int,
+    tte_tolerance: Tuple[int, int],
+    core_feats: List[str] = ["option_returns"],
+    tte_feats: Optional[List[str]] = None,
+    datetime_feats: Optional[List[str]] = None,
+    clean_up: bool = True,
+    offline: bool = False,
+    intraday: bool = False,
+    target_channels: Optional[List[str]] = None,
+    dtype: str = "float32",
+    save_dir: Optional[str] = None,
+    download_only: bool = False,
+    verbose: bool = False,
 ) -> Dataset:
     """
     Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
@@ -160,12 +178,12 @@ def get_forecasting_dataset(
         clean_up: Whether to clean up the data after use
         offline: Whether to load saved contracts from disk
         intraday: Whether to use intraday data
-        target_channels: List of target channels to include
-        seq_len: Sequence length
-        pred_len: Prediction length
+        target_channels: List of target channels to include in the target tensor. If None, all channels will be included.
+        seq_len: Sequence length of lookback window (input)
+        pred_len: Prediction length of forecast window (target)
         dtype: Data type for the PyTorch tensors
-        save_dir: Directory to save/load contracts
-        download_only: Whether to download data only
+        save_dir: Save directory
+        download_only: Whether to download data only (used mainly for Universe class)
         verbose: Whether to print verbose output
 
     Returns:
@@ -186,9 +204,8 @@ def get_forecasting_dataset(
         while not move_to_next_contract:
             try:
                 df = contract.load_data(
-                    save_dir=save_dir,
-                    clean_up=clean_up,
-                    offline=offline)
+                    save_dir=save_dir, clean_up=clean_up, offline=offline
+                )
 
                 if not download_only:
                     # Select and add features
@@ -199,10 +216,16 @@ def get_forecasting_dataset(
                         datetime_feats=datetime_feats,
                         strike=contract.strike,
                         exp=contract.exp,
-                    ).to_numpy()
+                    )
 
                     # Convert to PyTorch dataset
-                    dataset = ForecastingDataset(data=data, seq_len=seq_len, pred_len=pred_len, target_channels=target_channels, dtype=dtype)
+                    dataset = ForecastingDataset(
+                        data=data,
+                        seq_len=seq_len,
+                        pred_len=pred_len,
+                        target_channels=target_channels,
+                        dtype=dtype,
+                    )
                     dataset_list.append(dataset)
                 else:
                     pass
@@ -215,45 +238,62 @@ def get_forecasting_dataset(
                     new_start_date = e.real_start_date
 
                     # Check if (exp - new_start_date) is within tte_tolerance. If not, move to the next contract
-                    if pd.to_datetime(contract.exp, format='%Y%m%d') - pd.to_datetime(new_start_date, format='%Y%m%d') < pd.Timedelta(days=tte_tolerance[0]):
+                    if pd.to_datetime(contract.exp, format="%Y%m%d") - pd.to_datetime(
+                        new_start_date, format="%Y%m%d"
+                    ) < pd.Timedelta(days=tte_tolerance[0]):
                         if verbose:
-                            ctx.log(f"Option contract start date mismatch. New start date {new_start_date} is too close to expiration {contract.exp}. Moving to next contract.")
+                            ctx.log(
+                                f"Option contract start date mismatch. New start date {new_start_date} is too close to expiration {contract.exp}. Moving to next contract."
+                            )
                         move_to_next_contract = True
                     # If tte_tolerance is satisfied, update the contract with the new start date and try again
                     else:
                         if verbose:
-                            ctx.log(f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}")
+                            ctx.log(
+                                f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}"
+                            )
                         contract.start_date = new_start_date
                 elif e.error_code == INCOMPATIBLE_END_DATE:
                     new_start_date = e.real_start_date
                     new_exp = e.real_end_date
 
                     # Check if (new_exp - new_start_date) is within tte_tolerance. If not, move to the next contract
-                    if pd.to_datetime(new_exp, format='%Y%m%d') - pd.to_datetime(new_start_date, format='%Y%m%d') < pd.Timedelta(days=tte_tolerance[0]):
+                    if pd.to_datetime(new_exp, format="%Y%m%d") - pd.to_datetime(
+                        new_start_date, format="%Y%m%d"
+                    ) < pd.Timedelta(days=tte_tolerance[0]):
                         if verbose:
-                            ctx.log(f"Option contract start date and end date mismatch. New start date {new_start_date} is too close to new expiration {new_exp}. Moving to next contract.")
+                            ctx.log(
+                                f"Option contract start date and end date mismatch. New start date {new_start_date} is too close to new expiration {new_exp}. Moving to next contract."
+                            )
                         move_to_next_contract = True
                     # If tte_tolerance is satisfied, update contract expiration to the observed end date of option data
                     else:
                         # For other DataValidationError types, move to the next contract
                         if verbose:
-                            ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
+                            ctx.log(
+                                f"DataValidationError for {contract}: {e}. Moving to next contract."
+                            )
                         move_to_next_contract = True
                         contract.exp = new_exp
                 else:
                     # For other DataValidationError types, move to the next contract
                     if verbose:
-                        ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
+                        ctx.log(
+                            f"DataValidationError for {contract}: {e}. Moving to next contract."
+                        )
                     move_to_next_contract = True
             except Exception as e:
                 if verbose:
-                    ctx.log(f"Unknown error for {contract}: {e}. Moving to next contract.")
+                    ctx.log(
+                        f"Unknown error for {contract}: {e}. Moving to next contract."
+                    )
                 move_to_next_contract = True
 
     if download_only:
         return
     else:
         return ConcatDataset(dataset_list)
+
 
 def get_forecasting_loaders(
     root: str = "AAPL",
@@ -283,15 +323,17 @@ def get_forecasting_loaders(
     clean_up: bool = True,
     offline: bool = False,
     save_dir: Optional[str] = None,
-    verbose: bool=False,
-    scaling: bool=True,
-    intraday: bool=False,
-    target_channels: List[int]=[0],
-    seq_len: int=100,
-    pred_len: int=10,
-    dtype: str="float64",
-) -> Union[Tuple[DataLoader, DataLoader, DataLoader],
-           Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]]:
+    verbose: bool = False,
+    scaling: bool = True,
+    intraday: bool = False,
+    target_channels: List[int] = [0],
+    seq_len: int = 100,
+    pred_len: int = 10,
+    dtype: str = "float64",
+) -> Union[
+    Tuple[DataLoader, DataLoader, DataLoader],
+    Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
+]:
     """
 
     Forms training, validation, and test dataloaders for option contract data.
@@ -405,7 +447,7 @@ def get_forecasting_loaders(
         train_dataset, val_dataset, test_dataset, scaler = normalize_datasets(
             train_dataset=train_dataset,
             val_dataset=val_dataset,
-            test_dataset=test_dataset
+            test_dataset=test_dataset,
         )
     else:
         scaler = None
@@ -419,7 +461,7 @@ def get_forecasting_loaders(
         num_workers=num_workers,
         persistent_workers=True,
         prefetch_factor=prefetch_factor,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
     )
     val_loader = DataLoader(
         dataset=val_dataset,
@@ -429,7 +471,7 @@ def get_forecasting_loaders(
         num_workers=num_workers,
         persistent_workers=True,
         prefetch_factor=prefetch_factor,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
     )
     test_loader = DataLoader(
         dataset=test_dataset,
@@ -439,17 +481,18 @@ def get_forecasting_loaders(
         num_workers=num_workers,
         persistent_workers=True,
         prefetch_factor=prefetch_factor,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
     )
 
     return train_loader, val_loader, test_loader, scaler
+
 
 def create_windows(
     df: pd.DataFrame,
     seq_len: int,
     pred_len: int,
     window_stride: int,
-    intraday: bool=False,
+    intraday: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generates rolling windows of data for a given DataFrame. Should be used primarily for scikit-learn models and/or intraday modeling,
@@ -473,7 +516,7 @@ def create_windows(
     df_copy = df.copy()
 
     # Define input features (all columns except datetime)
-    feature_columns = [col for col in df_copy.columns if col != 'datetime']
+    feature_columns = [col for col in df_copy.columns if col != "datetime"]
     inputs, targets = [], []
 
     if intraday:
@@ -489,7 +532,7 @@ def create_windows(
 
             # Since returns will be part of the input features but don't exist for 9:30am
             # we remove the market open (9:30am) of each day
-            first_time = day_data['datetime'].iloc[0].time()
+            first_time = day_data["datetime"].iloc[0].time()
             if first_time.hour == 9 and first_time.minute == 30:
                 day_data = day_data.iloc[1:].reset_index(drop=True)
                 print(f"Day data after removing 9:30am: {day_data.tail()}")
@@ -503,12 +546,12 @@ def create_windows(
 
             # Get input features and targets, convert to NumPy arrays
             day_features = day_data[feature_columns].to_numpy()
-            day_targets = day_data['option_returns'].to_numpy().reshape(-1, 1)
+            day_targets = day_data["option_returns"].to_numpy().reshape(-1, 1)
 
             # Apply the sliding window technique to obtain windows for inputs and targets
             for i in range(0, len(day_data) - seq_len - pred_len + 1, window_stride):
-                inputs.append(day_features[i:i+seq_len])
-                targets.append(day_targets[i+seq_len:i+seq_len+pred_len])
+                inputs.append(day_features[i : i + seq_len])
+                targets.append(day_targets[i + seq_len : i + seq_len + pred_len])
     else:
         # Since returns will be part of the input features but don't exist for first market open
         # i.e. 9:30am on the first day, we remove it
@@ -518,37 +561,43 @@ def create_windows(
 
         # Extract features and targets
         features = df_copy[feature_columns].to_numpy()
-        targets_data = df_copy['option_returns'].to_numpy().reshape(-1, 1)
+        targets_data = df_copy["option_returns"].to_numpy().reshape(-1, 1)
 
         # Create windows
         for i in range(0, len(df_copy) - seq_len - pred_len + 1, window_stride):
-            inputs.append(features[i:i+seq_len])
-            targets.append(targets_data[i+seq_len:i+seq_len+pred_len])
+            inputs.append(features[i : i + seq_len])
+            targets.append(targets_data[i + seq_len : i + seq_len + pred_len])
 
     # Convert to numpy arrays
     return np.array(inputs), np.array(targets)
 
+
 if __name__ == "__main__":
     # Test: get_forecasting_loaders
-    root="AMZN"
-    total_start_date="20230101"
-    total_end_date="20230601"
-    right="C"
-    interval_min=60
-    contract_stride=5
-    target_tte=30
-    tte_tolerance=(15, 45)
-    moneyness="ATM"
-    volatility_scaled=True
-    volatility_scalar=0.01
-    volatility_type="period"
-    target_band=0.05
+    root = "AMZN"
+    total_start_date = "20230101"
+    total_end_date = "20230601"
+    right = "C"
+    interval_min = 60
+    contract_stride = 5
+    target_tte = 30
+    tte_tolerance = (15, 45)
+    moneyness = "ATM"
+    volatility_scaled = True
+    volatility_scalar = 0.01
+    volatility_type = "period"
+    target_band = 0.05
 
     # TTE features
     tte_feats = ["sqrt", "exp_decay"]
 
     # Datetime features
-    datetime_feats = ["sin_minute_of_day", "cos_minute_of_day", "sin_hour_of_week", "cos_hour_of_week"]
+    datetime_feats = [
+        "sin_minute_of_day",
+        "cos_minute_of_day",
+        "sin_hour_of_week",
+        "cos_hour_of_week",
+    ]
 
     # Select features
     core_feats = [
@@ -609,12 +658,11 @@ if __name__ == "__main__":
     print(f"Num val examples: {len(val_loader.dataset)}")
     print(f"Num test examples: {len(test_loader.dataset)}")
 
-
-
     # Testing: create_windows
     from optrade.data.features import transform_features
     from optrade.data.contracts import Contract
     from rich.console import Console
+
     console = Console()
 
     contract = Contract.find_optimal(
@@ -624,19 +672,21 @@ if __name__ == "__main__":
         target_band=0.05,
         moneyness="OTM",
         interval_min=1,
-        right="C"
+        right="C",
     )
 
-    df = contract.load_data(
-        clean_up=True,
-        offline=False
-    )
+    df = contract.load_data(clean_up=True, offline=False)
 
     # TTE features
     tte_feats = ["sqrt", "exp_decay"]
 
     # Datetime features
-    datetime_feats = ["sin_minute_of_day", "cos_minute_of_day", "sin_hour_of_week", "cos_hour_of_week"]
+    datetime_feats = [
+        "sin_minute_of_day",
+        "cos_minute_of_day",
+        "sin_hour_of_week",
+        "cos_hour_of_week",
+    ]
 
     # Select features
     core_feats = [
@@ -671,16 +721,12 @@ if __name__ == "__main__":
         datetime_feats=datetime_feats,
         strike=contract.strike,
         exp=contract.exp,
-        keep_datetime=True
+        keep_datetime=True,
     )
     print(df.columns)
 
     x, y = create_windows(
-        df=df,
-        seq_len=30,
-        pred_len=6,
-        window_stride=1,
-        intraday=False
+        df=df, seq_len=30, pred_len=6, window_stride=1, intraday=False
     )
 
     print(x.shape, y.shape)

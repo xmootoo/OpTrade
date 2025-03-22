@@ -11,11 +11,12 @@ import pandas_market_calendars as mcal
 from optrade.data.thetadata import load_all_data
 from optrade.data.thetadata import find_optimal_exp
 from optrade.data.thetadata import find_optimal_strike
-from optrade.utils.data.pathing import set_contract_dir
-from optrade.utils.data.error import DataValidationError, MARKET_HOLIDAY, WEEKEND
-from optrade.utils.data.volatility import get_train_historical_vol
+from optrade.utils.directories import set_contract_dir
+from optrade.utils.error_handlers import DataValidationError, MARKET_HOLIDAY, WEEKEND
+from optrade.utils.market_metrics import get_train_historical_vol
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
 
 class Contract(BaseModel):
     """
@@ -26,9 +27,15 @@ class Contract(BaseModel):
     validation and serialization.
     """
 
-    root: str = Field(default="AAPL", description="Root symbol of the underlying security")
-    start_date: str = Field(default="20241107", description="Start date in YYYYMMDD format")
-    exp: str = Field(default="20241206", description="Expiration date in YYYYMMDD format")
+    root: str = Field(
+        default="AAPL", description="Root symbol of the underlying security"
+    )
+    start_date: str = Field(
+        default="20241107", description="Start date in YYYYMMDD format"
+    )
+    exp: str = Field(
+        default="20241206", description="Expiration date in YYYYMMDD format"
+    )
     strike: float = Field(default=225, description="Strike price")
     interval_min: int = Field(default=1, description="Interval in minutes")
     right: str = Field(default="C", description="Option type (C for call, P for put)")
@@ -84,7 +91,7 @@ class Contract(BaseModel):
             raise DataValidationError(
                 message=f"Start date {start_date} falls on a weekend. Markets are closed.",
                 error_code=WEEKEND,
-                verbose=verbose
+                verbose=verbose,
             )
 
         # Check if it's a market holiday
@@ -95,7 +102,7 @@ class Contract(BaseModel):
             raise DataValidationError(
                 message=f"Start date {start_date} is a market holiday. Markets are closed.",
                 error_code=MARKET_HOLIDAY,
-                verbose=verbose
+                verbose=verbose,
             )
 
         strike = find_optimal_strike(
@@ -113,7 +120,9 @@ class Contract(BaseModel):
         )
 
         if verbose:
-            ctx.log(f"Identified optimal contract with strike price of ${strike} expiring on {exp}")
+            ctx.log(
+                f"Identified optimal contract with strike price of ${strike} expiring on {exp}"
+            )
 
         return cls(
             root=root,
@@ -121,14 +130,15 @@ class Contract(BaseModel):
             exp=exp,
             strike=strike,
             interval_min=interval_min,
-            right=right
+            right=right,
         )
 
     def load_data(
         self,
-        clean_up: bool=False,
-        offline: bool=False,
-        save_dir: Optional[str]=None) -> pd.DataFrame:
+        clean_up: bool = False,
+        offline: bool = False,
+        save_dir: Optional[str] = None,
+    ) -> pd.DataFrame:
         """Load data for the selected contract.
 
         Args:
@@ -148,7 +158,9 @@ class Contract(BaseModel):
             strike=self.strike,
             clean_up=clean_up,
             offline=offline,
-            save_dir=save_dir)
+            save_dir=save_dir,
+        )
+
 
 class ContractDataset:
     """
@@ -171,7 +183,7 @@ class ContractDataset:
         volatility_scalar: float = 1.0,
         hist_vol: Optional[float] = None,
         verbose: bool = False,
-        save_dir: Optional[str] = None
+        save_dir: Optional[str] = None,
     ) -> None:
         """
         Initialize the ContractDataset with the specified parameters.
@@ -224,7 +236,7 @@ class ContractDataset:
             volatility_scaled=volatility_scaled,
             volatility_scalar=volatility_scalar,
             hist_vol=hist_vol,
-            save_dir=save_dir
+            save_dir=save_dir,
         )
 
     def generate(self) -> "ContractDataset":
@@ -268,25 +280,51 @@ class ContractDataset:
                         hist_vol=self.hist_vol,
                         volatility_scaled=self.volatility_scaled,
                         volatility_scalar=self.volatility_scalar,
-                        verbose=self.verbose
+                        verbose=self.verbose,
                     )
 
                     if attempt_date > current_date:
-                        self.ctx.log(f"Found valid contract at shifted date: {attempt_date_str}") if self.verbose else None
+                        (
+                            self.ctx.log(
+                                f"Found valid contract at shifted date: {attempt_date_str}"
+                            )
+                            if self.verbose
+                            else None
+                        )
 
                 except DataValidationError as e:
                     if e.error_code == WEEKEND:
-                        self.ctx.log(f"Skipping weekend: {attempt_date_str}") if self.verbose else None
+                        (
+                            self.ctx.log(f"Skipping weekend: {attempt_date_str}")
+                            if self.verbose
+                            else None
+                        )
                         attempt_date += timedelta(days=1)
                     elif e.error_code == MARKET_HOLIDAY:
-                        self.ctx.log(f"Skipping market holiday: {attempt_date_str}") if self.verbose else None
+                        (
+                            self.ctx.log(f"Skipping market holiday: {attempt_date_str}")
+                            if self.verbose
+                            else None
+                        )
                         attempt_date += timedelta(days=1)
                     else:
-                        self.ctx.log(f"Unkown error: {str(e)}. Skipping date: {attempt_date_str}.") if self.verbose else None
+                        (
+                            self.ctx.log(
+                                f"Unkown error: {str(e)}. Skipping date: {attempt_date_str}."
+                            )
+                            if self.verbose
+                            else None
+                        )
 
                     # Check if we've run out of valid dates
                     if attempt_date > latest_start:
-                        self.ctx.log(f"Unable to find valid contract starting from {date_str}") if self.verbose else None
+                        (
+                            self.ctx.log(
+                                f"Unable to find valid contract starting from {date_str}"
+                            )
+                            if self.verbose
+                            else None
+                        )
                         break
 
                     continue
@@ -300,7 +338,11 @@ class ContractDataset:
                 # If no contract was found, advance by one day to try the next period
                 current_date += timedelta(days=1)
 
-            self.ctx.log(f"Next start date: {current_date.strftime('%Y%m%d')}") if self.verbose else None
+            (
+                self.ctx.log(f"Next start date: {current_date.strftime('%Y%m%d')}")
+                if self.verbose
+                else None
+            )
 
         return self
 
@@ -350,9 +392,9 @@ class ContractDataset:
                 "target_band": self.target_band,
                 "volatility_scaled": self.volatility_scaled,
                 "volatility_scalar": self.volatility_scalar,
-                "hist_vol": self.hist_vol
+                "hist_vol": self.hist_vol,
             },
-            "contracts": [contract.model_dump() for contract in self.contracts]
+            "contracts": [contract.model_dump() for contract in self.contracts],
         }
 
     @classmethod
@@ -365,7 +407,9 @@ class ContractDataset:
         instance = cls(**data["params"])
 
         # Restore contracts
-        instance.contracts = [Contract(**contract_dict) for contract_dict in data["contracts"]]
+        instance.contracts = [
+            Contract(**contract_dict) for contract_dict in data["contracts"]
+        ]
 
         return instance
 
@@ -380,17 +424,27 @@ class ContractDataset:
             str: Path where the pickle file was saved
         """
         self.contract_dir.mkdir(parents=True, exist_ok=True)
-        filepath = self.contract_dir / "contracts.pkl" if filename is None else self.contract_dir / filename
+        filepath = (
+            self.contract_dir / "contracts.pkl"
+            if filename is None
+            else self.contract_dir / filename
+        )
 
         # Convert to dictionary and save
         data = self.to_dict()
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(data, f)
 
-        self.ctx.log(f"Contract dataset saved to \"{filepath}\"") if self.verbose else None
+        (
+            self.ctx.log(f'Contract dataset saved to "{filepath}"')
+            if self.verbose
+            else None
+        )
 
     @classmethod
-    def load(cls, contract_dir: Path, filename: Optional[str]=None) -> "ContractDataset":
+    def load(
+        cls, contract_dir: Path, filename: Optional[str] = None
+    ) -> "ContractDataset":
         """
         Load a dataset from a pickle file.
 
@@ -400,14 +454,23 @@ class ContractDataset:
         Returns:
             ContractDataset: Reconstructed dataset with all contracts
         """
-        filepath = contract_dir / "contracts.pkl" if filename is None else contract_dir / filename
+        filepath = (
+            contract_dir / "contracts.pkl"
+            if filename is None
+            else contract_dir / filename
+        )
 
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             data = pickle.load(f)
 
         instance = cls.from_dict(data)
-        instance.ctx.log(f"Contract dataset loaded from {filepath}") if instance.verbose else None
+        (
+            instance.ctx.log(f"Contract dataset loaded from {filepath}")
+            if instance.verbose
+            else None
+        )
         return instance
+
 
 def get_contract_datasets(
     root: str = "AAPL",
@@ -428,7 +491,7 @@ def get_contract_datasets(
     clean_up: bool = True,
     offline: bool = False,
     save_dir: Optional[str] = None,
-    verbose: bool=False,
+    verbose: bool = False,
 ) -> Tuple[ContractDataset, ContractDataset, ContractDataset]:
     """
     Returns the training, validation, and test datasets contract datasets. These contain mutually exclusive contracts
@@ -466,8 +529,8 @@ def get_contract_datasets(
             start_date=start_date,
             end_date=end_date,
             interval_min=interval_min,
-            volatility_window=train_split, # Use the ONLY training data to compute historical volatility (prevent data leakage)
-            volatility_type=volatility_type
+            volatility_window=train_split,  # Use the ONLY training data to compute historical volatility (prevent data leakage)
+            volatility_type=volatility_type,
         )
     else:
         hist_vol = None
@@ -487,17 +550,19 @@ def get_contract_datasets(
         volatility_scaled=volatility_scaled,
         volatility_scalar=volatility_scalar,
         hist_vol=hist_vol,
-        save_dir=save_dir
+        save_dir=save_dir,
     )
 
     # Offline loading (if already saved)
     if offline:
-        if not all((
+        if not all(
+            (
                 (contract_dir / "train_contracts.pkl").exists(),
                 (contract_dir / "val_contracts.pkl").exists(),
-                (contract_dir / "test_contracts.pkl").exists()
-            )):
-                raise FileNotFoundError(f"Missing contract files in {contract_dir}")
+                (contract_dir / "test_contracts.pkl").exists(),
+            )
+        ):
+            raise FileNotFoundError(f"Missing contract files in {contract_dir}")
 
         train_contracts = ContractDataset.load(contract_dir / "train_contracts.pkl")
         val_contracts = ContractDataset.load(contract_dir / "val_contracts.pkl")
@@ -505,13 +570,23 @@ def get_contract_datasets(
         return train_contracts, val_contracts, test_contracts
 
     # Get contiguous training, validation, and test (start_date, end_date) pairs in YYYYMMDD format
-    total_days = (pd.to_datetime(end_date, format='%Y%m%d') - pd.to_datetime(start_date, format='%Y%m%d')).days
+    total_days = (
+        pd.to_datetime(end_date, format="%Y%m%d")
+        - pd.to_datetime(start_date, format="%Y%m%d")
+    ).days
     num_train_days = int(train_split * total_days)
     num_val_days = int(val_split * total_days)
 
-    train_end_date = (pd.to_datetime(start_date, format='%Y%m%d') + pd.Timedelta(days=num_train_days)).strftime('%Y%m%d')
-    val_end_date = (pd.to_datetime(train_end_date, format='%Y%m%d') + pd.Timedelta(days=num_val_days)).strftime('%Y%m%d')
-    test_start_date = (pd.to_datetime(val_end_date, format='%Y%m%d') + pd.Timedelta(days=1)).strftime('%Y%m%d')
+    train_end_date = (
+        pd.to_datetime(start_date, format="%Y%m%d") + pd.Timedelta(days=num_train_days)
+    ).strftime("%Y%m%d")
+    val_end_date = (
+        pd.to_datetime(train_end_date, format="%Y%m%d")
+        + pd.Timedelta(days=num_val_days)
+    ).strftime("%Y%m%d")
+    test_start_date = (
+        pd.to_datetime(val_end_date, format="%Y%m%d") + pd.Timedelta(days=1)
+    ).strftime("%Y%m%d")
 
     train_dates = (start_date, train_end_date)
     val_dates = (train_end_date, val_end_date)
@@ -538,7 +613,11 @@ def get_contract_datasets(
         save_dir=save_dir,
     ).generate()
 
-    ctx.log("------------CREATING VALIDATION CONTRACTS------------") if verbose else None
+    (
+        ctx.log("------------CREATING VALIDATION CONTRACTS------------")
+        if verbose
+        else None
+    )
     val_contracts = ContractDataset(
         root=root,
         total_start_date=val_dates[0],
@@ -583,8 +662,10 @@ def get_contract_datasets(
 
     return train_contracts, val_contracts, test_contracts
 
+
 if __name__ == "__main__":
 
+    # Test: Contract
     contract = Contract.find_optimal(
         root="AAPL",
         start_date="20241107",
@@ -595,45 +676,46 @@ if __name__ == "__main__":
         moneyness="OTM",
         target_band=0.05,
         volatility_scaled=False,
-        verbose=True
+        verbose=True,
     )
 
     df = contract.load_data(clean_up=True, offline=False)
 
     print(df.head())
 
-    # root="AMZN"
-    # total_start_date="20230101"
-    # total_end_date="20230601"
-    # right="C"
-    # interval_min=60
-    # contract_stride=5
-    # target_tte=30
-    # tte_tolerance=(15, 45)
-    # moneyness="ATM"
-    # volatility_scaled=True
-    # volatility_scalar=0.01
-    # volatility_type="period"
-    # target_band=0.05
+    # Test: get_contract_datasets()
+    root = "AMZN"
+    total_start_date = "20230101"
+    total_end_date = "20230601"
+    right = "C"
+    interval_min = 60
+    contract_stride = 5
+    target_tte = 30
+    tte_tolerance = (15, 45)
+    moneyness = "ATM"
+    volatility_scaled = True
+    volatility_scalar = 0.01
+    volatility_type = "period"
+    target_band = 0.05
 
-    # train_contracts, val_contracts, test_contracts = get_contract_datasets(
-    #     root=root,
-    #     start_date=total_start_date,
-    #     end_date=total_end_date,
-    #     contract_stride=contract_stride,
-    #     interval_min=interval_min,
-    #     right=right,
-    #     target_tte=target_tte,
-    #     tte_tolerance=tte_tolerance,
-    #     moneyness=moneyness,
-    #     target_band=target_band,
-    #     volatility_type=volatility_type,
-    #     volatility_scaled=volatility_scaled,
-    #     volatility_scalar=volatility_scalar,
-    #     train_split=0.4,
-    #     val_split=0.3,
-    #     clean_up=True,
-    #     offline=False,
-    #     save_dir=None,
-    #     verbose=True,
-    # )
+    train_contracts, val_contracts, test_contracts = get_contract_datasets(
+        root=root,
+        start_date=total_start_date,
+        end_date=total_end_date,
+        contract_stride=contract_stride,
+        interval_min=interval_min,
+        right=right,
+        target_tte=target_tte,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        target_band=target_band,
+        volatility_type=volatility_type,
+        volatility_scaled=volatility_scaled,
+        volatility_scalar=volatility_scalar,
+        train_split=0.4,
+        val_split=0.3,
+        clean_up=True,
+        offline=False,
+        save_dir=None,
+        verbose=True,
+    )
