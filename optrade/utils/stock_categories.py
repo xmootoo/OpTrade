@@ -1,10 +1,12 @@
 from enum import Enum
 
+
 # Define enums for categorical factors
 class ThreeFactorLevel(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
 
 class FiveFactorLevel(str, Enum):
     VERY_LOW = "very_low"
@@ -12,6 +14,7 @@ class FiveFactorLevel(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
     VERY_HIGH = "very_high"
+
 
 class SectorType(str, Enum):
     TECH = "technology"
@@ -25,6 +28,7 @@ class SectorType(str, Enum):
     UTILITIES = "utilities"
     REAL_ESTATE = "real_estate"
     COMMUNICATION = "communication"
+
 
 class IndustryType(str, Enum):
     # Technology Industries

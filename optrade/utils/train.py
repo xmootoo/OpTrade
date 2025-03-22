@@ -1,6 +1,7 @@
 import os
 import torch
 
+
 class EarlyStopping:
     """
     Early stops the training if validation loss doesn't improve after a given patience.
@@ -9,7 +10,8 @@ class EarlyStopping:
         https://github.com/Bjarten/early-stopping-pytorch/blob/master/pytorchtools.py
 
     """
-    def __init__(self, patience=7, verbose=True, delta=0, path='checkpoint.pt') -> None:
+
+    def __init__(self, patience=7, verbose=True, delta=0, path="checkpoint.pt") -> None:
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -22,12 +24,11 @@ class EarlyStopping:
         self.patience = patience
         self.verbos = verbose
         self.counter = 0
-        self.best_val_loss = float('inf')
+        self.best_val_loss = float("inf")
         self.early_stop = False
         self.path = path
 
-    def __call__(self, val_loss : float, model : torch.nn.Module) -> None:
-
+    def __call__(self, val_loss: float, model: torch.nn.Module) -> None:
 
         if val_loss > self.best_val_loss:
             self.counter += 1
@@ -38,10 +39,12 @@ class EarlyStopping:
             self.save_checkpoint(val_loss, model)
             self.counter = 0
 
-    def save_checkpoint(self, val_loss : float, model : torch.nn.Module) -> None:
+    def save_checkpoint(self, val_loss: float, model: torch.nn.Module) -> None:
 
         if self.verbos:
-            print(f"Validation loss decreased ({self.best_val_loss:.6f} --> {val_loss:.6f}).")
+            print(
+                f"Validation loss decreased ({self.best_val_loss:.6f} --> {val_loss:.6f})."
+            )
         path_dir = os.path.abspath(os.path.dirname(self.path))
 
         if not os.path.isdir(path_dir):

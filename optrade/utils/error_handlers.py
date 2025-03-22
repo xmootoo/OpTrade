@@ -9,6 +9,7 @@ MARKET_HOLIDAY = 1004
 WEEKEND = 1005
 UNKNOWN_ERROR = 9999
 
+
 class DataValidationError(Exception):
     def __init__(
         self,
@@ -16,7 +17,8 @@ class DataValidationError(Exception):
         error_code: int,
         real_start_date: Optional[str] = None,
         real_end_date: Optional[str] = None,
-        verbose: bool=True):
+        verbose: bool = True,
+    ):
 
         self.message = message
         self.error_code = error_code
@@ -29,7 +31,7 @@ class DataValidationError(Exception):
             MISSING_DATES: "Option dates is a subset of stock dates, there are missing dates in between",
             MARKET_HOLIDAY: "Market holiday",
             WEEKEND: "Weekend",
-            UNKNOWN_ERROR: "Unknown error"
+            UNKNOWN_ERROR: "Unknown error",
         }
 
         error_str = error_dict[error_code]
