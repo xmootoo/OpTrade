@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
+from torch.optim.lr_scheduler import _LRScheduler
 
 # Custom Modules
 from optrade.utils.train import EarlyStopping
@@ -154,7 +155,7 @@ class Experiment:
         best_model_path: Optional[str] = None,
         early_stopping: bool = False,
         patience: Optional[int] = None,
-        scheduler: Optional[optim.lr_scheduler] = None,
+        scheduler: Optional[_LRScheduler] = None,
     ) -> nn.Module:
         """
             Trains a model.
