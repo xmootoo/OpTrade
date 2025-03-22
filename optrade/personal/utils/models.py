@@ -17,7 +17,7 @@ from optrade.torch.models.linear.model import Linear
 from optrade.torch.models.dlinear.model import DLinear
 from optrade.torch.models.tsmixer.model import TSMixer
 from optrade.torch.models.emforecaster.model import EMForecaster
-from optrade.torch.models.utils.revin import RevIN
+from optrade.torch.utils.revin import RevIN
 
 # Optimizers and Schedulers
 from torch import optim

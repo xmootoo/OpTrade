@@ -1,53 +1,15 @@
 import torch
 import torch.nn as nn
-from optrade.torch.models.utils.weight_init import xavier_init
-from optrade.torch.models.utils.revin import RevIN
-from optrade.torch.models.utils.utils import Reshape
+from optrade.torch.utils.weight_init import xavier_init
+from optrade.torch.utils.revin import RevIN
+from optrade.torch.utils.utils import Reshape
 
 from typing import Optional
 
 # Taken from: https://github.com/thuml/Time-Series-Library/blob/main/models/TSMixer.py
 
 
-class ResBlock(nn.Module):
-    def __init__(
-        self,
-        seq_len,
-        d_model,
-        dropout,
-        num_channels,
-    ):
-        super(ResBlock, self).__init__()
-
-        self.temporal = nn.Sequential(
-            nn.Linear(seq_len, d_model),
-            nn.GELU(),
-            nn.Linear(d_model, seq_len),
-            nn.Dropout(dropout),
-        )
-
-        self.channel = nn.Sequential(
-            nn.Linear(num_channels, d_model),
-            nn.GELU(),
-            nn.Linear(d_model, num_channels),
-            nn.Dropout(dropout),
-        )
-
-    def forward(self, x):
-        """
-        Args:
-            x (torch.Tensor): Shape (batch_size, seq_len, num_vars)
-
-        Returns:
-            torch.Tensor: Shape (batch_size, seq_len, num_vars)
-        """
-        x = x + self.temporal(x.transpose(1, 2)).transpose(1, 2)
-        x = x + self.channel(x)
-
-        return x
-
-
-class TSMixer(nn.Module):
+class Model(nn.Module):
     def __init__(
         self,
         seq_len: int,
@@ -64,7 +26,7 @@ class TSMixer(nn.Module):
         target_channels: Optional[list] = None,
         channel_independent: bool = False,
     ) -> None:
-        super(TSMixer, self).__init__()
+        super(Model, self).__init__()
 
         # Parameters
         self.num_enc_layers = num_enc_layers
@@ -152,6 +114,45 @@ class TSMixer(nn.Module):
         return out
 
 
+class ResBlock(nn.Module):
+    def __init__(
+        self,
+        seq_len,
+        d_model,
+        dropout,
+        num_channels,
+    ):
+        super(ResBlock, self).__init__()
+
+        self.temporal = nn.Sequential(
+            nn.Linear(seq_len, d_model),
+            nn.GELU(),
+            nn.Linear(d_model, seq_len),
+            nn.Dropout(dropout),
+        )
+
+        self.channel = nn.Sequential(
+            nn.Linear(num_channels, d_model),
+            nn.GELU(),
+            nn.Linear(d_model, num_channels),
+            nn.Dropout(dropout),
+        )
+
+    def forward(self, x):
+        """
+        Args:
+            x (torch.Tensor): Shape (batch_size, seq_len, num_vars)
+
+        Returns:
+            torch.Tensor: Shape (batch_size, seq_len, num_vars)
+        """
+        x = x + self.temporal(x.transpose(1, 2)).transpose(1, 2)
+        x = x + self.channel(x)
+
+        return x
+
+
+
 # Test
 if __name__ == "__main__":
     batch_size = 32
@@ -168,7 +169,7 @@ if __name__ == "__main__":
 
     x = torch.rand(batch_size, num_channels, seq_len)
 
-    model = TSMixer(
+    model = Model(
         seq_len=seq_len,
         pred_len=pred_len,
         num_enc_layers=num_enc_layers,

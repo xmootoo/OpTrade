@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 from typing import Optional
 
-from optrade.torch.models.utils.revin import RevIN
-from optrade.torch.models.utils.weight_init import xavier_init
-from optrade.torch.models.utils.utils import Reshape
+from optrade.torch.utils.revin import RevIN
+from optrade.torch.utils.weight_init import xavier_init
+from optrade.torch.utils.utils import Reshape
 
 
-class Linear(nn.Module):
+class Model(nn.Module):
     def __init__(
         self,
         seq_len,
@@ -21,7 +21,7 @@ class Linear(nn.Module):
         channel_independent: bool = False,
         target_channels: Optional[list] = None,
     ) -> None:
-        super(Linear, self).__init__()
+        super(Model, self).__init__()
 
         # Normalization
         self.d_model = num_channels
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     pred_len = 96
     x = torch.randn(batch_size, num_channels, seq_len)
 
-    model = Linear(
+    model = Model(
         seq_len=seq_len,
         pred_len=pred_len,
         num_channels=num_channels,
@@ -132,3 +132,5 @@ if __name__ == "__main__":
     )
 
     output = model(x)
+    print(f"Model input: {x.shape}")
+    print(f"Model output: {output.shape}")

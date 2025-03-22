@@ -4,18 +4,18 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 # Layers and models
-from optrade.torch.models.dlinear.model import DLinear
-from optrade.torch.models.tsmixer.model import TSMixer
+from optrade.torch.models.dlinear import Model as DLinear
+from optrade.torch.models.tsmixer import Model as TSMixer
 
 # Weight initialization
-from optrade.torch.models.utils.weight_init import xavier_init
+from optrade.torch.utils.weight_init import xavier_init
 
 # Util Layers
-from optrade.torch.models.utils.revin import RevIN
-from optrade.torch.models.utils.patcher import Patcher
+from optrade.torch.utils.revin import RevIN
+from optrade.torch.utils.patcher import Patcher
 
 
-class EMForecaster(nn.Module):
+class Model(nn.Module):
     def __init__(
         self,
         args: BaseModel,
@@ -37,7 +37,7 @@ class EMForecaster(nn.Module):
         return_head: bool = True,
         target_channels: Optional[list] = None,
     ) -> None:
-        super(EMForecaster, self).__init__()
+        super(Model, self).__init__()
 
         """
         Patched-based forecasting model (univariate only).
@@ -265,7 +265,7 @@ if __name__ == "__main__":
     num_channels = 7
     x = torch.randn(batch_size, num_channels, seq_len)
 
-    model = EMForecaster(
+    model = Model(
         args=args,
         seq_len=seq_len,
         pred_len=pred_len,

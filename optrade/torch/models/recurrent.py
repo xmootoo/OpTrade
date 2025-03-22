@@ -3,11 +3,11 @@ import torch.nn as nn
 
 from typing import Optional
 
-from optrade.torch.models.utils.revin import RevIN
-from optrade.torch.models.utils.patcher import Patcher
-from optrade.torch.models.utils.pos_enc import PositionalEncoding
-from optrade.torch.models.utils.weight_init import xavier_init
-from optrade.torch.models.utils.utils import Reshape
+from optrade.torch.utils.revin import RevIN
+from optrade.torch.utils.patcher import Patcher
+from optrade.torch.utils.pos_enc import PositionalEncoding
+from optrade.torch.utils.weight_init import xavier_init
+from optrade.torch.utils.utils import Reshape
 
 
 # TODO: Reimplement patching
