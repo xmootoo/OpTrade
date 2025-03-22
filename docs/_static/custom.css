@@ -1,0 +1,32 @@
+/* Hide redundant module/package labels */
+.classifier {
+    display: none !important;
+}
+
+/* Hide the module indicators in headings */
+.rst-content dl:not(.docutils) dt .headerlink + em {
+    display: none;
+}
+
+/* Clean up function signatures */
+dl.py.function,
+dl.py.class,
+dl.py.method {
+    margin-bottom: 1.5rem;
+}
+
+/* Make method names stand out */
+.sig-name {
+    font-weight: bold;
+}
+
+/* Hide redundant module text */
+.rst-content dl:not(.docutils) dt em.property + code.descname::before {
+    content: "" !important;
+}
+
+/* Remove extra spacing and borders */
+.rst-content dl:not(.docutils) dt {
+    border-top: none;
+    padding-top: 6px;
+}

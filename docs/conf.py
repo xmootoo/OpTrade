@@ -22,6 +22,8 @@ html_static_path = ['_static']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # HTML theme
 html_theme = 'sphinx_rtd_theme'
+html_static_path = ['_static'] # NEW
+html_css_files = ['custom.css'] # NEW
 # Configure autosummary
 autosummary_generate = True
 add_module_names = False
@@ -39,8 +41,16 @@ autodoc_default_options = {
     'member-order': 'bysource',  # Document members in the order they appear in the source
     'special-members': '__init__',
     'undoc-members': True,
-    'exclude-members': '__weakref__'
+    'exclude-members': '__weakref__',
+
+    # NEW
+    'imported-members': False,  # Don't show imported modules
+    'show-inheritance': False,  # Hide inheritance info
 }
+
+# NEW
+python_use_unqualified_type_names = True
+
 # This helps with properly documenting imported members
 autodoc_inherit_docstrings = True
 
