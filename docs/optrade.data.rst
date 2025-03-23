@@ -1,10 +1,10 @@
-optrade.data package
+optrade.data
 ====================
 
-Submodules
+
 ----------
 
-optrade.data.contracts module
+optrade.data.contracts
 -----------------------------
 
 .. automodule:: optrade.data.contracts
@@ -12,7 +12,7 @@ optrade.data.contracts module
    :show-inheritance:
    :undoc-members:
 
-optrade.data.features module
+optrade.data.features
 ----------------------------
 
 .. automodule:: optrade.data.features
@@ -20,7 +20,7 @@ optrade.data.features module
    :show-inheritance:
    :undoc-members:
 
-optrade.data.forecasting module
+optrade.data.forecasting
 -------------------------------
 
 .. automodule:: optrade.data.forecasting
@@ -28,7 +28,7 @@ optrade.data.forecasting module
    :show-inheritance:
    :undoc-members:
 
-optrade.data.thetadata module
+optrade.data.thetadata
 -----------------------------
 
 .. automodule:: optrade.data.thetadata
@@ -36,7 +36,7 @@ optrade.data.thetadata module
    :show-inheritance:
    :undoc-members:
 
-optrade.data.universe module
+optrade.data.universe
 ----------------------------
 
 .. automodule:: optrade.data.universe

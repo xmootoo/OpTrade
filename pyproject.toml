@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "optrade"
-version = "0.0.3"
+version = "0.0.4"
 description = "Options Forecasting and Trading Framework"
 authors = ["Xavier Mootoo"]
 license = "MIT"
@@ -29,6 +29,7 @@ scikit-learn = "^1.6.1"
 torch = "^2.6.0"
 pandas-datareader = "^0.10.0"
 statsmodels = "^0.14.4"
+mambapy = "^1.2.0"
 
 [tool.poetry.group.dev]
 optional = true

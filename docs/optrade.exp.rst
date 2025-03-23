@@ -1,10 +1,10 @@
-optrade.exp package
+optrade.exp
 ===================
 
-Submodules
+
 ----------
 
-optrade.exp.forecasting module
+optrade.exp.forecasting
 ------------------------------
 
 .. automodule:: optrade.exp.forecasting

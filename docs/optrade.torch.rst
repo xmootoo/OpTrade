@@ -1,8 +1,5 @@
-optrade.torch package
+optrade.torch
 =====================
-
-Subpackages
------------
 
 .. toctree::
    :maxdepth: 4

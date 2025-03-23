@@ -30,3 +30,53 @@ dl.py.method {
     border-top: none;
     padding-top: 6px;
 }
+
+/* NEW: Hide "Subpackages", "Submodules", "Module contents" headings */
+.rubric {
+    display: none !important;
+}
+
+/* NEW: Hide "package" text in list items */
+li a:contains("package"),
+li a:contains("module") {
+    content: attr(href);
+}
+
+/* NEW: Make module lists more compact */
+.toctree-wrapper ul {
+    list-style-type: none !important;
+    margin-left: 1em !important;
+}
+
+/* NEW: Reduce spacing between list items */
+.toctree-wrapper li {
+    margin-bottom: 0 !important;
+    line-height: 1.2 !important;
+}
+
+/* NEW: Hide full module paths, show only the last part */
+.toctree-l3 a,
+.toctree-l4 a {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* NEW: Hide redundant module prefixes in code signatures */
+.sig-prename {
+    display: none !important;
+}
+
+/* NEW: Remove extra indentation in nested lists */
+.wy-menu-vertical li.toctree-l2,
+.wy-menu-vertical li.toctree-l3,
+.wy-menu-vertical li.toctree-l4 {
+    font-size: 0.95em !important;
+    padding-left: 0.5em !important;
+}
+
+/* NEW: Hide Module/Package Contents sections */
+div[id$="module-contents"],
+div[id$="package-contents"] {
+    display: none !important;
+}

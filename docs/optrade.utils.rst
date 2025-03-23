@@ -1,10 +1,10 @@
-optrade.utils package
+optrade.utils
 =====================
 
-Submodules
+
 ----------
 
-optrade.utils.directories module
+optrade.utils.directories
 --------------------------------
 
 .. automodule:: optrade.utils.directories
@@ -12,7 +12,7 @@ optrade.utils.directories module
    :show-inheritance:
    :undoc-members:
 
-optrade.utils.error\_handlers module
+optrade.utils.error\_handlers
 ------------------------------------
 
 .. automodule:: optrade.utils.error_handlers
@@ -20,7 +20,7 @@ optrade.utils.error\_handlers module
    :show-inheritance:
    :undoc-members:
 
-optrade.utils.market\_metrics module
+optrade.utils.market\_metrics
 ------------------------------------
 
 .. automodule:: optrade.utils.market_metrics
@@ -28,7 +28,7 @@ optrade.utils.market\_metrics module
    :show-inheritance:
    :undoc-members:
 
-optrade.utils.misc module
+optrade.utils.misc
 -------------------------
 
 .. automodule:: optrade.utils.misc
@@ -36,7 +36,7 @@ optrade.utils.misc module
    :show-inheritance:
    :undoc-members:
 
-optrade.utils.stock\_categories module
+optrade.utils.stock\_categories
 --------------------------------------
 
 .. automodule:: optrade.utils.stock_categories
@@ -44,7 +44,7 @@ optrade.utils.stock\_categories module
    :show-inheritance:
    :undoc-members:
 
-optrade.utils.train module
+optrade.utils.train
 --------------------------
 
 .. automodule:: optrade.utils.train

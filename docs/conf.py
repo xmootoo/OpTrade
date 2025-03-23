@@ -2,8 +2,11 @@
 import os
 import sys
 import datetime
+
 # Add the project root directory to the path
 sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('_ext'))
+
 # Project information
 project = 'optrade'
 copyright = f'{datetime.datetime.now().year}, Xavier Mootoo'
@@ -14,16 +17,17 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
+    'module_tree'
 ]
 # Templates and static files
 templates_path = ['_templates']
-html_static_path = ['_static']
+# Update these lines
+html_static_path = [os.path.abspath('_static')]
+html_css_files = ['custom.css']
 # Exclude patterns
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # HTML theme
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static'] # NEW
-html_css_files = ['custom.css'] # NEW
 # Configure autosummary
 autosummary_generate = True
 add_module_names = False

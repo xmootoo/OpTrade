@@ -7,7 +7,7 @@ You can install OpTrade using pip:
 
     pip install optrade
 
-Note at this time an activate ThetaData subscription to at least the VALUE package for options and stocks
+Note at this time an activte ThetaData subscription to at least the VALUE package for options and stocks
 is required. Please visit the `ThetaData website <https://www.thetadata.net/>`_ for more information.
 
 Development Installation

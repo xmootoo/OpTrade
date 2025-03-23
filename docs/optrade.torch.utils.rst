@@ -1,10 +1,10 @@
-optrade.torch.utils package
+optrade.torch.utils
 ===========================
 
-Submodules
+
 ----------
 
-optrade.torch.utils.patcher module
+optrade.torch.utils.patcher
 ----------------------------------
 
 .. automodule:: optrade.torch.utils.patcher
@@ -12,7 +12,7 @@ optrade.torch.utils.patcher module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.utils.pos\_enc module
+optrade.torch.utils.pos\_enc
 -----------------------------------
 
 .. automodule:: optrade.torch.utils.pos_enc
@@ -20,7 +20,7 @@ optrade.torch.utils.pos\_enc module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.utils.revin module
+optrade.torch.utils.revin
 --------------------------------
 
 .. automodule:: optrade.torch.utils.revin
@@ -28,7 +28,7 @@ optrade.torch.utils.revin module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.utils.utils module
+optrade.torch.utils.utils
 --------------------------------
 
 .. automodule:: optrade.torch.utils.utils
@@ -36,7 +36,7 @@ optrade.torch.utils.utils module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.utils.weight\_init module
+optrade.torch.utils.weight\_init
 ---------------------------------------
 
 .. automodule:: optrade.torch.utils.weight_init

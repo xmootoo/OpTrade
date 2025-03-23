@@ -1,9 +1,3 @@
-optrade package
-===============
-
-Subpackages
------------
-
 .. toctree::
    :maxdepth: 4
 

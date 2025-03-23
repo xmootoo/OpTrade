@@ -19,7 +19,7 @@ contract_dataset = ContractDataset(
 contract_dataset.generate()
 
 # Step 2: Load market data and transform features for all contracts then put into a concatenated torch dataset
-from optrade.data.torch import get_forecasting_dataset
+from optrade.data.forecasting import get_forecasting_dataset
 from torch.utils.data import DataLoader
 
 torch_dataset = get_forecasting_dataset(

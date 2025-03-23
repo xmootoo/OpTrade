@@ -1,10 +1,10 @@
-optrade.torch.models package
+optrade.torch.models
 ============================
 
-Submodules
+
 ----------
 
-optrade.torch.models.dlinear module
+optrade.torch.models.dlinear
 -----------------------------------
 
 .. automodule:: optrade.torch.models.dlinear
@@ -12,7 +12,7 @@ optrade.torch.models.dlinear module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.emforecaster module
+optrade.torch.models.emforecaster
 ----------------------------------------
 
 .. automodule:: optrade.torch.models.emforecaster
@@ -20,7 +20,7 @@ optrade.torch.models.emforecaster module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.linear module
+optrade.torch.models.linear
 ----------------------------------
 
 .. automodule:: optrade.torch.models.linear
@@ -28,7 +28,7 @@ optrade.torch.models.linear module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.mamba module
+optrade.torch.models.mamba
 ---------------------------------
 
 .. automodule:: optrade.torch.models.mamba
@@ -36,7 +36,7 @@ optrade.torch.models.mamba module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.patchtst module
+optrade.torch.models.patchtst
 ------------------------------------
 
 .. automodule:: optrade.torch.models.patchtst
@@ -44,7 +44,7 @@ optrade.torch.models.patchtst module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.recurrent module
+optrade.torch.models.recurrent
 -------------------------------------
 
 .. automodule:: optrade.torch.models.recurrent
@@ -52,7 +52,7 @@ optrade.torch.models.recurrent module
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.tsmixer module
+optrade.torch.models.tsmixer
 -----------------------------------
 
 .. automodule:: optrade.torch.models.tsmixer
