@@ -44,7 +44,7 @@ autodoc_default_options = {
     'exclude-members': '__weakref__',
 
     # NEW
-    'imported-members': False,  # Don't show imported modules
+    # 'imported-members': False,  # Don't show imported modules
     'show-inheritance': False,  # Hide inheritance info
 }
 
