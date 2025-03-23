@@ -7,13 +7,13 @@
 
 
 
-<div align="center">
-  <h2>
+<div align="left">
+  <h3>
     
 | [📚 Documentation](https://optrade.readthedocs.io/) | [💻 GitHub](https://github.com/yourusername/optrade) | [📦 PyPI](https://pypi.org/project/optrade/) |
 |:---:|:---:|:---:|
     
-  </h2>
+  </h3>
 </div>
 
 
