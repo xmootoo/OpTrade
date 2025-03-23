@@ -8,6 +8,7 @@ from optrade.torch.utils.revin import RevIN
 
 from typing import Optional
 
+
 class Model(nn.Module):
     """
     Paper link: https://arxiv.org/pdf/2205.13504.pdf

@@ -211,7 +211,6 @@ class PatchTSTBackbone(nn.Module):
         return out
 
 
-
 class SupervisedHead(nn.Module):
     def __init__(self, linear_dim, pred_len, dropout=0.0):
         super().__init__()

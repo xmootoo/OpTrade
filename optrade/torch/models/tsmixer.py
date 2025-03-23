@@ -152,7 +152,6 @@ class ResBlock(nn.Module):
         return x
 
 
-
 # Test
 if __name__ == "__main__":
     batch_size = 32
