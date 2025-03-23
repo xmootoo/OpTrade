@@ -687,14 +687,14 @@ def load_stock_data_eod(
 
 
 def find_optimal_strike(
-    root: str = "AAPL",
-    start_date: str = "20241107",
-    exp: str = "20241213",
-    right: str = "C",
-    interval_min: int = 1,
-    moneyness: str = "OTM",
-    target_band: float = 0.05,
-    volatility_scaled: bool = True,
+    root: str,
+    start_date: str,
+    exp: str,
+    right: str,
+    interval_min: int,
+    moneyness: str,
+    strike_band: Optional[float] = 0.05,
+    volatility_scaled: bool = False,
     hist_vol: Optional[float] = None,
     volatility_scalar: Optional[float] = 1.0,
     clean_up: bool = False,
@@ -712,12 +712,12 @@ def find_optimal_strike(
         start_date: The start date in YYYYMMDD format
         exp: The expiration date in YYYYMMDD format
         right: Option type - "C" for call or "P" for put
-        target_band: Base percentage distance from current price for strike selection
+        strike_band: Base percentage distance from current price for strike selection
         moneyness: Desired moneyness - "OTM", "ITM", or "ATM"
-        volatility_type: Type of volatility to use for scaling target_band. Options: "daily", "period", "annualized".
+        volatility_type: Type of volatility to use for scaling strike_band. Options: "daily", "period", "annualized".
                          For most usecases, "period" type is recommended.
-        volatility_scaled: Whether to adjust target_band based on historical volatility
-        volatility_scalar: The number of standard deviations to scale the target_band by.
+        volatility_scaled: Whether to adjust strike_band based on historical volatility
+        volatility_scalar: The number of standard deviations to scale the strike_band by.
         volatility_window: Proportion of data to use for historical volatility calculation (best practices: use training + validation data portion)
         clean_up (bool): Whether to clean up script temporary data directories
         offline (bool): Whether to use offline data (saved in historical_data directory).
@@ -735,7 +735,6 @@ def find_optimal_strike(
     """
 
     # Get current price and available strikes
-
     try:
         stock_data = load_stock_data(
             root=root,
@@ -789,8 +788,8 @@ def find_optimal_strike(
         else:
             strike_band = np.array(
                 [
-                    current_price - target_band * current_price,
-                    current_price + target_band * current_price,
+                    current_price - strike_band * current_price,
+                    current_price + strike_band * current_price,
                 ]
             )
 
@@ -818,13 +817,13 @@ def find_optimal_strike(
 
 
 def load_option_data(
-    root: str = "AAPL",
-    start_date: str = "20241107",
-    end_date: str = "20241107",
-    exp: Optional[str] = "20250117",
-    strike: float = 225,
-    interval_min: int = 1,
-    right: str = "C",
+    root: str,
+    start_date: str,
+    end_date: str,
+    exp: str,
+    strike: float,
+    interval_min: int,
+    right: str,
     save_dir: Optional[str] = None,
     clean_up: bool = False,
     offline: bool = False,
@@ -1345,8 +1344,9 @@ if __name__ == "__main__":
         start_date="20241107",
         exp="20241206",
         right="C",
+        interval_min=1,
         moneyness="ITM",
-        target_band=0.10,
+        strike_band=0.10,
         hist_vol=0.20,
         volatility_scaled=True,
         volatility_scalar=2.0,
