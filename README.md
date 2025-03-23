@@ -1,12 +1,24 @@
+# OpTrade
+
 [![Documentation Status](https://readthedocs.org/projects/optrade/badge/?version=latest)](https://optrade.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue.svg)](https://www.python.org)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 
-# OpTrade
+
+<div align="center">
+  <h2>
+    
+| [📚 Documentation](https://optrade.readthedocs.io/) | [💻 GitHub](https://github.com/yourusername/optrade) | [📦 PyPI](https://pypi.org/project/optrade/) |
+|:---:|:---:|:---:|
+    
+  </h2>
+</div>
+
 
 OpTrade is a complete toolkit for quantitative research and development of options trading strategies. By abstracting away the complexity of data handling and experimental setup, researchers and traders can focus on what matters most: developing and testing alpha-generating ideas.
+
 
 <p align="center">
  <picture>
