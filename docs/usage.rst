@@ -21,3 +21,12 @@ function to load and transform the data for all contracts:
 .. literalinclude:: examples/multi_contract.py
    :language: python
    :linenos:
+
+Example (Universe)
+
+When modeling a universe of securities, you can use the `Universe` class to filter
+by parameters such as fundamentals (e.g., P/E ratio), volatility, and Fama-French factor exposures. Here's an example:
+
+.. literalinclude:: examples/universe.py
+   :language: python
+   :linenos:

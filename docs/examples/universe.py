@@ -1,50 +1,57 @@
 from optrade.data.universe import Universe
 
-# Create a Universe instance
+# Step 1: Initialize Universe
 universe = Universe(
-    dow_jones=True,
-    debt_to_equity="low",
-    market_cap="high",
+    dow_jones=True,                # Use Dow Jones as the starting universe
     start_date="20210101",
     end_date="20211001",
-    save_dir="test",
-    verbose=True,
+
+    # Filters
+    debt_to_equity="low",          # Low debt ratio (bottom third)
+    market_cap="high",             # Large-cap (top third)
+    investment_beta="aggressive",  # Aggressive investment strategy (Fama-French exposure)
 )
-universe.set_candidate_roots() # Fetch index constituents
-universe.get_fundamentals() # Fetch fundamental data
+
+# Step 2: Fetch constituents from Wikipedia
+universe.set_candidate_roots()
+
+# Step 3: Get fundamental data via yfinance & compute Fama-French exposures
+universe.get_fundamentals()
 print(f"Universe: {universe.roots}")
 
-# Filter the universe for stocks with low debt-to-equity and high market cap
+# Step 4: Apply filters (low debt, high market cap, aggressive investment beta)
 universe.filter_universe()
 print(f"Filtered universe: {universe.roots}")
 
-# Download contracts and raw data for the filtered universe. This may take a while
+# Step 5: Download options data for filtered universe
 universe.download(
-    contract_stride=3,
-    interval_min=1,
-    right="C",
-    target_tte=30,
-    tte_tolerance=(20, 40),
-    moneyness="ATM",
-    train_split=0.5,
-    val_split=0.3,
+    contract_stride=3,          # Sample contracts every 3 days
+    interval_min=1,             # Data requested at 1-min level
+    right="C",                  # Calls options only
+    target_tte=30,              # Desired expiration: 30 days
+    tte_tolerance=(20, 40),     # Min 20, max 40 days expiration
+    moneyness="ATM",            # At-the-money option
+    train_split=0.5,            # 50% training
+    val_split=0.3,              # 30% validation and (hence 20% test)
 )
 
-# Select a root for forecasting
+# Step 6: Select a stock the universe and create PyTorch dataloders
 root = universe.roots[0]
 print(f"Loading data for root: {root}")
+
 loaders = universe.get_forecasting_loaders(
-    offline=True,
-    root=root,
-    tte_tolerance=(20, 40),
-    seq_len=30, # 30-minute lookback window
-    pred_len=5, # 5-minute forecast horizon
-    core_feats=["option_mid_price"],
-    target_channels=["option_mid_price"],
-    dtype="float32",
-    scaling=False,
+    offline=True,               # Use cached data
+    root=root,                  # Stock symbol
+    tte_tolerance=(20, 40),     # DTE range
+    seq_len=30,                 # 30-min lookback
+    pred_len=5,                 # 5-min forecast
+    core_feats=["option_mid_price"],  # Feature
+    target_channels=["option_mid_price"],  # Target
+    dtype="float32",            # Precision
+    scaling=False,              # No normalization
 )
 
+# Display dataset sizes for each split
 print(f"Train loader: {len(loaders[0].dataset)} samples")
 print(f"Validation loader: {len(loaders[1].dataset)} samples")
 print(f"Test loader: {len(loaders[2].dataset)} samples")
