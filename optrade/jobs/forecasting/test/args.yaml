@@ -30,7 +30,7 @@ data:
   interval_min: 1
   right: "C"
   moneyness: "ATM"
-  target_band: 0.05
+  strike_band: 0.05
   volatility_scaled: False
   target_tte: 30
   tte_tolerance: [15, 45]

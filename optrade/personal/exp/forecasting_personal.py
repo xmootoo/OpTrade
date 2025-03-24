@@ -110,7 +110,7 @@ class Experiment:
             target_tte=self.args.data.target_tte,
             tte_tolerance=self.args.data.tte_tolerance,
             moneyness=self.args.data.moneyness,
-            target_band=self.args.data.target_band,
+            strike_band=self.args.data.strike_band,
             volatility_type=self.args.data.volatility_type,
             volatility_scaled=self.args.data.volatility_scaled,
             volatility_scalar=self.args.data.volatility_scalar,
