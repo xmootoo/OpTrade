@@ -7,9 +7,6 @@ from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
 
-# Data
-from optrade.data.contracts import get_contract_datasets
-
 # Datasets
 from optrade.data.contracts import ContractDataset
 from optrade.utils.error_handlers import (
@@ -44,7 +41,8 @@ class ForecastingDataset(Dataset):
         target_channels: Optional[List[str]] = None,
         dtype: str = "float32",
     ) -> None:
-        self.data = torch.tensor(data.to_numpy(), dtype=eval("torch." + dtype))
+        self.dtype = eval("torch." + dtype)
+        self.data = torch.tensor(data.to_numpy(), dtype=self.dtype)
         self.seq_len = seq_len
         self.pred_len = pred_len
 
@@ -149,10 +147,10 @@ def normalize_datasets(
 
 
 def get_forecasting_dataset(
-    contracts: ContractDataset,
-    seq_len: int,
-    pred_len: int,
+    contract_dataset: ContractDataset,
     tte_tolerance: Tuple[int, int],
+    seq_len: Optional[int] = None,
+    pred_len: Optional[int] = None,
     core_feats: List[str] = ["option_returns"],
     tte_feats: Optional[List[str]] = None,
     datetime_feats: Optional[List[str]] = None,
@@ -164,13 +162,14 @@ def get_forecasting_dataset(
     save_dir: Optional[str] = None,
     download_only: bool = False,
     verbose: bool = False,
-) -> Dataset:
+    warning: bool = True,
+) -> Union[ContractDataset, Tuple[Dataset, ContractDataset]]:
     """
     Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
     different option contracts.
 
     Args:
-        contracts: ContractDataset object containing option contract parameters
+        contract_dataset: ContractDataset object containing option contract parameters
         core_feats: List of core features to include
         tte_feats: List of time-to-expiration features to include
         datetime_feats: List of datetime features to include
@@ -185,9 +184,11 @@ def get_forecasting_dataset(
         save_dir: Save directory
         download_only: Whether to download data only (used mainly for Universe class)
         verbose: Whether to print verbose output
+        warning: Whether to print verbose DataValidationError statements as warnings or errors.
 
     Returns:
-        Concatenated PyTorch dataset object
+        ContractDataset: The updated ContractDataset object if download_only=True.
+        Tuple[ConcatDataset, ContractDataset]: A tuple containing the concatenated PyTorch dataset and the updated ContractDataset if download_only=False.
     """
 
     ctx = Console()
@@ -195,8 +196,15 @@ def get_forecasting_dataset(
 
     if download_only:
         clean_up = offline = False
+    else:
+        assert seq_len is not None, "seq_len must be provided for forecasting dataset"
+        assert pred_len is not None, "pred_len must be provided for forecasting dataset"
 
-    for contract in contracts.contracts:
+    # Save initial contracts to compare adjusted contracts later
+    initial_contracts = contract_dataset.contracts.copy()
+
+    # Iterate through each contract in the ContractDataset
+    for contract in contract_dataset.contracts:
         # Flag to track if we should try the next contract
         move_to_next_contract = False
 
@@ -204,7 +212,10 @@ def get_forecasting_dataset(
         while not move_to_next_contract:
             try:
                 df = contract.load_data(
-                    save_dir=save_dir, clean_up=clean_up, offline=offline
+                    save_dir=save_dir,
+                    clean_up=clean_up,
+                    offline=offline,
+                    warning=warning,
                 )
 
                 if not download_only:
@@ -252,7 +263,16 @@ def get_forecasting_dataset(
                             ctx.log(
                                 f"Option contract start date mismatch. Attempting to get data for {contract} with new start date: {new_start_date}"
                             )
+
+                        # Remove old Contract from ContractDataset.contracts and add new one
+                        contract_dataset.contracts.remove(contract)
+
+                        # Update contract start date
                         contract.start_date = new_start_date
+
+                        # Add updated contract back to ContractDataset
+                        contract_dataset.contracts.append(contract)
+
                 elif e.error_code == INCOMPATIBLE_END_DATE:
                     new_start_date = e.real_start_date
                     new_exp = e.real_end_date
@@ -266,6 +286,9 @@ def get_forecasting_dataset(
                                 f"Option contract start date and end date mismatch. New start date {new_start_date} is too close to new expiration {new_exp}. Moving to next contract."
                             )
                         move_to_next_contract = True
+                        # Remove contract from ContractDataset
+                        contract_dataset.contracts.remove(contract)
+
                     # If tte_tolerance is satisfied, update contract expiration to the observed end date of option data
                     else:
                         # For other DataValidationError types, move to the next contract
@@ -273,8 +296,16 @@ def get_forecasting_dataset(
                             ctx.log(
                                 f"DataValidationError for {contract}: {e}. Moving to next contract."
                             )
-                        move_to_next_contract = True
+
+                        # Remove contract from ContractDataset
+                        contract_dataset.contracts.remove(contract)
+
+                        # Update contract expiration and start_date
                         contract.exp = new_exp
+                        contract.start_date = new_start_date
+
+                        # Add updated contract back to ContractDataset
+                        contract_dataset.contracts.append(contract)
                 else:
                     # For other DataValidationError types, move to the next contract
                     if verbose:
@@ -282,6 +313,10 @@ def get_forecasting_dataset(
                             f"DataValidationError for {contract}: {e}. Moving to next contract."
                         )
                     move_to_next_contract = True
+
+                    # Remove contract from ContractDataset
+                    contract_dataset.contracts.remove(contract)
+
             except Exception as e:
                 if verbose:
                     ctx.log(
@@ -289,31 +324,32 @@ def get_forecasting_dataset(
                     )
                 move_to_next_contract = True
 
+                # Remove contract from ContractDataset
+                contract_dataset.contracts.remove(contract)
+
+    # Check for duplicates in contract_dataset.contracts and remove any duplicates
+    contract_dataset.contracts = list(set(contract_dataset.contracts))
+
+    # If contract_dataset.contracts != initial_contracts, update the save directory
+    if set(contract_dataset.contracts) != set(initial_contracts):
+        contract_dataset.save(clean_file=True)
+
     if download_only:
-        return
+        return contract_dataset
     else:
-        return ConcatDataset(dataset_list)
+        return ConcatDataset(dataset_list), contract_dataset
 
 
 def get_forecasting_loaders(
-    root: str = "AAPL",
-    start_date: str = "20231107",
-    end_date: str = "20241114",
-    contract_stride: int = 5,
-    interval_min: int = 1,
-    right: str = "C",
-    target_tte: int = 30,
-    tte_tolerance: Tuple[int, int] = (25, 35),
-    moneyness: str = "OTM",
-    target_band: float = 0.05,
-    volatility_type: str = "period",
-    volatility_scaled: bool = True,
-    volatility_scalar: float = 1.0,
-    train_split: float = 0.7,
-    val_split: float = 0.1,
+    train_contract_dataset: ContractDataset,
+    val_contract_dataset: ContractDataset,
+    test_contract_dataset: ContractDataset,
+    seq_len: int,
+    pred_len: int,
+    tte_tolerance: Tuple[int, int],
     core_feats: List[str] = ["option_returns"],
-    tte_feats: List[str] = ["sqrt"],
-    datetime_feats: List[str] = ["sin_timeofday"],
+    tte_feats: Optional[List[str]] = None,
+    datetime_feats: Optional[List[str]] = None,
     batch_size: int = 32,
     shuffle: bool = True,
     drop_last: bool = False,
@@ -324,36 +360,25 @@ def get_forecasting_loaders(
     offline: bool = False,
     save_dir: Optional[str] = None,
     verbose: bool = False,
-    scaling: bool = True,
+    scaling: bool = False,
     intraday: bool = False,
-    target_channels: List[int] = [0],
-    seq_len: int = 100,
-    pred_len: int = 10,
-    dtype: str = "float64",
+    target_channels: Optional[List[str]] = None,
+    dtype: str = "float32",
+    warning: bool = True,
 ) -> Union[
     Tuple[DataLoader, DataLoader, DataLoader],
     Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
 ]:
     """
-
     Forms training, validation, and test dataloaders for option contract data.
 
     Args:
-        root: Underlying stock symbol
-        start_date: Start date for the total dataset in YYYYMMDD format
-        end_date: End date for the total dataset in YYYYMMDD format
-        contract_stride: Number of days between each contract (for sampling)
-        interval_min: Interval in minutes for the underlying stock data and option data
-        right: Option type (C for call, P for put)
-        target_tte: Target time to expiration in days
+        train_contract_dataset: Contract dataset for training
+        val_contract_dataset: Contract dataset for validation
+        test_contract_dataset: Contract dataset for testing
+        seq_len: Sequence length for input data
+        pred_len: Prediction length for forecasting
         tte_tolerance: Tuple of (min, max) time to expiration tolerance in minutes
-        moneyness: Moneyness of the option contract (OTM, ATM, ITM)
-        target_band: Target band for moneyness selection
-        volatility_type: Type of historical volatility to use
-        volatility_scaled: Whether to scale strikes based on historical volatility
-        volatility_scalar: Scalar to adjust historical volatility
-        train_split: Proportion of total days to use for training
-        val_split: Proportion of total days to use for validation
         core_feats: List of core features to include
         tte_feats: List of time-to-expiration features to include
         datetime_feats: List of datetime features to include
@@ -365,82 +390,71 @@ def get_forecasting_loaders(
         pin_memory: Whether to pin memory for faster GPU transfer
         clean_up: Whether to clean up the data after use
         offline: Whether to load saved contracts from disk
-        contract_dir: Directory to save/load contracts
+        save_dir: Directory to save/load processed datasets
         verbose: Whether to print verbose output
         scaling: Whether to normalize the datasets
+        intraday: Whether to use intraday data
+        target_channels: List of target channels for forecasting
+        dtype: Data type for tensors
+        warning: Whether to show warnings
 
     Returns:
-        Training, validation, and test PyTorch dataloaders.
+        Tuple[DataLoader, DataLoader, DataLoader]: Train, validation, and test data loaders if scaling=False.
+        Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]: Train, validation, and test data loaders, and the scaler if scaling=True.
     """
 
-    train_contracts, val_contracts, test_contracts = get_contract_datasets(
-        root=root,
-        start_date=start_date,
-        end_date=end_date,
-        contract_stride=contract_stride,
-        interval_min=interval_min,
-        right=right,
-        target_tte=target_tte,
+    # Get the combined datasets of contract data for training, validation, and testing
+    train_dataset, _ = get_forecasting_dataset(
+        contract_dataset=train_contract_dataset,
         tte_tolerance=tte_tolerance,
-        moneyness=moneyness,
-        target_band=target_band,
-        volatility_type=volatility_type,
-        volatility_scaled=volatility_scaled,
-        volatility_scalar=volatility_scalar,
-        train_split=train_split,
-        val_split=val_split,
+        seq_len=seq_len,
+        pred_len=pred_len,
+        core_feats=core_feats,
+        tte_feats=tte_feats,
+        datetime_feats=datetime_feats,
         clean_up=clean_up,
         offline=offline,
+        intraday=intraday,
+        target_channels=target_channels,
+        dtype=dtype,
         save_dir=save_dir,
         verbose=verbose,
+        warning=warning,
     )
 
-    # Get the combined datasets of contract data for training, validation, and testing
-    train_dataset = get_forecasting_dataset(
-        contracts=train_contracts,
+    val_dataset, _ = get_forecasting_dataset(
+        contract_dataset=val_contract_dataset,
+        tte_tolerance=tte_tolerance,
+        seq_len=seq_len,
+        pred_len=pred_len,
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
-        tte_tolerance=tte_tolerance,
         clean_up=clean_up,
         offline=offline,
         intraday=intraday,
         target_channels=target_channels,
-        seq_len=seq_len,
-        pred_len=pred_len,
         dtype=dtype,
+        save_dir=save_dir,
         verbose=verbose,
+        warning=warning,
     )
-
-    val_dataset = get_forecasting_dataset(
-        contracts=val_contracts,
+    test_dataset, _ = get_forecasting_dataset(
+        contract_dataset=test_contract_dataset,
+        tte_tolerance=tte_tolerance,
+        seq_len=seq_len,
+        pred_len=pred_len,
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
-        tte_tolerance=tte_tolerance,
         clean_up=clean_up,
         offline=offline,
         intraday=intraday,
         target_channels=target_channels,
-        seq_len=seq_len,
-        pred_len=pred_len,
         dtype=dtype,
+        save_dir=save_dir,
         verbose=verbose,
-    )
-    test_dataset = get_forecasting_dataset(
-        contracts=test_contracts,
-        core_feats=core_feats,
-        tte_feats=tte_feats,
-        datetime_feats=datetime_feats,
-        tte_tolerance=tte_tolerance,
-        clean_up=clean_up,
-        offline=offline,
-        intraday=intraday,
-        target_channels=target_channels,
-        seq_len=seq_len,
-        pred_len=pred_len,
-        dtype=dtype,
-        verbose=verbose,
+        warning=warning,
     )
 
     if scaling:
@@ -573,90 +587,78 @@ def create_windows(
 
 
 if __name__ == "__main__":
-    # Test: get_forecasting_loaders
-    root = "AMZN"
-    total_start_date = "20230101"
-    total_end_date = "20230601"
-    right = "C"
-    interval_min = 60
-    contract_stride = 5
-    target_tte = 30
-    tte_tolerance = (15, 45)
-    moneyness = "ATM"
-    volatility_scaled = True
-    volatility_scalar = 0.01
-    volatility_type = "period"
-    target_band = 0.05
+    # # Test: get_forecasting_loaders
+    # root = "AMZN"
+    # total_start_date = "20230101"
+    # total_end_date = "20230601"
+    # right = "C"
+    # interval_min = 60
+    # contract_stride = 5
+    # target_tte = 30
+    # tte_tolerance = (15, 45)
+    # moneyness = "ATM"
+    # volatility_scaled = True
+    # volatility_scalar = 0.01
+    # volatility_type = "period"
+    # strike_band = 0.05
 
-    # TTE features
-    tte_feats = ["sqrt", "exp_decay"]
+    # # TTE features
+    # tte_feats = ["sqrt", "exp_decay"]
 
-    # Datetime features
-    datetime_feats = [
-        "sin_minute_of_day",
-        "cos_minute_of_day",
-        "sin_hour_of_week",
-        "cos_hour_of_week",
-    ]
+    # # Datetime features
+    # datetime_feats = [
+    #     "sin_minute_of_day",
+    #     "cos_minute_of_day",
+    #     "sin_hour_of_week",
+    #     "cos_hour_of_week",
+    # ]
 
-    # Select features
-    core_feats = [
-        "option_returns",
-        "stock_returns",
-        "distance_to_strike",
-        "moneyness",
-        "option_lob_imbalance",
-        "option_quote_spread",
-        "stock_lob_imbalance",
-        "stock_quote_spread",
-        "option_mid_price",
-        "option_bid_size",
-        "option_bid",
-        "option_ask_size",
-        "option_close",
-        "option_volume",
-        "option_count",
-        "stock_mid_price",
-        "stock_bid_size",
-        "stock_bid",
-        "stock_ask_size",
-        "stock_ask",
-        "stock_volume",
-        "stock_count",
-    ]
+    # # Select features
+    # core_feats = [
+    #     "option_returns",
+    #     "stock_returns",
+    #     "distance_to_strike",
+    #     "moneyness",
+    #     "option_lob_imbalance",
+    #     "option_quote_spread",
+    #     "stock_lob_imbalance",
+    #     "stock_quote_spread",
+    #     "option_mid_price",
+    #     "option_bid_size",
+    #     "option_bid",
+    #     "option_ask_size",
+    #     "option_close",
+    #     "option_volume",
+    #     "option_count",
+    #     "stock_mid_price",
+    #     "stock_bid_size",
+    #     "stock_bid",
+    #     "stock_ask_size",
+    #     "stock_ask",
+    #     "stock_volume",
+    #     "stock_count",
+    # ]
 
-    # Testing: get_loaders
-    output = get_forecasting_loaders(
-        root=root,
-        start_date=total_start_date,
-        end_date=total_end_date,
-        contract_stride=contract_stride,
-        interval_min=interval_min,
-        right=right,
-        target_tte=target_tte,
-        tte_tolerance=tte_tolerance,
-        moneyness=moneyness,
-        target_band=target_band,
-        volatility_type=volatility_type,
-        volatility_scaled=volatility_scaled,
-        volatility_scalar=volatility_scalar,
-        train_split=0.4,
-        val_split=0.3,
-        core_feats=core_feats,
-        tte_feats=tte_feats,
-        datetime_feats=datetime_feats,
-        batch_size=32,
-        clean_up=False,
-        offline=False,
-        save_dir=None,
-        verbose=True,
-        scaling=True,
-    )
-    train_loader, val_loader, test_loader = output[0:3]
+    # # Testing: get_loaders
+    # output = get_forecasting_loaders(
+    #     tte_tolerance=(15, 45),
+    #     seq_len=100,
+    #     pred_len=10,
+    #     core_feats=core_feats,
+    #     tte_feats=tte_feats,
+    #     datetime_feats=datetime_feats,
+    #     batch_size=32,
+    #     clean_up=False,
+    #     offline=False,
+    #     save_dir=None,
+    #     verbose=True,
+    #     scaling=True,
+    # )
+    # train_loader, val_loader, test_loader = output[0:3]
 
-    print(f"Num train examples: {len(train_loader.dataset)}")
-    print(f"Num val examples: {len(val_loader.dataset)}")
-    print(f"Num test examples: {len(test_loader.dataset)}")
+    # print(f"Num train examples: {len(train_loader.dataset)}")
+    # print(f"Num val examples: {len(val_loader.dataset)}")
+    # print(f"Num test examples: {len(test_loader.dataset)}")
 
     # Testing: create_windows
     from optrade.data.features import transform_features
@@ -669,13 +671,15 @@ if __name__ == "__main__":
         root="AAPL",
         start_date="20241107",
         volatility_scaled=False,
-        target_band=0.05,
+        strike_band=0.05,
         moneyness="OTM",
         interval_min=1,
         right="C",
+        target_tte=30,
+        tte_tolerance=(25, 35),
     )
 
-    df = contract.load_data(clean_up=True, offline=False)
+    df = contract.load_data(clean_up=True, offline=False, warning=True)
 
     # TTE features
     tte_feats = ["sqrt", "exp_decay"]
