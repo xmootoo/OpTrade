@@ -261,7 +261,7 @@ class Experiment:
                 break
 
             # Checkpoint (online)
-            if self.logging=="neptune":
+            if self.logging == "neptune":
                 pass
             else:
                 run_time = time.time() - self.start_time
@@ -341,7 +341,6 @@ class Experiment:
         criterion: nn.Module,
         metrics: List[str] = ["loss"],
     ) -> None:
-
         """
 
         Tests the model.
