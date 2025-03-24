@@ -1,11 +1,12 @@
 from typing import List, Optional, Dict, Any, Tuple, Union
-from pydantic import BaseModel, Field, model_validator
 import pandas as pd
 import numpy as np
 import yfinance as yf
 import torch
 from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
+from rich.console import Console
+from optrade.data.contracts import ContractDataset
 
 from optrade.data.thetadata import load_stock_data_eod
 from optrade.utils.market_metrics import (
@@ -18,199 +19,133 @@ from optrade.utils.stock_categories import (
     SectorType,
     IndustryType,
 )
+from optrade.data.contracts import get_contract_datasets
 from optrade.data.forecasting import (
-    get_contract_datasets,
     get_forecasting_dataset,
     get_forecasting_loaders,
 )
-from optrade.data.contracts import ContractDataset
 
 
-class Universe(BaseModel):
-    model_config = {"use_enum_values": True, "arbitrary_types_allowed": True}
+class Universe:
+    def __init__(
+        self,
+        start_date: str,
+        end_date: str,
+        sp_500: bool = False,
+        nasdaq_100: bool = False,
+        dow_jones: bool = False,
+        candidate_roots: Optional[List[str]] = None,
+        volatility: Optional[str] = None,
+        pe_ratio: Optional[str] = None,
+        debt_to_equity: Optional[str] = None,
+        beta: Optional[str] = None,
+        market_cap: Optional[str] = None,
+        sector: Optional[str] = None,
+        industry: Optional[str] = None,
+        dividend_yield: Optional[str] = None,
+        earnings_volatility: Optional[str] = None,
+        market_beta: Optional[str] = None,
+        size_beta: Optional[str] = None,
+        value_beta: Optional[str] = None,
+        profitability_beta: Optional[str] = None,
+        investment_beta: Optional[str] = None,
+        ff_mode: Optional[str] = None,
+        save_dir: Optional[str] = None,
+        verbose: bool = False,
+    ) -> None:
+        """A class for defining the universe of stocks and options for data retrieval and analysis.
 
-    # Date range for data retrieval
-    start_date: str = Field(
-        default=None, description="Start date for data retrieval in YYYYMMDD format"
-    )
-    end_date: str = Field(
-        default=None, description="End date for data retrieval in YYYYMMDD format"
-    )
+        This class contains parameters for filtering stocks based on various factors
+        and selecting options contracts based on specific criteria.
 
-    # Stock collections (only one can be true at a time)
-    sp_500: bool = Field(
-        default=False,
-        description="If True, use S&P 500 stocks as the candidate universe",
-    )
-    nasdaq_100: bool = Field(
-        default=False,
-        description="If True, use NASDAQ 100 stocks as the candidate universe",
-    )
-    dow_jones: bool = Field(
-        default=False,
-        description="If True, use Dow Jones Industrial Average stocks as the candidate universe",
-    )
-    russell_2000: bool = Field(
-        default=False,
-        description="If True, use Russell 2000 stocks as the candidate universe",
-    )
-
-    # Candidate roots (used if no collection is selected)
-    candidate_roots: List[str] = Field(
-        default=None,
-        description="Candidate root symbols, to be filtered by other parameters. Used only if no collection (sp_500, nasdaq_100, etc.) is selected",
-    )
-
-    # Factor filters
-    volatility: Optional[FiveFactorLevel] = Field(
-        default=None,
-        description="The volatility of the stock. Options: 'very_low' (bottom 20%), 'low' (20-40%), 'medium' (40-60%), 'high' (60-80%), 'very_high' (top 20%)",
-    )
-    pe_ratio: Optional[ThreeFactorLevel] = Field(
-        default=None,
-        description="The P/E ratio of the stock. Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%)",
-    )
-    debt_to_equity: Optional[ThreeFactorLevel] = Field(
-        default=None,
-        description="The debt to equity ratio of the stock. Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%)",
-    )
-    beta: Optional[ThreeFactorLevel] = Field(
-        default=None,
-        description="The beta of the stock. Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%)",
-    )
-    market_cap: Optional[ThreeFactorLevel] = Field(
-        default=None,
-        description="The market cap of the stock. Options: 'low' (small cap), 'medium' (mid cap), 'high' (large cap)",
-    )
-    sector: Optional[SectorType] = Field(
-        default=None,
-        description="The sector of the stock. Options: 'tech', 'healthcare', 'financial', 'consumer_cyclical', 'consumer_defensive', 'industrial', 'energy', 'materials', 'utilities', 'real_estate', 'communication'",
-    )
-    industry: Optional[IndustryType] = Field(
-        default=None,
-        description="The industry of the stock. See IndustryType enum for complete list of options matching Yahoo Finance classifications",
-    )
-    dividend_yield: Optional[ThreeFactorLevel] = Field(
-        default=None,
-        description="The dividend yield of the stock. Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%)",
-    )
-    earnings_volatility: Optional[ThreeFactorLevel] = Field(
-        default=None,
-        description="The earnings volatility of the stock. Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%)",
-    )
-
-    # Fama French Factors
-    market_beta: Optional[str] = Field(
-        default=None,
-        description="The market beta of the stock. Options: 'high', 'low', 'neutral'",
-    )
-    size_beta: Optional[str] = Field(
-        default=None,
-        description="The size beta of the stock. Options: 'small_cap', 'large_cap', 'neutral'",
-    )
-    value_beta: Optional[str] = Field(
-        default=None,
-        description="The value beta of the stock. Options: 'value', 'growth', 'neutral'",
-    )
-    profitability_beta: Optional[str] = Field(
-        default=None,
-        description="The profitability beta of the stock. Options: 'robust', 'weak', 'neutral'",
-    )
-    investment_beta: Optional[str] = Field(
-        default=None,
-        description="The investment beta of the stock. Options: 'conservative', 'aggressive', 'neutral'",
-    )
-    ff_mode: str = Field(
-        default=None,
-        description="Mode for the Fama-French model ('3_factor' or '5_factor'). If None, no FF factors will be used for filtering.",
-    )
-
-    # Dataset factors
-    core_feats: List[str] = Field(
-        default=["option_returns"],
-        description="Core features to include in the dataset",
-    )
-    tte_feats: List[str] = Field(
-        default=["tte"],
-        description="Time to expiration features to include in the dataset",
-    )
-    datetime_feats: List[str] = Field(
-        default=None, description="Datetime features to include in the dataset"
-    )
-    contract_stride: int = Field(
-        default=1, description="Number of contracts to skip between each contract"
-    )
-    interval_min: int = Field(default=1, description="Interval in minutes for the data")
-    right: str = Field(
-        default="C", description="Option type: 'C' for call, 'P' for put"
-    )
-    target_tte: int = Field(default=30, description="Target time to expiration in days")
-    tte_tolerance: Tuple[int, int] = Field(
-        default=(25, 35), description="Tolerance range for time to expiration"
-    )
-    moneyness: str = Field(
-        default="ATM", description="Moneyness of the option: 'ATM', 'OTM', 'ITM'"
-    )
-    target_band: float = Field(
-        default=0.05, description="Target band for strike selection"
-    )
-    volatility_type: str = Field(
-        default="period",
-        description="Type of volatility to use: 'period', 'annualized'",
-    )
-    volatility_scaled: bool = Field(
-        default=False, description="Whether to used volatility-based strike selection"
-    )
-    volatility_scalar: float = Field(
-        default=1.0,
-        description="Scalar used for volatility-based strike selection, i.e. number of SDs of the current price",
-    )
-    train_split: float = Field(default=0.7, description="Train split ratio")
-    val_split: float = Field(default=0.15, description="Validation split ratio")
-    save_dir: Optional[str] = Field(
-        default=None, description="Directory to save the contract datasets"
-    )
-    verbose: bool = Field(default=False, description="Whether to print verbose output")
-
-    # Attributes used to store information (do not initialize)
-    fundamentals: Dict[str, Dict[str, Any]] = Field(
-        default_factory=dict, description="Fundamental data for each stock"
-    )
-    roots: List[str] = Field(
-        default_factory=list,
-        description="Root symbols of the stocks in the candidate universe",
-    )
-    contracts: Dict[str, Dict[str, ContractDataset]] = Field(
-        default_factory=dict, description="Contract datasets for each stock"
-    )
-
-    @model_validator(mode="after")
-    def validate_universe_selection(self) -> "Universe":
+        Attributes:
+            start_date (str, optional): Start date for data retrieval in YYYYMMDD format.
+            end_date (str, optional): End date for data retrieval in YYYYMMDD format.
+            sp_500 (bool): If True, use S&P 500 stocks as the candidate universe. Default is False.
+            nasdaq_100 (bool): If True, use NASDAQ 100 stocks as the candidate universe. Default is False.
+            dow_jones (bool): If True, use Dow Jones Industrial Average stocks as the candidate universe. Default is False.
+            candidate_roots (list, optional): Candidate root symbols to be filtered by other parameters.
+                Used only if no collection (sp_500, nasdaq_100, etc.) is selected.
+            volatility (str, optional): The volatility of the stock.
+                Options: 'very_low' (bottom 20%), 'low' (20-40%), 'medium' (40-60%),
+                'high' (60-80%), 'very_high' (top 20%).
+            pe_ratio (str, optional): The P/E ratio of the stock.
+                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+            debt_to_equity (str, optional): The debt to equity ratio of the stock.
+                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+            beta (str, optional): The beta of the stock.
+                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+            market_cap (str, optional): The market cap of the stock.
+                Options: 'low' (small cap), 'medium' (mid cap), 'high' (large cap).
+            sector (str, optional): The sector of the stock.
+                Options: 'tech', 'healthcare', 'financial', 'consumer_cyclical',
+                'consumer_defensive', 'industrial', 'energy', 'materials', 'utilities',
+                'real_estate', 'communication'.
+            industry (str, optional): The industry of the stock matching Yahoo Finance classifications.
+            dividend_yield (str, optional): The dividend yield of the stock.
+                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+            earnings_volatility (str, optional): The earnings volatility of the stock.
+                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+            market_beta (str, optional): The market beta of the stock.
+                Options: 'high', 'low', 'neutral'.
+            size_beta (str, optional): The size beta of the stock.
+                Options: 'small_cap', 'large_cap', 'neutral'.
+            value_beta (str, optional): The value beta of the stock.
+                Options: 'value', 'growth', 'neutral'.
+            profitability_beta (str, optional): The profitability beta of the stock.
+                Options: 'robust', 'weak', 'neutral'.
+            investment_beta (str, optional): The investment beta of the stock.
+                Options: 'conservative', 'aggressive', 'neutral'.
+            ff_mode (str, optional): Mode for the Fama-French model ('3_factor' or '5_factor').
+                If None, no FF factors will be used for filtering.
+            save_dir (str, optional): Directory to save the contract datasets and raw data.
+            verbose (bool): Whether to print verbose output. Default is False.
         """
-        Validates that only one index collection is selected at a time and
-        ensures candidate_roots is provided if no index is selected.
-        """
-        # Identify which index collections are selected
-        collections = ["sp_500", "nasdaq_100", "dow_jones"]
-        selected = [coll for coll in collections if getattr(self, coll, False)]
 
-        # Check if more than one collection is selected
-        if len(selected) > 1:
-            raise ValueError(
-                f"Only one collection can be selected at a time. You selected: {', '.join(selected)}"
-            )
+        # Date range for data retrieval
+        self.start_date = start_date
+        self.end_date = end_date
 
-        # If no collection is selected, ensure candidate_roots is provided
-        if len(selected) == 0 and not self.candidate_roots:
-            raise ValueError(
-                "Either select a collection (sp_500, nasdaq_100, etc.) or provide candidate_roots"
-            )
+        # Stock collections (only one can be true at a time)
+        self.sp_500 = sp_500
+        self.nasdaq_100 = nasdaq_100
+        self.dow_jones = dow_jones
 
-        return self
+        # Ensure only one index collection is selected
+        assert (
+            sum([sp_500, nasdaq_100, dow_jones]) <= 1
+        ), "Please select only one index collection at time from sp_500, nasdaq_100, or dow_jones."
+
+        # Candidate roots (used if no indices are selected)
+        self.candidate_roots = candidate_roots
+
+        # Factor filters
+        self.volatility = volatility
+        self.pe_ratio = pe_ratio
+        self.debt_to_equity = debt_to_equity
+        self.beta = beta
+        self.market_cap = market_cap
+        self.sector = sector
+        self.industry = industry
+        self.dividend_yield = dividend_yield
+        self.earnings_volatility = earnings_volatility
+
+        # Fama French Factors
+        self.market_beta = market_beta
+        self.size_beta = size_beta
+        self.value_beta = value_beta
+        self.profitability_beta = profitability_beta
+        self.investment_beta = investment_beta
+        self.ff_mode = ff_mode
+
+        # Directory and logging
+        self.save_dir = save_dir
+        self.verbose = verbose
+        self.ctx = Console()
 
     def set_candidate_roots(self) -> None:
         """
-        Fetches constituents of a specified index using public data sources and updates candidate_roots.
+        Fetches constituents of a specified index using public data on Wikipedia and updates candidate_roots.
         """
         if self.sp_500:
             sp_data = pd.read_html(
@@ -242,12 +177,20 @@ class Universe(BaseModel):
         else:
             self.roots = self.candidate_roots
 
+        if self.verbose:
+            self.ctx.log(f"Universe roots set to: {self.roots}")
+
     def get_fundamentals(self) -> None:
         """
         Retrieves fundamental data for each stock in candidate_roots using yfinance.
         Only includes metrics that are specified in the filter criteria.
         """
         self.fundamentals = dict()
+
+        # Assert that roots is an attribute of self and is not empty
+        assert (
+            hasattr(self, "roots") and self.roots
+        ), "No roots available. Run set_candidate_roots() first."
 
         for root in self.roots:
             fundamental_data = {}
@@ -290,24 +233,149 @@ class Universe(BaseModel):
             # If any values are None (i.e. the stock doesn't have that metric), don't add it to the dictionary
             if all(fundamental_data.values()):
                 self.fundamentals[root] = fundamental_data
+                if self.verbose:
+                    self.ctx.log(f"Fundamental data for {root}: {fundamental_data}")
             else:
+                if self.verbose:
+                    # Find out which fundamental is missing
+                    missing_fundamentals = [
+                        key for key, value in fundamental_data.items() if value is None
+                    ]
+                    self.ctx.log(
+                        f"Missing fundamental data for {root}: {missing_fundamentals}"
+                    )
                 self.roots.remove(root)
 
     def get_fama_french_factors(self) -> None:
+
+        # Assert that roots is an attribute of self and is not empty
+        assert (
+            hasattr(self, "roots") and self.roots
+        ), "No roots available. Run set_candidate_roots() first."
+
+        assert (
+            hasattr(self, "ff_mode") and self.ff_mode
+        ), "No Fama-French mode specified. Set ff_mode to '3_factor' or '5_factor'."
+
+        self.ff_factors = dict()
+
         for root in self.roots:
             try:
-                ff_factors = get_fama_french_factors(
+                self.ff_factors[root] = get_fama_french_factors(
                     root=root,
                     start_date=self.start_date,
                     end_date=self.end_date,
                     mode=self.ff_mode,
                 )
                 ff_factor_categories = factor_categorization(
-                    ff_factors, mode=self.ff_mode
+                    factors=self.ff_factors[root], mode=self.ff_mode
                 )
                 self.fundamentals[root].update(ff_factor_categories)
+                if self.verbose:
+                    self.ctx.log(
+                        f"Fama-French factors for {root}: {self.ff_factors[root]}"
+                    )
             except:
+                if self.verbose:
+                    self.ctx.log(f"Could not fetch Fama-French factors for {root}.")
                 self.roots.remove(root)
+
+    # Helper function to get percentiles for a given metric
+    def get_percentiles(self, metric, bins=3):
+        values = [
+            self.fundamentals[root].get(metric)
+            for root in self.roots
+            if root in self.fundamentals and metric in self.fundamentals[root]
+        ]
+        values = [v for v in values if v is not None]
+
+        if not values:
+            return []
+
+        if bins == 3:  # Terciles
+            return [np.percentile(values, 33.33), np.percentile(values, 66.67)]
+        elif bins == 5:  # Quintiles
+            return [
+                np.percentile(values, 20),
+                np.percentile(values, 40),
+                np.percentile(values, 60),
+                np.percentile(values, 80),
+            ]
+
+    # Filter function for three-level factors
+    def filter_three_level(
+        self, filtered_roots: List[str], metric: str, level_value: Union[str, None]
+    ) -> List[str]:
+        if level_value is None:
+            return filtered_roots
+
+        percentiles = self.get_percentiles(metric, bins=3)
+        if not percentiles:
+            return filtered_roots
+
+        result = []
+        for root in filtered_roots:
+            if root not in self.fundamentals or metric not in self.fundamentals[root]:
+                continue
+
+            value = self.fundamentals[root][metric]
+            if level_value == "low" and value <= percentiles[0]:
+                result.append(root)
+            elif level_value == "medium" and percentiles[0] < value <= percentiles[1]:
+                result.append(root)
+            elif level_value == "high" and value > percentiles[1]:
+                result.append(root)
+
+        return result
+
+    # Filter function for five-level factors
+    def filter_five_level(
+        self, filtered_roots: List[str], metric: str, level_value: Union[str, None]
+    ) -> List[str]:
+        if level_value is None:
+            return filtered_roots
+
+        percentiles = self.get_percentiles(metric, bins=5)
+        if not percentiles:
+            return filtered_roots
+
+        result = []
+        for root in filtered_roots:
+            if root not in self.fundamentals or metric not in self.fundamentals[root]:
+                continue
+
+            value = self.fundamentals[root][metric]
+            if level_value == "very_low" and value <= percentiles[0]:
+                result.append(root)
+            elif level_value == "low" and percentiles[0] < value <= percentiles[1]:
+                result.append(root)
+            elif level_value == "medium" and percentiles[1] < value <= percentiles[2]:
+                result.append(root)
+            elif level_value == "high" and percentiles[2] < value <= percentiles[3]:
+                result.append(root)
+            elif level_value == "very_high" and value > percentiles[3]:
+                result.append(root)
+
+        return result
+
+    # Filter function for categorical factors
+    def filter_categorical(
+        self, filtered_roots: List[str], metric: str, category_value: Union[str, None]
+    ) -> List[str]:
+        if category_value is None:
+            return filtered_roots
+
+        result = []
+        for root in filtered_roots:
+            if (
+                root in self.fundamentals
+                and metric in self.fundamentals[root]
+                and str(self.fundamentals[root][metric]).lower()
+                == str(category_value).lower()
+            ):
+                result.append(root)
+
+        return result
 
     def filter_universe(self) -> None:
         """
@@ -316,9 +384,6 @@ class Universe(BaseModel):
         - For FiveFactorLevel: 'very_low' (0-20%), 'low' (20-40%), 'medium' (40-60%), 'high' (60-80%), 'very_high' (80-100%)
         """
 
-        # Store fundamentals in a df
-        fundamentals_df = pd.DataFrame(self.fundamentals).T
-
         if not self.fundamentals:
             print("No fundamental data available. Run get_fundamentals() first.")
             return
@@ -326,121 +391,32 @@ class Universe(BaseModel):
         # Create a copy of roots to filter
         filtered_roots = self.roots.copy()
 
-        # Helper function to get percentiles for a given metric
-        def get_percentiles(metric, bins=3):
-            values = [
-                self.fundamentals[root].get(metric)
-                for root in self.roots
-                if root in self.fundamentals and metric in self.fundamentals[root]
-            ]
-            values = [v for v in values if v is not None]
-
-            if not values:
-                return []
-
-            if bins == 3:  # Terciles
-                return [np.percentile(values, 33.33), np.percentile(values, 66.67)]
-            elif bins == 5:  # Quintiles
-                return [
-                    np.percentile(values, 20),
-                    np.percentile(values, 40),
-                    np.percentile(values, 60),
-                    np.percentile(values, 80),
-                ]
-
-        # Filter function for three-level factors
-        def filter_three_level(metric, level_value):
-            if level_value is None:
-                return filtered_roots
-
-            percentiles = get_percentiles(metric, bins=3)
-            if not percentiles:
-                return filtered_roots
-
-            result = []
-            for root in filtered_roots:
-                if (
-                    root not in self.fundamentals
-                    or metric not in self.fundamentals[root]
-                ):
-                    continue
-
-                value = self.fundamentals[root][metric]
-                if level_value == "low" and value <= percentiles[0]:
-                    result.append(root)
-                elif (
-                    level_value == "medium" and percentiles[0] < value <= percentiles[1]
-                ):
-                    result.append(root)
-                elif level_value == "high" and value > percentiles[1]:
-                    result.append(root)
-
-            return result
-
-        # Filter function for five-level factors
-        def filter_five_level(metric, level_value):
-            if level_value is None:
-                return filtered_roots
-
-            percentiles = get_percentiles(metric, bins=5)
-            if not percentiles:
-                return filtered_roots
-
-            result = []
-            for root in filtered_roots:
-                if (
-                    root not in self.fundamentals
-                    or metric not in self.fundamentals[root]
-                ):
-                    continue
-
-                value = self.fundamentals[root][metric]
-                if level_value == "very_low" and value <= percentiles[0]:
-                    result.append(root)
-                elif level_value == "low" and percentiles[0] < value <= percentiles[1]:
-                    result.append(root)
-                elif (
-                    level_value == "medium" and percentiles[1] < value <= percentiles[2]
-                ):
-                    result.append(root)
-                elif level_value == "high" and percentiles[2] < value <= percentiles[3]:
-                    result.append(root)
-                elif level_value == "very_high" and value > percentiles[3]:
-                    result.append(root)
-
-            return result
-
-        # Filter function for categorical factors
-        def filter_categorical(metric, category_value):
-            if category_value is None:
-                return filtered_roots
-
-            result = []
-            for root in filtered_roots:
-                if (
-                    root in self.fundamentals
-                    and metric in self.fundamentals[root]
-                    and str(self.fundamentals[root][metric]).lower()
-                    == str(category_value).lower()
-                ):
-                    result.append(root)
-
-            return result
-
         # Apply all filters
         # Five-level factors
-        filtered_roots = filter_five_level("volatility", self.volatility)
+        filtered_roots = self.filter_five_level(
+            filtered_roots, "volatility", self.volatility
+        )
 
         # Three-level factors
-        filtered_roots = filter_three_level("pe_ratio", self.pe_ratio)
-        filtered_roots = filter_three_level("debt_to_equity", self.debt_to_equity)
-        filtered_roots = filter_three_level("beta", self.beta)
-        filtered_roots = filter_three_level("market_cap", self.market_cap)
-        filtered_roots = filter_three_level("dividend_yield", self.dividend_yield)
+        filtered_roots = self.filter_three_level(
+            filtered_roots, "pe_ratio", self.pe_ratio
+        )
+        filtered_roots = self.filter_three_level(
+            filtered_roots, "debt_to_equity", self.debt_to_equity
+        )
+        filtered_roots = self.filter_three_level(filtered_roots, "beta", self.beta)
+        filtered_roots = self.filter_three_level(
+            filtered_roots, "market_cap", self.market_cap
+        )
+        filtered_roots = self.filter_three_level(
+            filtered_roots, "dividend_yield", self.dividend_yield
+        )
 
         # Categorical factors
-        filtered_roots = filter_categorical("sector", self.sector)
-        filtered_roots = filter_categorical("industry", self.industry)
+        filtered_roots = self.filter_categorical(filtered_roots, "sector", self.sector)
+        filtered_roots = self.filter_categorical(
+            filtered_roots, "industry", self.industry
+        )
 
         # Fama French factors
         if self.ff_mode is not None:
@@ -474,65 +450,122 @@ class Universe(BaseModel):
         # Update roots to the filtered list
         self.roots = filtered_roots
 
-    def download(self) -> None:
+    def download(
+        self,
+        contract_stride: int,
+        interval_min: int,
+        right: str,
+        target_tte: int,
+        tte_tolerance: Tuple[int, int],
+        moneyness: str,
+        train_split: float,
+        val_split: float,
+        strike_band: Optional[float] = 0.05,
+        volatility_type: Optional[str] = "period",
+        volatility_scaled: bool = False,
+        volatility_scalar: Optional[float] = None,
+    ) -> None:
+        """
+        Downloads options contract datasets and market data for the filtered universe of stocks. To be used in conjunction with
+        offline=True when calling get_forecasting_loaders() for higher efficiency during model training.
+
+        Args:
+            contract_stride (int): Number of days between consecutive contracts.
+            interval_min (int): Interval in minutes for the options data.
+            right (str): Type of contract ('C' for call or 'P' and for put).
+            target_tte (int): Target time to expiration in days.
+            tte_tolerance (Tuple[int, int]): Lower and upper bounds for the time to expiration.
+            moneyness (str): Moneyness of the option. Options: "ATM", "ITM", or "OTM".
+            strike_band (float): Strike band for the option.
+            train_split (float): Proportion of contracts to use for training.
+            val_split (float): Proportion of contracts to use for validation.
+            volatility_type (str, optional): Type of volatility to use for scaling. Options: "daily", "period", or "annualized".
+            volatility_scaled (bool, optional): Whether to scale the volatility.
+            volatility_scalar (float, optional): Scalar to multiply the volatility by.
+
+        Returns:
+            None
+
+        """
+
+        self.contract_paths = dict()
+
+        # Assert that roots is an attribute of self and is not empty
+        assert (
+            hasattr(self, "roots") and self.roots
+        ), "No roots available. Run set_candidate_roots() first."
+
         # Download all data for the filtered universe
         for root in self.roots:
 
             # Download contracts
-            train_contracts, val_contracts, test_contracts = get_contract_datasets(
-                root=root,
-                start_date=self.start_date,
-                end_date=self.end_date,
-                contract_stride=self.contract_stride,
-                interval_min=self.interval_min,
-                right=self.right,
-                target_tte=self.target_tte,
-                tte_tolerance=self.tte_tolerance,
-                moneyness=self.moneyness,
-                target_band=self.target_band,
-                volatility_type=self.volatility_type,
-                volatility_scaled=self.volatility_scaled,
-                volatility_scalar=self.volatility_scalar,
-                train_split=self.train_split,
-                val_split=self.val_split,
-                clean_up=False,  # Set to False to download data
-                offline=False,  # Set to False to download data
-                save_dir=self.save_dir,
-                verbose=self.verbose,
+            if self.verbose:
+                self.ctx.log(f"Downloading data for root: {root}")
+            train_contract_dataset, val_contract_dataset, test_contract_dataset = (
+                get_contract_datasets(
+                    root=root,
+                    start_date=self.start_date,
+                    end_date=self.end_date,
+                    contract_stride=contract_stride,
+                    interval_min=interval_min,
+                    right=right,
+                    target_tte=target_tte,
+                    tte_tolerance=tte_tolerance,
+                    moneyness=moneyness,
+                    strike_band=strike_band,
+                    volatility_type=volatility_type,
+                    volatility_scaled=volatility_scaled,
+                    volatility_scalar=volatility_scalar,
+                    train_split=train_split,
+                    val_split=val_split,
+                    clean_up=False,  # Set to False to download data
+                    offline=False,  # Set to False to download data
+                    save_dir=self.save_dir,
+                    verbose=self.verbose,
+                )
             )
-
-            self.contracts[root] = {
-                "train": train_contracts,
-                "val": val_contracts,
-                "test": test_contracts,
-            }
 
             # Download raw data
-            get_forecasting_dataset(
-                seq_len=self.seq_len,
-                pred_len=self.pred_len,
-                contracts=train_contracts,
-                tte_tolerance=self.tte_tolerance,
+            updated_train_contract_dataset = get_forecasting_dataset(
+                contract_dataset=train_contract_dataset,
+                tte_tolerance=tte_tolerance,
                 download_only=True,
+                verbose=self.verbose,
+                save_dir=self.save_dir,
             )
-            get_forecasting_dataset(
-                seq_len=self.seq_len,
-                pred_len=self.pred_len,
-                contracts=val_contracts,
-                tte_tolerance=self.tte_tolerance,
+            updated_val_contract_dataset = get_forecasting_dataset(
+                contract_dataset=val_contract_dataset,
+                tte_tolerance=tte_tolerance,
                 download_only=True,
+                verbose=self.verbose,
+                save_dir=self.save_dir,
             )
-            get_forecasting_dataset(
-                seq_len=self.seq_len,
-                pred_len=self.pred_len,
-                contracts=test_contracts,
-                tte_tolerance=self.tte_tolerance,
+            updated_test_contract_dataset = get_forecasting_dataset(
+                contract_dataset=test_contract_dataset,
+                tte_tolerance=tte_tolerance,
                 download_only=True,
+                verbose=self.verbose,
+                save_dir=self.save_dir,
             )
+
+            self.contract_paths[root] = {
+                "train": updated_train_contract_dataset.filepath,
+                "val": updated_val_contract_dataset.filepath,
+                "test": updated_test_contract_dataset.filepath,
+            }
 
     def get_forecasting_loaders(
         self,
         root: str,
+        tte_tolerance: Tuple[int, int],
+        seq_len: int,
+        pred_len: int,
+        scaling: bool = False,
+        dtype: str = "float32",
+        core_feats: List[str] = ["option_returns"],
+        tte_feats: Optional[List[str]] = None,
+        datetime_feats: Optional[List[str]] = None,
+        target_channels: Optional[List[str]] = None,
         offline: bool = False,
         batch_size: int = 32,
         shuffle: bool = True,
@@ -544,26 +577,61 @@ class Universe(BaseModel):
         Tuple[DataLoader, DataLoader, DataLoader],
         Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
     ]:
+        """
+
+        Args:
+            root (str): Root symbol of the stock.
+            contract_stride (int): Number of days between consecutive contracts.
+            interval_min (int): Interval in minutes for the options data.
+            right (str): Type of contract ('C' for call or 'P' and for put).
+            target_tte (int): Target time to expiration in days.
+            tte_tolerance (Tuple[int, int]): Lower and upper bounds for the time to expiration.
+            moneyness (str): Moneyness of the option. Options: "ATM", "ITM", or "OTM".
+            seq_len (int): Sequence length for the input data.
+            pred_len (int): Prediction length for the target data.
+            dtype_str (str): Data type for the input and target data.
+            train_split (float): Proportion of contracts to use for training.
+            val_split (float): Proportion of contracts to use for validation.
+            scaling (bool): Whether to scale the data.
+            dtype (str): Data type for the input and target data.
+            core_feats (List[str]): Core features to include in the input data.
+            tte_feats (List[str], optional): Time-to-expiration features to include in the input data.
+            datetime_feats (List[str], optional): Datetime features to include in the input data.
+            target_channels (List[str], optional): Target channels to include in the target data.
+            strike_band (float, optional): Strike band for the option.
+            volatility_type (str, optional): Type of volatility to use for scaling. Options: "daily", "period", or "annualized".
+            volatility_scaled (bool, optional): Whether to scale the volatility.
+            volatility_scalar (float, optional): Scalar to multiply the volatility by.
+            offline (bool, optional): Whether to use offline data for faster training.
+            batch_size (int, optional): Batch size for the data loader.
+            shuffle (bool, optional): Whether to shuffle the data.
+            drop_last (bool, optional): Whether to drop the last incomplete batch.
+            num_workers (int, optional): Number of workers for the data loader.
+            prefetch_factor (int, optional): Prefetch factor for the data loader.
+            pin_memory (bool, optional): Whether to pin memory for the data loader.
+
+        Returns:
+            Tuple[DataLoader, DataLoader, DataLoader]: Train, validation, and test data loaders if scaling=False.
+            Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]: Train, validation, and test data loaders, and the scaler if scaling=True.
+        """
+
+        # from pathlib import Path
+        # train_contract_dataset = ContractDataset.load(Path("/Users/xaviermootoo/Projects/optrade/optrade/data/universe_test/contracts/AAPL/20210101_20210517/C/contract_stride_3/interval_1/target_tte_30/moneyness_ATM/strike_band_0p05/train_contracts.pkl"))
+        # val_contract_dataset = ContractDataset.load(Path("/Users/xaviermootoo/Projects/optrade/optrade/data/universe_test/contracts/AAPL/20210517_20210806/C/contract_stride_3/interval_1/target_tte_30/moneyness_ATM/strike_band_0p05/val_contracts.pkl"))
+        # test_contract_dataset = ContractDataset.load(Path("/Users/xaviermootoo/Projects/optrade/optrade/data/universe_test/contracts/AAPL/20210807_20211001/C/contract_stride_3/interval_1/target_tte_30/moneyness_ATM/strike_band_0p05/test_contracts.pkl"))
 
         loaders = get_forecasting_loaders(
-            root=root,
-            start_date=self.start_date,
-            end_date=self.end_date,
-            contract_stride=self.contract_stride,
-            interval_min=self.interval_min,
-            right=self.right,
-            target_tte=self.target_tte,
-            tte_tolerance=self.tte_tolerance,
-            moneyness=self.moneyness,
-            target_band=self.target_band,
-            volatility_type=self.volatility_type,
-            volatility_scaled=self.volatility_scaled,
-            volatility_scalar=self.volatility_scalar,
-            train_split=self.train_split,
-            val_split=self.val_split,
-            core_feats=self.core_feats,
-            tte_feats=self.tte_feats,
-            datetime_feats=self.datetime_feats,
+            train_contract_dataset=ContractDataset.load(
+                self.contract_paths[root]["train"]
+            ),
+            val_contract_dataset=ContractDataset.load(self.contract_paths[root]["val"]),
+            test_contract_dataset=ContractDataset.load(
+                self.contract_paths[root]["test"]
+            ),
+            tte_tolerance=tte_tolerance,
+            core_feats=core_feats,
+            tte_feats=tte_feats,
+            datetime_feats=datetime_feats,
             batch_size=batch_size,
             shuffle=shuffle,
             drop_last=drop_last,
@@ -574,26 +642,28 @@ class Universe(BaseModel):
             offline=offline,
             save_dir=self.save_dir,
             verbose=self.verbose,
-            scaling=self.scaling,
-            intraday=self.intraday,
-            target_channels=self.target_channels,
-            seq_len=self.seq_len,
-            pred_len=self.pred_len,
-            dtype=self.dtype,
+            scaling=scaling,
+            intraday=False,  # Not implemented yet
+            target_channels=target_channels,
+            seq_len=seq_len,
+            pred_len=pred_len,
+            dtype=dtype,
         )
 
         return loaders
 
 
 if __name__ == "__main__":
+    ctx = Console()
+
     # Create a Universe instance
-    save_dir = "temp"
+    save_dir = "universe_test"
     universe = Universe(
         # sp_500=True,
         dow_jones=True,
         # volatility="medium",
         # pe_ratio="low",
-        # debt_to_equity="low",
+        debt_to_equity="low",
         # beta="medium",
         # market_cap="low",
         # sector="technology",
@@ -603,28 +673,66 @@ if __name__ == "__main__":
         start_date="20210101",
         end_date="20211001",
         # market_beta="neutral",
-        ff_mode="5_factor",
-        size_beta="large_cap",
+        # ff_mode="5_factor",
+        # size_beta="large_cap",
         # volatility="high"
         save_dir=save_dir,
+        verbose=True,
     )
 
-    # Fetch the S&P 500 constituents
-    universe.set_candidate_roots()
-    universe.get_fundamentals()
+    # # Fetch index constituents and get fundamental data
+    # universe.set_candidate_roots()
+    # universe.get_fundamentals()
+    # ctx.log(f"Universe: {universe.roots}")
 
-    # print(universe.fundamentals["NVDA"],
-    # universe.fundamentals["AAPL"],
-    # universe.fundamentals["MMM"],
-    # universe.fundamentals["CAT"],
-    # universe.fundamentals["DIS"]
-    # )
-    print(f"Universe: {universe.roots}")
-    # Filter the universe
-    universe.filter_universe()
-    print(f"Filtered universe: {universe.roots}")
+    # # Filter the universe
+    # universe.filter_universe()
+    # ctx.log(f"Filtered universe: {universe.roots}")
 
-    universe.roots = ["AAPL"]
+    # Set parameters
+    contract_stride = 3
+    interval_min = 1
+    right = "C"
+    target_tte = 30
+    tte_tolerance = (20, 40)
+    moneyness = "ATM"
+    train_split = 0.5
+    val_split = 0.3
+    volatility_scaled = False
 
-    universe.download()
-    loaders = universe.get_forecasting_loaders(root="AAPL", offline=True)
+    # import random
+    # root = random.choice(universe.roots)
+    root = "AAPL"
+    universe.roots = [root]  # For testing purposes, download a single stock
+
+    # Download data
+    universe.download(
+        contract_stride=contract_stride,
+        interval_min=interval_min,
+        right=right,
+        target_tte=target_tte,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        train_split=train_split,
+        val_split=val_split,
+        volatility_scaled=volatility_scaled,
+    )
+
+    # size_beta_exposure = universe.ff_factors[root]["size_beta"]
+    # ctx.log(f"Loading root: {root} with a size beta exposure of {size_beta_exposure}.")
+
+    loaders = universe.get_forecasting_loaders(
+        offline=True,
+        root=universe.roots[0],
+        tte_tolerance=tte_tolerance,
+        seq_len=30,
+        pred_len=5,
+        core_feats=["option_returns"],
+        target_channels=["option_returns"],
+        dtype="float32",
+        scaling=False,
+    )
+
+    ctx.log(f"Train loader: {len(loaders[0].dataset)} samples")
+    ctx.log(f"Validation loader: {len(loaders[1].dataset)} samples")
+    ctx.log(f"Test loader: {len(loaders[2].dataset)} samples")
