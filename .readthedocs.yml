@@ -5,7 +5,10 @@ build:
     python: "3.10"
   jobs:
     pre_build:
+      - pip install "setuptools<58.0.0" --force-reinstall # Force the downgrade
       - python docs/build.py
+    # pre_build:
+    #   - python docs/build.py
 sphinx:
   configuration: docs/conf.py
 python:
