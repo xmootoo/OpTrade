@@ -78,7 +78,7 @@ function to load and transform the data for all contracts.
         target_tte=3,
         tte_tolerance=(1,10),
         moneyness="ITM",
-        target_band=0.05,
+        strike_band=0.05,
         volatility_scaled=True,
         volatility_scalar=0.1,
         hist_vol=0.1117,
