@@ -5,6 +5,7 @@ import statsmodels.api as sm
 from datetime import datetime
 import warnings
 from typing import Dict, Any
+from rich.console import Console
 
 warnings.filterwarnings("ignore", message="The argument 'date_parser' is deprecated")
 
@@ -13,7 +14,9 @@ from optrade.data.thetadata import load_stock_data
 
 
 def get_historical_vol(
-    stock_data: pd.DataFrame, volatility_type: str = "period"
+    stock_data: pd.DataFrame,
+    volatility_type: str = "period",
+    verbose: bool = False,
 ) -> float:
     """
     Calculate historical volatility using intraday data from regular trading hours (9:30AM-3:59PM).
@@ -28,6 +31,8 @@ def get_historical_vol(
     Returns:
         Volatility value based on the specified type
     """
+    ctx = Console()
+
     # Convert datetime strings to datetime objects
     datetimes = pd.to_datetime(stock_data["datetime"])
 
@@ -49,9 +54,10 @@ def get_historical_vol(
     intervals_per_day = len(first_day)
     returns_per_day = intervals_per_day - 1
 
-    print(
-        f"Intervals per day are {intervals_per_day} and returns per day are {returns_per_day}"
-    )
+    if verbose:
+        ctx.log(
+            f"Intervals per day are {intervals_per_day} and returns per day are {returns_per_day}"
+        )
 
     # Calculate log returns using mid prices
     log_returns = np.log(mid_prices.values[1:] / mid_prices.values[:-1])
@@ -60,7 +66,7 @@ def get_historical_vol(
     valid_return_days = (np.arange(len(log_returns)) + 1) % intervals_per_day != 0
 
     # Validate the valid_return_days
-    n = np.random.randint(0, num_trading_days)
+    n = np.random.randint(0, num_trading_days - 1)
     idx = (returns_per_day) + (intervals_per_day * n)
     assert (
         valid_return_days[idx] == False

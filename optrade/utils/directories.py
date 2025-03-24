@@ -35,7 +35,7 @@ def set_contract_dir(
     target_tte: int = 30,
     tte_tolerance: Tuple[int, int] = (25, 35),
     moneyness: str = "OTM",
-    target_band: float = 0.05,
+    strike_band: float = 0.05,
     volatility_scaled: bool = True,
     volatility_scalar: float = 1.0,
     hist_vol: Optional[float] = None,
@@ -62,11 +62,11 @@ def set_contract_dir(
     # Add volatility info to path if volatility_scaled is True
     if volatility_scaled:
         contract_dir = (
-            contract_dir / f"histvol_{hist_vol}_volscalar_{volatility_scalar}"
+            contract_dir / f"histvol_{hist_vol:.6f}_volscalar_{volatility_scalar}"
         )
     else:
         contract_dir = (
-            contract_dir / f"target_band_{str(target_band).replace('.', 'p')}"
+            contract_dir / f"strike_band_{str(strike_band).replace('.', 'p')}"
         )
 
     return contract_dir
