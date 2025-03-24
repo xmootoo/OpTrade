@@ -1119,6 +1119,7 @@ def load_all_data(
     save_dir: Optional[str] = None,
     clean_up: bool = False,
     offline: bool = False,
+    warning: bool = False,
 ) -> pd.DataFrame:
     """
     Gets historical quote-level data (NBBO) and OHLC (Open High Low Close) from ThetaData API for
@@ -1252,6 +1253,7 @@ def load_all_data(
                 message=f"Option data queried on start_date={queried_start_date}, but the contract doesn't start until start_date={real_start_date}.",
                 error_code=INCOMPATIBLE_START_DATE,
                 real_start_date=real_start_date,
+                warning=warning,
             )
 
         # Otherwise verify if option_df starts earlier AND later than stock_df
@@ -1265,6 +1267,7 @@ def load_all_data(
                 error_code=INCOMPATIBLE_END_DATE,
                 real_start_date=real_start_date,
                 real_end_date=real_end_date,
+                warning=warning,
             )
 
         # Otherwise verify if option_df is a continuous subset of stock data (i.e. missing dates in between start_date and end_date)
@@ -1293,11 +1296,13 @@ def load_all_data(
                 message=error_message
                 + "This discrepancy is likely due to anomalous market events.",
                 error_code=MISSING_DATES,
+                warning=warning,
             )
         else:
             raise DataValidationError(
                 message=f"Unknown error. Filtering stock data by start_date={real_start_date} and end_date={real_end_date} did not resolve the issue, and neither is option dates a subset of stock dates.",
                 error_code=UNKNOWN_ERROR,
+                warning=warning,
             )
 
     # Merge the two dataframes and save
