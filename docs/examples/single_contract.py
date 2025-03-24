@@ -29,7 +29,7 @@ data = transform_features(
     datetime_feats=["minute_of_day", "hour_of_week"],  # Time features
     strike=contract.strike,
     exp=contract.exp,
-).values
+)
 
 # Step 4: Create dataset for time series forecasting
 from optrade.data.forecasting import ForecastingDataset
