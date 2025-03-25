@@ -5,7 +5,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue.svg)](https://www.python.org)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-
+<!-- 
 
 <div align="left">
   <h3>
@@ -14,9 +14,16 @@
 |:---:|:---:|:---:|
     
   </h3>
+</div> -->
+
+
+<div align="center">
+  <h3>
+    <a href="https://optrade.readthedocs.io/">📚 Documentation</a> &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://github.com/yourusername/optrade">💻 GitHub</a> &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://pypi.org/project/optrade/">📦 PyPI</a>
+  </h3>
 </div>
-
-
 OpTrade is a complete toolkit for quantitative research and development of options trading strategies. By abstracting away the complexity of data handling and experimental setup, researchers and traders can focus on what matters most: developing and testing alpha-generating ideas.
 
 
