@@ -49,7 +49,6 @@ class Universe:
         value_beta: Optional[str] = None,
         profitability_beta: Optional[str] = None,
         investment_beta: Optional[str] = None,
-        ff_mode: Optional[str] = None,
         save_dir: Optional[str] = None,
         verbose: bool = False,
     ) -> None:
@@ -96,8 +95,6 @@ class Universe:
                 Options: 'robust', 'weak', 'neutral'.
             investment_beta (str, optional): The investment beta of the stock.
                 Options: 'conservative', 'aggressive', 'neutral'.
-            ff_mode (str, optional): Mode for the Fama-French model ('3_factor' or '5_factor').
-                If None, no FF factors will be used for filtering.
             save_dir (str, optional): Directory to save the contract datasets and raw data.
             verbose (bool): Whether to print verbose output. Default is False.
         """
@@ -136,7 +133,14 @@ class Universe:
         self.value_beta = value_beta
         self.profitability_beta = profitability_beta
         self.investment_beta = investment_beta
-        self.ff_mode = ff_mode
+
+        # Check if any of the ff factors are set
+        if any([profitability_beta, investment_beta]):
+            self.ff_mode = "5_factor"
+        elif any([market_beta, size_beta, value_beta]):
+            self.ff_mode = "3_factor"
+        else:
+            self.ff_mode = None
 
         # Directory and logging
         self.save_dir = save_dir
@@ -657,37 +661,22 @@ if __name__ == "__main__":
     ctx = Console()
 
     # Create a Universe instance
-    save_dir = "universe_test"
     universe = Universe(
-        # sp_500=True,
         dow_jones=True,
-        # volatility="medium",
-        # pe_ratio="low",
         debt_to_equity="low",
-        # beta="medium",
-        # market_cap="low",
-        # sector="technology",
-        # industry="technology",
-        # dividend_yield="low",
-        # earnings_volatility="low",
+        market_cap="high",
         start_date="20210101",
         end_date="20211001",
-        # market_beta="neutral",
-        # ff_mode="5_factor",
-        # size_beta="large_cap",
-        # volatility="high"
-        save_dir=save_dir,
+        save_dir="test",
         verbose=True,
     )
+    universe.set_candidate_roots() # Fetch index constituents
+    universe.get_fundamentals() # Fetch fundamental data
+    print(f"Universe: {universe.roots}")
 
-    # # Fetch index constituents and get fundamental data
-    # universe.set_candidate_roots()
-    # universe.get_fundamentals()
-    # ctx.log(f"Universe: {universe.roots}")
-
-    # # Filter the universe
-    # universe.filter_universe()
-    # ctx.log(f"Filtered universe: {universe.roots}")
+    # Filter the universe for stocks with low debt-to-equity and high market cap
+    universe.filter_universe()
+    ctx.log(f"Filtered universe: {universe.roots}")
 
     # Set parameters
     contract_stride = 3
@@ -700,39 +689,32 @@ if __name__ == "__main__":
     val_split = 0.3
     volatility_scaled = False
 
-    # import random
-    # root = random.choice(universe.roots)
-    root = "AAPL"
-    universe.roots = [root]  # For testing purposes, download a single stock
-
-    # Download data
+    # Download contracts and raw data for the filtered universe
     universe.download(
-        contract_stride=contract_stride,
-        interval_min=interval_min,
-        right=right,
-        target_tte=target_tte,
-        tte_tolerance=tte_tolerance,
-        moneyness=moneyness,
-        train_split=train_split,
-        val_split=val_split,
-        volatility_scaled=volatility_scaled,
+        contract_stride=3,
+        interval_min=1,
+        right="C",
+        target_tte=30,
+        tte_tolerance=(20, 40),
+        moneyness="ATM",
+        train_split=0.5,
+        val_split=0.3,
     )
 
-    # size_beta_exposure = universe.ff_factors[root]["size_beta"]
-    # ctx.log(f"Loading root: {root} with a size beta exposure of {size_beta_exposure}.")
-
+    # Select a root for forecasting
+    root = universe.roots[0]
     loaders = universe.get_forecasting_loaders(
         offline=True,
-        root=universe.roots[0],
+        root=root,
         tte_tolerance=tte_tolerance,
-        seq_len=30,
-        pred_len=5,
+        seq_len=30, # 30-minute lookback window
+        pred_len=5, # 5-minute forecast horizon
         core_feats=["option_returns"],
         target_channels=["option_returns"],
         dtype="float32",
         scaling=False,
     )
 
-    ctx.log(f"Train loader: {len(loaders[0].dataset)} samples")
-    ctx.log(f"Validation loader: {len(loaders[1].dataset)} samples")
-    ctx.log(f"Test loader: {len(loaders[2].dataset)} samples")
+    print(f"Train loader: {len(loaders[0].dataset)} samples")
+    print(f"Validation loader: {len(loaders[1].dataset)} samples")
+    print(f"Test loader: {len(loaders[2].dataset)} samples")
