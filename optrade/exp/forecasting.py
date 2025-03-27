@@ -3,7 +3,7 @@ import warnings
 import random
 import time
 import neptune
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from pathlib import Path
 from rich.console import Console
 
@@ -20,6 +20,8 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import _LRScheduler
 
 # Custom Modules
+from optrade.data.contracts import get_contract_datasets
+from optrade.data.forecasting import get_forecasting_dataset, get_forecasting_loaders
 from optrade.utils.train import EarlyStopping
 from optrade.utils.misc import format_time_dynamic, generate_random_id
 
@@ -66,8 +68,6 @@ class Experiment:
         else:
             self.log_dir = Path("logs") / exp_id
 
-        self.log_dir = Path(self.log_dir) / self.log_dir
-
         self.init_logger(
             logdir=logdir,
             ablation_id=ablation_id,
@@ -76,7 +76,7 @@ class Experiment:
 
         self.set_seed()
 
-    def run(self):
+    def save_logs(self):
         # Stop Logger
         if self.logging == "neptune":
             self.logger.stop()
@@ -86,6 +86,127 @@ class Experiment:
                 json.dump(self.logger, f, indent=2)
         else:
             raise ValueError(f"Invalid logging method: {self.logging}.")
+
+    def init_loaders(
+        self,
+        root: str,
+        start_date: str,
+        end_date: str,
+        contract_stride: int,
+        interval_min: int,
+        right: str,
+        target_tte: int,
+        tte_tolerance: Tuple[int, int],
+        moneyness: str,
+        train_split: float,
+        val_split: float,
+        seq_len: int,
+        pred_len: int,
+        scaling: bool = False,
+        dtype: str = "float32",
+        core_feats: List[str] = ["option_returns"],
+        tte_feats: Optional[List[str]] = None,
+        datetime_feats: Optional[List[str]] = None,
+        target_channels: Optional[List[str]] = None,
+        strike_band: Optional[float] = 0.05,
+        volatility_type: Optional[str] = "period",
+        volatility_scaled: bool = False,
+        volatility_scalar: Optional[float] = 1.0,
+        batch_size: int = 32,
+        shuffle: bool = True,
+        drop_last: bool = False,
+        num_workers: int = 4,
+        prefetch_factor: int = 2,
+        pin_memory: bool = torch.cuda.is_available(),
+        persistent_workers: bool = True,
+        clean_up: bool = False,
+        offline: bool = False,
+        save_dir: Optional[str] = None,
+        verbose: bool = False,
+        validate_contracts: bool = True,
+    ) -> None:
+
+        self.print_master("Generating contract datasets...")
+        (
+            self.train_contract_dataset,
+            self.val_contract_dataset,
+            self.test_contract_dataset,
+        ) = get_contract_datasets(
+            root=root,
+            start_date=start_date,
+            end_date=end_date,
+            contract_stride=contract_stride,
+            interval_min=interval_min,
+            right=right,
+            target_tte=target_tte,
+            tte_tolerance=tte_tolerance,
+            moneyness=moneyness,
+            strike_band=strike_band,
+            volatility_type=volatility_type,
+            volatility_scaled=volatility_scaled,
+            volatility_scalar=volatility_scalar,
+            train_split=train_split,
+            val_split=val_split,
+            clean_up=clean_up,
+            offline=clean_up,
+            save_dir=save_dir,
+            verbose=verbose,
+        )
+
+        if validate_contracts:
+            self.print_master("Validating contracts with ThetaData API...")
+            self.train_contract_dataset = get_forecasting_dataset(
+                contract_dataset=self.train_contract_dataset,
+                tte_tolerance=tte_tolerance,
+                validate_contracts=True,
+                verbose=verbose,
+                save_dir=save_dir,
+            )
+
+            self.val_contract_dataset = get_forecasting_dataset(
+                contract_dataset=self.val_contract_dataset,
+                tte_tolerance=tte_tolerance,
+                validate_contracts=True,
+                verbose=verbose,
+                save_dir=save_dir,
+            )
+            self.test_contract_dataset = get_forecasting_dataset(
+                contract_dataset=self.test_contract_dataset,
+                tte_tolerance=tte_tolerance,
+                validate_contracts=True,
+                verbose=verbose,
+                save_dir=save_dir,
+            )
+
+        self.train_loader, self.val_loader, self.test_loader, self.scaler = get_forecasting_loaders(
+            train_contract_dataset=self.train_contract_dataset,
+            val_contract_dataset=self.val_contract_dataset,
+            test_contract_dataset=self.test_contract_dataset,
+            seq_len=seq_len,
+            pred_len=pred_len,
+            tte_tolerance=tte_tolerance,
+            scaling=scaling,
+            dtype=dtype,
+            core_feats=core_feats,
+            tte_feats=tte_feats,
+            datetime_feats=datetime_feats,
+            target_channels=target_channels,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            drop_last=drop_last,
+            num_workers=num_workers,
+            prefetch_factor=prefetch_factor,
+            persistent_workers=persistent_workers,
+            pin_memory=pin_memory,
+            clean_up=clean_up,
+            offline=offline,
+            save_dir=save_dir,
+            verbose=verbose,
+        )
+
+        self.print_master(
+            f"PyTorch Dataloaders initialized. Training examples: {len(self.train_loader.dataset)}. Validation examples: {len(self.val_loader.dataset)}. Test examples: {len(self.test_loader.dataset)}."
+        )
 
     def set_seed(self) -> None:
         """Fixes a seed for reproducibility purposes."""
@@ -148,8 +269,9 @@ class Experiment:
         model: nn.Module,
         optimizer: optim.Optimizer,
         criterion: nn.Module,
-        train_loader: DataLoader,
         num_epochs: int,
+        device,
+        train_loader: Optional[DataLoader] = None,
         val_loader: Optional[DataLoader] = None,
         metrics: List[str] = ["loss"],
         best_model_path: Optional[str] = None,
@@ -174,8 +296,18 @@ class Experiment:
             scheduler: The learning rate scheduler.
         """
 
+        if train_loader is None:
+            assert hasattr(self, "train_loader"), "A train_loader must be given or initialized using init_loaders() method."
+            train_loader = self.train_loader
+
+        if val_loader is None:
+            assert hasattr(self, "val_loader"), "A val_loader must be given or initialized using init_loaders() method."
+            val_loader = self.val_loader
+
         if best_model_path is None:
-            best_model_path = self.log_dir / "model.pth"
+            self.best_model_path = self.log_dir / "model.pth"
+        else:
+            self.best_model_path = best_model_path
 
         # Deep learning (PyTorch) pipeline
         num_examples = len(train_loader.dataset)
@@ -186,27 +318,27 @@ class Experiment:
             assert (
                 patience is not None
             ), "Patience must be specified for early stopping."
-            self.init_earlystopping(patience=patience, path=best_model_path)
+            self.init_earlystopping(patience=patience, path=self.best_model_path)
             self.print_master("Early stopping initialized.")
 
         # <--------------- Training --------------->
         for epoch in range(num_epochs):
             model.train()
-            total_loss = torch.tensor(0.0, device=model.device)
-            running_loss = torch.tensor(0.0, device=model.device)
-            running_num_examples = torch.tensor(0.0, device=model.device)
+            total_loss = torch.tensor(0.0, device=device)
+            running_loss = torch.tensor(0.0, device=device)
+            running_num_examples = torch.tensor(0.0, device=device)
             start_time = time.time()
 
             for i, batch in enumerate(train_loader):
-                x = batch[0].to(model.device)
-                y = batch[1].to(model.device)
+                x = batch[0].to(device)
+                y = batch[1].to(device)
                 optimizer.zero_grad()
                 output = model(x)
                 loss = criterion(output, y)
 
                 # Metrics
                 num_batch_examples = torch.tensor(
-                    batch[0].shape[0], device=model.device
+                    batch[0].shape[0], device=device
                 )
                 total_loss += loss * num_batch_examples
                 running_loss += loss * num_batch_examples
@@ -220,8 +352,8 @@ class Experiment:
                 if (i + 1) % 100 == 0:
 
                     # Loss metrics
-                    loss_tensor = running_loss.to(model.device)
-                    num_examples_tensor = running_num_examples.to(model.device)
+                    loss_tensor = running_loss.to(device)
+                    num_examples_tensor = running_num_examples.to(device)
                     end_time = time.time()
 
                     # Only rank 0 prints and logs details
@@ -231,8 +363,8 @@ class Experiment:
                     )
 
                     # Reset trackers
-                    running_loss = torch.tensor(0.0, device=model.device)
-                    running_num_examples = torch.tensor(0.0, device=model.device)
+                    running_loss = torch.tensor(0.0, device=device)
+                    running_num_examples = torch.tensor(0.0, device=device)
                     start_time = time.time()
 
                 if scheduler:
@@ -251,8 +383,9 @@ class Experiment:
                     criterion=criterion,
                     metrics=metrics,
                     epoch=epoch,
-                    best_model_path=best_model_path,
+                    best_model_path=self.best_model_path,
                     early_stopping=early_stopping,
+                    device=device
                 )
 
             # Early stopping
@@ -279,6 +412,7 @@ class Experiment:
         model: nn.Module,
         val_loader: DataLoader,
         criterion: nn.Module,
+        device,
         best_model_metric: str = "loss",
         metrics: List[str] = ["loss"],
         epoch: Optional[int] = None,
@@ -303,7 +437,7 @@ class Experiment:
 
         """
         stats = self.evaluate(
-            model=model, loader=val_loader, criterion=criterion, metrics=metrics
+            model=model, loader=val_loader, criterion=criterion, metrics=metrics, device=device
         )
 
         val_loss = stats["loss"]
@@ -337,8 +471,9 @@ class Experiment:
     def test(
         self,
         model: nn.Module,
-        test_loader: DataLoader,
         criterion: nn.Module,
+        device,
+        test_loader: Optional[DataLoader]=None,
         metrics: List[str] = ["loss"],
     ) -> None:
         """
@@ -356,13 +491,17 @@ class Experiment:
 
         """
 
+        if test_loader is None:
+            assert hasattr(self, "test_loader"), "A test_loader must be given or initialized using init_loaders() method."
+            test_loader = self.test_loader
+
         # Load best model
         model_weights = torch.load(self.best_model_path)
         model.load_state_dict(model_weights)
 
         # Test set evaluation
         stats = self.evaluate(
-            model=model, loader=test_loader, criterion=criterion, metrics=metrics
+            model=model, loader=test_loader, criterion=criterion, metrics=metrics, device=device
         )
 
         self.log_stats(stats=stats, metrics=metrics, mode="test")
@@ -372,6 +511,7 @@ class Experiment:
         model: nn.Module,
         loader: DataLoader,
         criterion: nn.Module,
+        device,
         metrics: List[str] = ["loss"],
     ) -> dict:
         """
@@ -395,23 +535,23 @@ class Experiment:
         with torch.no_grad():
 
             # Initialize Metrics
-            total_loss = torch.tensor(0.0, device=model.device)
-            total_mae = torch.tensor(0.0, device=model.device)
+            total_loss = torch.tensor(0.0, device=device)
+            total_mae = torch.tensor(0.0, device=device)
 
             for i, batch in enumerate(loader):
-                x = batch[0].to(model.device)
-                y = batch[1].to(model.device)
+                x = batch[0].to(device)
+                y = batch[1].to(device)
                 output = model(x)
                 loss = criterion(output, y)
                 num_batch_examples = torch.tensor(
-                    batch[0].shape[0], device=model.device
+                    batch[0].shape[0], device=device
                 )
                 total_loss += loss * num_batch_examples
 
                 # MAE
                 if "mae" in metrics:
                     total_mae += (
-                        mae_loss(output, batch[1].to(model.device)) * num_batch_examples
+                        mae_loss(output, batch[1].to(device)) * num_batch_examples
                     )
 
         # Loss
