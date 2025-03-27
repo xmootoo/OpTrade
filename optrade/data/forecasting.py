@@ -66,7 +66,7 @@ class ForecastingDataset(Dataset):
                                    (num_features, pred_len).
         """
         input = self.data[idx : idx + self.seq_len]
-        if self.target_channels:
+        if hasattr(self, "target_channels_idx"):
             target = self.data[
                 idx + self.seq_len : idx + self.seq_len + self.pred_len,
                 self.target_channels_idx,
@@ -161,6 +161,7 @@ def get_forecasting_dataset(
     dtype: str = "float32",
     save_dir: Optional[str] = None,
     download_only: bool = False,
+    validate_contracts: bool = False,
     verbose: bool = False,
     warning: bool = True,
 ) -> Union[ContractDataset, Tuple[Dataset, ContractDataset]]:
@@ -183,19 +184,30 @@ def get_forecasting_dataset(
         dtype: Data type for the PyTorch tensors
         save_dir: Save directory
         download_only: Whether to download data only (used mainly for Universe class)
+        validate_contracts: Whether to validate contracts by requesting data from ThetaData API and adjustintg start and end dates if necessary.
         verbose: Whether to print verbose output
         warning: Whether to print verbose DataValidationError statements as warnings or errors.
 
     Returns:
-        ContractDataset: The updated ContractDataset object if download_only=True.
+        ContractDataset: The updated ContractDataset object if `download_only`=True or `validate_contracts`=True.
         Tuple[ConcatDataset, ContractDataset]: A tuple containing the concatenated PyTorch dataset and the updated ContractDataset if download_only=False.
     """
 
     ctx = Console()
     dataset_list = []
 
+    # First, validate that download_only and validate_contracts aren't both True
+    if download_only and validate_contracts:
+        raise ValueError(
+            "Please use download_only and validate_contracts separately. Both cannot be True."
+        )
+
     if download_only:
-        clean_up = offline = False
+        clean_up = False
+        offline = False
+    elif validate_contracts:
+        clean_up = True
+        offline = False
     else:
         assert seq_len is not None, "seq_len must be provided for forecasting dataset"
         assert pred_len is not None, "pred_len must be provided for forecasting dataset"
@@ -218,7 +230,7 @@ def get_forecasting_dataset(
                     warning=warning,
                 )
 
-                if not download_only:
+                if not (download_only or validate_contracts):
                     # Select and add features
                     data = transform_features(
                         df=df,
@@ -334,7 +346,7 @@ def get_forecasting_dataset(
     if set(contract_dataset.contracts) != set(initial_contracts):
         contract_dataset.save(clean_file=True)
 
-    if download_only:
+    if download_only or validate_contracts:
         return contract_dataset
     else:
         return ConcatDataset(dataset_list), contract_dataset
@@ -356,6 +368,7 @@ def get_forecasting_loaders(
     num_workers: int = 4,
     prefetch_factor: int = 2,
     pin_memory: bool = torch.cuda.is_available(),
+    persistent_workers: bool = True,
     clean_up: bool = True,
     offline: bool = False,
     save_dir: Optional[str] = None,
@@ -473,7 +486,7 @@ def get_forecasting_loaders(
         shuffle=shuffle,
         drop_last=drop_last,
         num_workers=num_workers,
-        persistent_workers=True,
+        persistent_workers=persistent_workers,
         prefetch_factor=prefetch_factor,
         pin_memory=pin_memory,
     )
@@ -483,7 +496,7 @@ def get_forecasting_loaders(
         shuffle=shuffle,
         drop_last=drop_last,
         num_workers=num_workers,
-        persistent_workers=True,
+        persistent_workers=persistent_workers,
         prefetch_factor=prefetch_factor,
         pin_memory=pin_memory,
     )
@@ -493,7 +506,7 @@ def get_forecasting_loaders(
         shuffle=False,
         drop_last=drop_last,
         num_workers=num_workers,
-        persistent_workers=True,
+        persistent_workers=persistent_workers,
         prefetch_factor=prefetch_factor,
         pin_memory=pin_memory,
     )
