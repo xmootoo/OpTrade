@@ -189,9 +189,9 @@ class Data(BaseModel):
         default="ATM",
         description="Moneyness of the option contract. Options: 'ATM', 'ITM', or 'OTM'.",
     )
-    target_band: float = Field(
+    strike_band: float = Field(
         default=0.05,
-        description="Target band in proportion between 0 and 1 used for fixed strike selection (e.g., target_band=0.05 uses +/- 5% of current underlying price",
+        description="Target band in proportion between 0 and 1 used for fixed strike selection (e.g., strike_band=0.05 uses +/- 5% of current underlying price",
     )
     volatility_scaled: bool = Field(
         default=True,
