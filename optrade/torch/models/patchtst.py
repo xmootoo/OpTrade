@@ -9,40 +9,41 @@ from optrade.torch.utils.patcher import Patcher
 from optrade.torch.utils.pos_enc import PositionalEncoding
 from optrade.torch.utils.weight_init import xavier_init
 
-from typing import Optional
+from typing import Optional, List
 
 
 class Model(nn.Module):
     def __init__(
         self,
-        num_enc_layers,
-        d_model,
-        d_ff,
-        num_heads,
-        num_channels,
-        seq_len,
-        pred_len,
-        attn_dropout=0.0,
-        ff_dropout=0.0,
-        pred_dropout=0.0,
-        batch_first=True,
-        norm_mode="batch1d",
-        revin=True,
-        revout=True,
-        revin_affine=True,
-        eps_revin=1e-5,
-        patch_dim=16,
-        stride=1,
-        return_head=True,
-        head_type="linear",
-        channel_independent=False,  # Head only
+        num_enc_layers: int,
+        d_model: int,
+        d_ff: int,
+        num_heads: int,
+        input_channels: List[str],
+        seq_len: int,
+        pred_len: int,
+        attn_dropout: float=0.0,
+        ff_dropout: float=0.0,
+        pred_dropout: float=0.0,
+        batch_first: bool=True,
+        norm_mode: str="batch1d",
+        revin: bool=True,
+        revout: bool=True,
+        revin_affine: bool=True,
+        eps_revin: float=1e-5,
+        patch_dim: int=16,
+        stride: int=1,
+        return_head: bool=True,
+        head_type: str="linear",
+        channel_independent: bool=False,  # Head only
         target_channels: Optional[list] = None,  # Head only
     ) -> None:
         super(Model, self).__init__()
 
         # Parameters
         self.num_patches = int((seq_len - patch_dim) / stride) + 2
-        self.num_channels = num_channels
+        self.num_channels = len(input_channels)
+        self.input_channels = input_channels
         self.eps_revin = eps_revin
         self.revin_affine = revin_affine
         self.target_channels = target_channels
@@ -58,11 +59,12 @@ class Model(nn.Module):
         self.patcher = Patcher(patch_dim, stride)
         self.pos_enc = PositionalEncoding(patch_dim, d_model, self.num_patches)
         self.backbone = PatchTSTBackbone(
+            input_channels=input_channels,
             num_enc_layers=num_enc_layers,
             d_model=d_model,
             d_ff=d_ff,
             num_heads=num_heads,
-            num_channels=num_channels,
+            num_channels=self.num_channels,
             num_patches=self.num_patches,
             pred_len=pred_len,
             attn_dropout=attn_dropout,
@@ -83,6 +85,7 @@ class Model(nn.Module):
         self._revin = True
         self.revin = RevIN(
             num_channels=self.num_channels,
+            input_channels=self.input_channels,
             eps=self.eps_revin,
             affine=self.revin_affine,
             target_channels=self.target_channels,
@@ -120,6 +123,7 @@ class PatchTSTBackbone(nn.Module):
         num_channels,
         num_patches,
         pred_len,
+        input_channels,
         attn_dropout=0.0,
         ff_dropout=0.0,
         pred_dropout=0.0,
@@ -139,6 +143,8 @@ class PatchTSTBackbone(nn.Module):
         self.return_head = return_head
         self.pred_len = pred_len
         self.target_channels = target_channels
+        if target_channels is not None:
+            self.target_channels_idx = [input_channels.index(ch) for ch in target_channels]
 
         # Encoder
         self.enc = nn.Sequential(
@@ -201,8 +207,8 @@ class PatchTSTBackbone(nn.Module):
                 batch_size, self.num_channels, self.num_patches * self.d_model
             )
 
-            if self.target_channels is not None:
-                x = x[:, self.target_channels, :]
+            if self.target_channels_idx is not None:
+                x = x[:, self.target_channels_idx, :]
 
             out = self.head(x)
         else:

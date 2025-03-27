@@ -1,13 +1,14 @@
 import torch
 import torch.nn as nn
 
-from typing import Optional
+from typing import Optional, List
 
 
 class RevIN(nn.Module):
     def __init__(
         self,
         num_channels: int,
+        input_channels: List[str],
         eps: float = 1e-5,
         affine: bool = True,
         target_channels: Optional[list] = None,
@@ -33,10 +34,11 @@ class RevIN(nn.Module):
 
         if target_channels is not None:
             self.target_channels = target_channels
+            self.target_channels_idx = [input_channels.index(ch) for ch in target_channels]
             self.affine_weight = nn.Parameter(torch.ones(len(target_channels)))
             self.affine_bias = nn.Parameter(torch.zeros(len(target_channels)))
         else:
-            self.target_channels = None
+            self.target_channels_idx = None
             self.affine_weight = nn.Parameter(torch.ones(self.num_channels))
             self.affine_bias = nn.Parameter(torch.zeros(self.num_channels))
 
@@ -73,14 +75,14 @@ class RevIN(nn.Module):
         x = x - self.mean
         x = x / self.stdev
         if self.affine:
-            if self.target_channels is not None:
-                x[:, self.target_channels, :] = x[
-                    :, self.target_channels, :
+            if self.target_channels_idx is not None:
+                x[:, self.target_channels_idx, :] = x[
+                    :, self.target_channels_idx, :
                 ] * self.affine_weight.unsqueeze(0).unsqueeze(
                     -1
                 )  # Reshape: (1, num_channels, 1)
-                x[:, self.target_channels, :] = x[
-                    :, self.target_channels, :
+                x[:, self.target_channels_idx, :] = x[
+                    :, self.target_channels_idx, :
                 ] + self.affine_bias.unsqueeze(0).unsqueeze(
                     -1
                 )  # Reshape: (1, num_channels, 1)
@@ -100,9 +102,9 @@ class RevIN(nn.Module):
                 self.affine_weight.unsqueeze(0).unsqueeze(-1) + self.eps * self.eps
             )
 
-        if self.target_channels is not None:
-            x = x * self.stdev[:, self.target_channels, :]
-            x = x + self.mean[:, self.target_channels, :]
+        if self.target_channels_idx is not None:
+            x = x * self.stdev[:, self.target_channels_idx, :]
+            x = x + self.mean[:, self.target_channels_idx, :]
         else:
             x = x * self.stdev
             x = x + self.mean
