@@ -577,6 +577,7 @@ class Universe:
         num_workers: int = 4,
         prefetch_factor: int = 2,
         pin_memory: bool = torch.cuda.is_available(),
+        persistent_workers: bool = True,
     ) -> Union[
         Tuple[DataLoader, DataLoader, DataLoader],
         Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
@@ -619,11 +620,6 @@ class Universe:
             Tuple[DataLoader, DataLoader, DataLoader, StandardScaler]: Train, validation, and test data loaders, and the scaler if scaling=True.
         """
 
-        # from pathlib import Path
-        # train_contract_dataset = ContractDataset.load(Path("/Users/xaviermootoo/Projects/optrade/optrade/data/universe_test/contracts/AAPL/20210101_20210517/C/contract_stride_3/interval_1/target_tte_30/moneyness_ATM/strike_band_0p05/train_contracts.pkl"))
-        # val_contract_dataset = ContractDataset.load(Path("/Users/xaviermootoo/Projects/optrade/optrade/data/universe_test/contracts/AAPL/20210517_20210806/C/contract_stride_3/interval_1/target_tte_30/moneyness_ATM/strike_band_0p05/val_contracts.pkl"))
-        # test_contract_dataset = ContractDataset.load(Path("/Users/xaviermootoo/Projects/optrade/optrade/data/universe_test/contracts/AAPL/20210807_20211001/C/contract_stride_3/interval_1/target_tte_30/moneyness_ATM/strike_band_0p05/test_contracts.pkl"))
-
         loaders = get_forecasting_loaders(
             train_contract_dataset=ContractDataset.load(
                 self.contract_paths[root]["train"]
@@ -642,6 +638,7 @@ class Universe:
             num_workers=num_workers,
             prefetch_factor=prefetch_factor,
             pin_memory=pin_memory,
+            persistent_workers=persistent_workers,
             clean_up=False,
             offline=offline,
             save_dir=self.save_dir,
@@ -670,8 +667,8 @@ if __name__ == "__main__":
         save_dir="test",
         verbose=True,
     )
-    universe.set_candidate_roots() # Fetch index constituents
-    universe.get_fundamentals() # Fetch fundamental data
+    universe.set_candidate_roots()  # Fetch index constituents
+    universe.get_fundamentals()  # Fetch fundamental data
     print(f"Universe: {universe.roots}")
 
     # Filter the universe for stocks with low debt-to-equity and high market cap
@@ -707,8 +704,8 @@ if __name__ == "__main__":
         offline=True,
         root=root,
         tte_tolerance=tte_tolerance,
-        seq_len=30, # 30-minute lookback window
-        pred_len=5, # 5-minute forecast horizon
+        seq_len=30,  # 30-minute lookback window
+        pred_len=5,  # 5-minute forecast horizon
         core_feats=["option_returns"],
         target_channels=["option_returns"],
         dtype="float32",
