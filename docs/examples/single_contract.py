@@ -39,7 +39,7 @@ torch_dataset = ForecastingDataset(
     data=data,
     seq_len=100,        # 100-minute lookback window
     pred_len=10,        # 10-minute forecast horizon
-    target_channels=[0],  # Forecast option returns (first column)
+    target_channels=["option_returns"],  # Forecast option returns
 )
 
 torch_loader = DataLoader(torch_dataset)

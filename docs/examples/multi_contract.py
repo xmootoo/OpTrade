@@ -23,7 +23,7 @@ from optrade.data.forecasting import get_forecasting_dataset
 from torch.utils.data import DataLoader
 
 torch_dataset = get_forecasting_dataset(
-    contracts=contract_dataset,
+    contract_dataset=contract_dataset,
     core_feats=["option_returns"],
     tte_feats=["sqrt"],
     datetime_feats=["sin_minute_of_day"],
