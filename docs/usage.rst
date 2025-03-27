@@ -22,6 +22,18 @@ function to load and transform the data for all contracts:
    :language: python
    :linenos:
 
+Example (Forecasting Experiments)
+--------------
+
+When running forecasting experiments, you can use the `Experiment` class from `optrade.exp.forecasting`
+which supports PyTorch deep learning (DL) models. Several state-of-the-art models are available in the
+`optrade.torch.models`, allowing you to easily experiment with different modern DL architectures:
+
+.. literalinclude:: examples/experiments.py
+   :language: python
+   :linenos:
+
+
 Example (Universe Selection)
 --------------
 
