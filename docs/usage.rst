@@ -29,7 +29,7 @@ When running forecasting experiments, you can use the `Experiment` class from `o
 which supports PyTorch deep learning (DL) models. Several state-of-the-art models are available in the
 `optrade.torch.models`, allowing you to easily experiment with different modern DL architectures:
 
-.. literalinclude:: examples/experiments.py
+.. literalinclude:: examples/forecasting_torch.py
    :language: python
    :linenos:
 
