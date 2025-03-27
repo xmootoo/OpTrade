@@ -124,9 +124,9 @@ Compared to `distance_to_strike`, this feature is normalized and scale-invariant
 
 
 ## Time-to-Expiration Features
-The [`get_tte_features`](optrade/src/preprocessing/features/tte_features.py) is a component function of [`transform_features`](optrade/src/preprocessing/features/transform_features.py) providing various transformations of time-to-expiration data to capture theta decay effects (the reduction in option value over time):
+The [`tte_features`](optrade/src/preprocessing/features/tte_features.py) is a component function of [`transform_features`](optrade/src/preprocessing/features/transform_features.py) providing various transformations of time-to-expiration data to capture theta decay effects (the reduction in option value over time):
 ```py
-def get_tte_features(
+def tte_features(
     df: pd.DataFrame,
     feats: List=[
         "tte",
@@ -173,10 +173,10 @@ where $\text{CL}$ (contract length) is the total duration from issuance to expir
 ## Datetime Features
 `datetime_feats` provides temporal context features that capture market seasonality effects independent of option-specific data. These features help models learn intraday patterns and weekly option expiration cycles, which are critical for short-term options forecasting.
 
-The datetime features are handled by the [`get_datetime_features`](optrade/src/preprocessing/features/datetime_features.py) component function:
+The datetime features are handled by the [`dt_features`](optrade/src/preprocessing/features/datetime_features.py) component function:
 
 ```py
-def get_datetime_features(
+def dt_features(
     df: pd.DataFrame,
     feats: List=[
         "minute_of_day",
