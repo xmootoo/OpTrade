@@ -330,10 +330,13 @@ def transform_features(
 
     Advanced core feature options:
         - {asset}_returns: Mid-price returns
+        - log_{asset}_returns: Log mid-price returns
         - {asset}_lob_imbalance: Limit order book imbalance
         - {asset}_quote_spread: Quote spread normalized by mid-price
         - moneyness: Log(S/K)
         - distance_to_strike: Linear distance to strike price
+
+    where "{asset}" is either "option" or "stock".
 
     TTE features options:
         - tte: Time to expiration
@@ -411,19 +414,25 @@ def transform_features(
         assert exp is not None, "Expiration date is required for TTE feature generation"
         df = tte_features(df=df, feats=tte_feats, exp=exp)
 
-    if "option_returns" in core_feats:
+    if "option_returns" or "log_option_returns" in core_feats:
         # Calculate option price returns and add to dataframe
         prices = df["option_mid_price"].to_numpy()
         returns = np.zeros_like(prices)
         returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
         df["option_returns"] = returns
 
-    if "stock_returns" in core_feats:
+        if "log_option_returns" in core_feats:
+            df["log_option_returns"] = np.log(1 + returns)
+
+    if "stock_returns" in core_feats or "log_stock_returns" in core_feats:
         # Calculate stock price returns and add to dataframe
         prices = df["stock_mid_price"].to_numpy()
         returns = np.zeros_like(prices)
         returns[1:] = (prices[1:] - prices[:-1]) / prices[:-1]
         df["stock_returns"] = returns
+        if "log_stock_returns" in core_feats:
+            df["log_stock_returns"] = np.log(1 + returns)
+
 
     if "option_returns" in core_feats or "stock_returns" in core_feats:
         # Drop the first market open (since returns=0)
