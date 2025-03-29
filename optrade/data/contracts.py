@@ -184,6 +184,7 @@ class Contract:
         offline: bool = False,
         save_dir: Optional[str] = None,
         warning: bool = False,
+        dev_mode: bool = False,
     ) -> pd.DataFrame:
         """Load data for the selected contract.
 
@@ -206,6 +207,7 @@ class Contract:
             offline=offline,
             save_dir=save_dir,
             warning=warning,
+            dev_mode=dev_mode,
         )
 
 
@@ -711,7 +713,7 @@ if __name__ == "__main__":
         verbose=True,
     )
 
-    df = contract.load_data(clean_up=True, offline=False, warning=True)
+    df = contract.load_data(clean_up=True, offline=False, warning=True, dev_mode=True)
 
     print(df.head())
 
