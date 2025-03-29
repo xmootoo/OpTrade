@@ -23,26 +23,39 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 class ForecastingDataset(Dataset):
-    """
-    Args:
-        data (torch.Tensor): Tensor of shape (num_time_steps, num_features)
-        seq_len (int): Length of the lookback window
-        pred_len (int): Length of the forecast window
-        target_channels (list): Channels to forecast. By default target_channels=["option_returns"], which corresponds to the
-                                option midprice returns. If None, all channels will be returned for the target.
-        dtype (str): Desired data type of the tensor. Default is "float32".
-    """
-
     def __init__(
         self,
         data: pd.DataFrame,
         seq_len: int,
         pred_len: int,
         target_channels: Optional[List[str]] = None,
+        target_type: str = "multistep",
         dtype: str = "float32",
     ) -> None:
+        """
+        Initializes the ForecastingDataset class.
+
+        Args:
+            data (pd.DataFrame): DataFrame containing the data.
+            seq_len (int): Length of the lookback window.
+            pred_len (int): Length of the forecast window.
+            target_channels (Optional[List[str]]): List of target channels to include in the target tensor. If None, all channels will be included.
+            target_type (str): Type of forecasting target. Options: "multistep" (float), "average" (float), or "average_direction" (binary).
+            dtype (str): Data type for the PyTorch tensors. Default is "float32".
+
+        Returns:
+            None
+        """
+
+        self.has_datetime = "datetime" in data.columns
+        if self.has_datetime:
+            self.datetime = data["datetime"].values  # Store as numpy array
+            data_numeric = data.drop(columns=["datetime"])
+        else:
+            data_numeric = data
+
         self.dtype = eval("torch." + dtype)
-        self.data = torch.tensor(data.to_numpy(), dtype=self.dtype)
+        self.data = torch.tensor(data_numeric.to_numpy(), dtype=self.dtype)
         self.seq_len = seq_len
         self.pred_len = pred_len
 
@@ -53,19 +66,28 @@ class ForecastingDataset(Dataset):
             ]
 
     def __len__(self) -> int:
+        """
+        Returns the number of input-target pairs in the dataset.
+        """
         return self.data.shape[0] - self.seq_len - self.pred_len
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Union[Tuple[torch.Tensor, torch.Tensor],
+                                             Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]]:
         """
         Args:
             idx (int): Index of the starting point of the lookback window
-
         Returns:
-            input (torch.Tensor): Lookback window of shape (num_features, seq_len)
-            target (torch.Tensor): Target window of shape (len(target_channels), pred_len) if target_channels is not None, otherwise
-                                   (num_features, pred_len).
+            If datetime is available:
+                input (torch.Tensor): Lookback window of shape (num_features, seq_len)
+                target (torch.Tensor): Target window
+                input_datetime (np.ndarray): Datetime values for input window
+                target_datetime (np.ndarray): Datetime values for target window
+            Otherwise:
+                input (torch.Tensor): Lookback window of shape (num_features, seq_len)
+                target (torch.Tensor): Target window
         """
         input = self.data[idx : idx + self.seq_len]
+
         if hasattr(self, "target_channels_idx"):
             target = self.data[
                 idx + self.seq_len : idx + self.seq_len + self.pred_len,
@@ -73,7 +95,16 @@ class ForecastingDataset(Dataset):
             ]
         else:
             target = self.data[idx + self.seq_len : idx + self.seq_len + self.pred_len]
-        return input.transpose(0, 1), target.transpose(0, 1)
+
+        input_tensor = input.transpose(0, 1)
+        target_tensor = target.transpose(0, 1)
+
+        if self.has_datetime:
+            input_datetime = self.datetime[idx : idx + self.seq_len]
+            target_datetime = self.datetime[idx + self.seq_len : idx + self.seq_len + self.pred_len]
+            return input_tensor, target_tensor, input_datetime, target_datetime
+        else:
+            return input_tensor, target_tensor
 
 
 def normalize_concat_dataset(
@@ -85,7 +116,7 @@ def normalize_concat_dataset(
 
     Args:
         concat_dataset: ConcatDataset object containing ForecastingDatasets
-        scaler: Fitted StandardScaler (scikit-learn)
+        scaler: Fitted StandardScaler from scikit-learn.
 
     Returns:
         None
@@ -114,11 +145,9 @@ def normalize_datasets(
         train_dataset: Training dataset (ConcatDataset of ForecastingDatasets)
         val_dataset: Validation dataset
         test_dataset: Test dataset
-        save_scaler: Whether to save the scaler to disk
-        scaler_path: Path to save the scaler if save_scaler is True
 
     Returns:
-        Normalized train_dataset, val_dataset, test_dataset, and the fitted scaler
+        Tuple[ConcatDataset, ConcatDataset, ConcatDataset, StandardScaler]: Normalized training, validation, and test datasets, and the fitted Standard
     """
     # Extract all underlying data from train_dataset
     all_train_data = []
