@@ -98,6 +98,7 @@ class Contract:
         volatility_scalar: Optional[float] = 1.0,
         verbose: bool = True,
         warning: bool = False,
+        dev_mode: bool = False,
     ) -> "Contract":
         """Find the optimal contract for a given security, start date, and approximate TTE.
 

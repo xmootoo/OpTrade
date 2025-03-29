@@ -183,6 +183,7 @@ def get_forecasting_dataset(
     core_feats: List[str] = ["option_returns"],
     tte_feats: Optional[List[str]] = None,
     datetime_feats: Optional[List[str]] = None,
+    keep_datetime: bool = False,
     clean_up: bool = True,
     offline: bool = False,
     intraday: bool = False,
@@ -193,6 +194,7 @@ def get_forecasting_dataset(
     validate_contracts: bool = False,
     verbose: bool = False,
     warning: bool = True,
+    dev_mode: bool = False,
 ) -> Union[ContractDataset, Tuple[Dataset, ContractDataset]]:
     """
     Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
@@ -203,6 +205,7 @@ def get_forecasting_dataset(
         core_feats: List of core features to include
         tte_feats: List of time-to-expiration features to include
         datetime_feats: List of datetime features to include
+        keep_datetime: Whether to keep the datetime column in the dataset
         tte_tolerance: Tuple of (min, max) time to expiration tolerance in days
         clean_up: Whether to clean up the data after use
         offline: Whether to load saved contracts from disk
@@ -216,6 +219,7 @@ def get_forecasting_dataset(
         validate_contracts: Whether to validate contracts by requesting data from ThetaData API and adjustintg start and end dates if necessary.
         verbose: Whether to print verbose output
         warning: Whether to print verbose DataValidationError statements as warnings or errors.
+        dev_mode: Whether to run in development mode.
 
     Returns:
         ContractDataset: The updated ContractDataset object if `download_only`=True or `validate_contracts`=True.
@@ -257,6 +261,7 @@ def get_forecasting_dataset(
                     clean_up=clean_up,
                     offline=offline,
                     warning=warning,
+                    dev_mode=dev_mode,
                 )
 
                 if not (download_only or validate_contracts):
@@ -268,6 +273,7 @@ def get_forecasting_dataset(
                         datetime_feats=datetime_feats,
                         strike=contract.strike,
                         exp=contract.exp,
+                        keep_datetime=keep_datetime,
                     )
 
                     # Convert to PyTorch dataset
@@ -629,20 +635,125 @@ def create_windows(
 
 
 if __name__ == "__main__":
-    # # Test: get_forecasting_loaders
-    # root = "AMZN"
-    # total_start_date = "20230101"
-    # total_end_date = "20230601"
-    # right = "C"
-    # interval_min = 60
-    # contract_stride = 5
-    # target_tte = 30
-    # tte_tolerance = (15, 45)
-    # moneyness = "ATM"
-    # volatility_scaled = True
-    # volatility_scalar = 0.01
-    # volatility_type = "period"
-    # strike_band = 0.05
+    # Test: get_forecasting_loaders
+    root = "AMZN"
+    total_start_date = "20230101"
+    total_end_date = "20230901"
+    right = "C"
+    interval_min = 60
+    contract_stride = 3
+    target_tte = 30
+    tte_tolerance = (15, 45)
+    moneyness = "ATM"
+    volatility_scaled = True
+    volatility_scalar = 0.01
+    volatility_type = "period"
+    strike_band = 0.05
+
+    # TTE features
+    tte_feats = ["sqrt", "exp_decay"]
+
+    # Datetime features
+    datetime_feats = [
+        "sin_minute_of_day",
+        "cos_minute_of_day",
+        "sin_hour_of_week",
+        "cos_hour_of_week",
+    ]
+
+    # Select features
+    core_feats = [
+        "log_option_returns",
+        "log_stock_returns",
+        "option_returns",
+        "stock_returns",
+        "distance_to_strike",
+        "moneyness",
+        "option_lob_imbalance",
+        "option_quote_spread",
+        "stock_lob_imbalance",
+        "stock_quote_spread",
+        "option_mid_price",
+        "option_bid_size",
+        "option_bid",
+        "option_ask_size",
+        "option_close",
+        "option_volume",
+        "option_count",
+        "stock_mid_price",
+        "stock_bid_size",
+        "stock_bid",
+        "stock_ask_size",
+        "stock_ask",
+        "stock_volume",
+        "stock_count",
+    ]
+
+    # Testing: get_loaders
+    from optrade.data.contracts import get_contract_datasets
+
+    train_cd, val_cd, test_cd = get_contract_datasets(
+        root = root,
+        start_date = total_start_date,
+        end_date = total_end_date,
+        contract_stride = contract_stride,
+        interval_min = interval_min,
+        right = right,
+        target_tte = target_tte,
+        tte_tolerance = tte_tolerance,
+        moneyness = moneyness,
+        strike_band = strike_band,
+        volatility_type = volatility_type,
+        volatility_scaled = volatility_scaled,
+        volatility_scalar = volatility_scalar,
+        verbose = True,
+        train_split=0.5,
+        val_split=0.25,
+    )
+
+    output = get_forecasting_loaders(
+        train_contract_dataset=train_cd,
+        val_contract_dataset=val_cd,
+        test_contract_dataset=test_cd,
+        tte_tolerance=tte_tolerance,
+        seq_len=100,
+        pred_len=10,
+        core_feats=core_feats,
+        tte_feats=tte_feats,
+        datetime_feats=datetime_feats,
+        batch_size=32,
+        clean_up=False,
+        offline=False,
+        save_dir=None,
+        verbose=True,
+        scaling=True,
+    )
+    train_loader, val_loader, test_loader = output[0:3]
+
+    print(f"Num train examples: {len(train_loader.dataset)}")
+    print(f"Num val examples: {len(val_loader.dataset)}")
+    print(f"Num test examples: {len(test_loader.dataset)}")
+
+    # # Testing: create_windows
+    # from optrade.data.features import transform_features
+    # from optrade.data.contracts import Contract
+    # from rich.console import Console
+
+    # console = Console()
+
+    # contract = Contract.find_optimal(
+    #     root="AAPL",
+    #     start_date="20241107",
+    #     volatility_scaled=False,
+    #     strike_band=0.05,
+    #     moneyness="OTM",
+    #     interval_min=1,
+    #     right="C",
+    #     target_tte=30,
+    #     tte_tolerance=(25, 35),
+    # )
+
+    # df = contract.load_data(clean_up=True, offline=False, warning=True)
 
     # # TTE features
     # tte_feats = ["sqrt", "exp_decay"]
@@ -681,98 +792,19 @@ if __name__ == "__main__":
     #     "stock_count",
     # ]
 
-    # # Testing: get_loaders
-    # output = get_forecasting_loaders(
-    #     tte_tolerance=(15, 45),
-    #     seq_len=100,
-    #     pred_len=10,
+    # df = transform_features(
+    #     df=df,
     #     core_feats=core_feats,
     #     tte_feats=tte_feats,
     #     datetime_feats=datetime_feats,
-    #     batch_size=32,
-    #     clean_up=False,
-    #     offline=False,
-    #     save_dir=None,
-    #     verbose=True,
-    #     scaling=True,
+    #     strike=contract.strike,
+    #     exp=contract.exp,
+    #     keep_datetime=True,
     # )
-    # train_loader, val_loader, test_loader = output[0:3]
+    # print(df.columns)
 
-    # print(f"Num train examples: {len(train_loader.dataset)}")
-    # print(f"Num val examples: {len(val_loader.dataset)}")
-    # print(f"Num test examples: {len(test_loader.dataset)}")
+    # x, y = create_windows(
+    #     df=df, seq_len=30, pred_len=6, window_stride=1, intraday=False
+    # )
 
-    # Testing: create_windows
-    from optrade.data.features import transform_features
-    from optrade.data.contracts import Contract
-    from rich.console import Console
-
-    console = Console()
-
-    contract = Contract.find_optimal(
-        root="AAPL",
-        start_date="20241107",
-        volatility_scaled=False,
-        strike_band=0.05,
-        moneyness="OTM",
-        interval_min=1,
-        right="C",
-        target_tte=30,
-        tte_tolerance=(25, 35),
-    )
-
-    df = contract.load_data(clean_up=True, offline=False, warning=True)
-
-    # TTE features
-    tte_feats = ["sqrt", "exp_decay"]
-
-    # Datetime features
-    datetime_feats = [
-        "sin_minute_of_day",
-        "cos_minute_of_day",
-        "sin_hour_of_week",
-        "cos_hour_of_week",
-    ]
-
-    # Select features
-    core_feats = [
-        "option_returns",
-        "stock_returns",
-        "distance_to_strike",
-        "moneyness",
-        "option_lob_imbalance",
-        "option_quote_spread",
-        "stock_lob_imbalance",
-        "stock_quote_spread",
-        "option_mid_price",
-        "option_bid_size",
-        "option_bid",
-        "option_ask_size",
-        "option_close",
-        "option_volume",
-        "option_count",
-        "stock_mid_price",
-        "stock_bid_size",
-        "stock_bid",
-        "stock_ask_size",
-        "stock_ask",
-        "stock_volume",
-        "stock_count",
-    ]
-
-    df = transform_features(
-        df=df,
-        core_feats=core_feats,
-        tte_feats=tte_feats,
-        datetime_feats=datetime_feats,
-        strike=contract.strike,
-        exp=contract.exp,
-        keep_datetime=True,
-    )
-    print(df.columns)
-
-    x, y = create_windows(
-        df=df, seq_len=30, pred_len=6, window_stride=1, intraday=False
-    )
-
-    print(x.shape, y.shape)
+    # print(x.shape, y.shape)
