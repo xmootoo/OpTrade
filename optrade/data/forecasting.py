@@ -58,6 +58,7 @@ class ForecastingDataset(Dataset):
         self.data = torch.tensor(data_numeric.to_numpy(), dtype=self.dtype)
         self.seq_len = seq_len
         self.pred_len = pred_len
+        self.target_type = target_type
 
         if target_channels is not None and len(target_channels) > 0:
             feature_names = data.columns.to_list()
@@ -72,19 +73,29 @@ class ForecastingDataset(Dataset):
         return self.data.shape[0] - self.seq_len - self.pred_len
 
     def __getitem__(self, idx: int) -> Union[Tuple[torch.Tensor, torch.Tensor],
-                                             Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]]:
-        """
+                                           Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]]:
+        """Get a sample from the dataset.
+
+        This method retrieves an input-target pair at the specified index, with input being
+        the lookback window and target being the forecast window based on the target_type.
+
         Args:
-            idx (int): Index of the starting point of the lookback window
+            idx: Index of the starting point of the lookback window.
+
         Returns:
             If datetime is available:
-                input (torch.Tensor): Lookback window of shape (num_features, seq_len)
-                target (torch.Tensor): Target window
-                input_datetime (np.ndarray): Datetime values for input window
-                target_datetime (np.ndarray): Datetime values for target window
+                tuple: A tuple containing (input_tensor, target_tensor, input_datetime, target_datetime)
+                    - input_tensor: Lookback window of shape (num_features, seq_len).
+                    - target_tensor: Target window with shape depending on target_type:
+                      - "multistep": (num_target_features, pred_len)
+                      - "average": (num_target_features, 1)
+                      - "average_direction": (num_target_features, 1)
+                    - input_datetime: Datetime values for input window of shape (seq_len,).
+                    - target_datetime: Datetime values for target window of shape (pred_len,).
             Otherwise:
-                input (torch.Tensor): Lookback window of shape (num_features, seq_len)
-                target (torch.Tensor): Target window
+                tuple: A tuple containing (input_tensor, target_tensor)
+                    - input_tensor: Lookback window of shape (num_features, seq_len).
+                    - target_tensor: Target window with shape as described above.
         """
         input = self.data[idx : idx + self.seq_len]
 
@@ -98,6 +109,15 @@ class ForecastingDataset(Dataset):
 
         input_tensor = input.transpose(0, 1)
         target_tensor = target.transpose(0, 1)
+
+        if self.target_type=="average":
+            target_tensor = target_tensor.mean(dim=0).unsqueeze(0)
+        elif self.target_type=="average_direction":
+            target_tensor = (target_tensor.mean(dim=0) > 0).unsqueeze(0).float()
+        elif self.target_type=="multistep":
+            pass
+        else:
+            raise ValueError("Invalid target_type. Options: 'multistep', 'average', or 'average_direction'.")
 
         if self.has_datetime:
             input_datetime = self.datetime[idx : idx + self.seq_len]
