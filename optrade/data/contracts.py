@@ -192,6 +192,8 @@ class Contract:
             clean_up: Whether to clean up the data after use
             offline: Whether to load saved data from disk
             save_dir: Directory to save/load data
+            warning: Whether to display warnings
+            dev_mode: Whether to use development mode
 
         Returns:
             pd.DataFrame: The loaded data containing NBBO quotes and OHLCVC data for the contract and the underlying
