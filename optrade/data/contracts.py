@@ -453,36 +453,6 @@ class ContractDataset:
             ctx = Console()
             ctx.log(f'Contract dataset saved to "{self.filepath}"')
 
-    # @classmethod
-    # def load(
-    #     cls, contract_dir: Path, filename: Optional[str] = None
-    # ) -> "ContractDataset":
-    #     """
-    #     Load a dataset from a pickle file.
-
-    #     Args:
-    #         filepath: Path to the pickle file
-
-    #     Returns:
-    #         ContractDataset: Reconstructed dataset with all contracts
-    #     """
-    #     filepath = (
-    #         contract_dir / "contracts.pkl"
-    #         if filename is None
-    #         else contract_dir / filename
-    #     )
-
-    #     with open(filepath, "rb") as f:
-    #         data = pickle.load(f)
-
-    #     instance = cls.from_dict(data)
-    #     (
-    #         instance.ctx.log(f"Contract dataset loaded from {filepath}")
-    #         if instance.verbose
-    #         else None
-    #     )
-    #     return instance
-
     @classmethod
     def load(cls, filepath: Path) -> "ContractDataset":
         """Load a dataset from a pickle file."""
@@ -517,6 +487,7 @@ def get_contract_datasets(
     offline: bool = False,
     save_dir: Optional[str] = None,
     verbose: bool = False,
+    dev_mode: bool = False,
 ) -> Tuple[ContractDataset, ContractDataset, ContractDataset]:
     """
     Returns the training, validation, and test datasets contract datasets. These contain mutually exclusive contracts
@@ -542,6 +513,7 @@ def get_contract_datasets(
         offline: Whether to load saved contracts from disk
         save_dir: Directory to save/load contracts
         verbose: Whether to print verbose output
+        dev_mode: Whether to use development mode
 
     Returns:
         Training, validation, and test contract datasets.
@@ -576,6 +548,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         hist_vol=hist_vol,
         save_dir=save_dir,
+        dev_mode=dev_mode
     )
 
     # Offline loading (if already saved)
