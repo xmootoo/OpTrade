@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Tuple, Optional
 
+
 def clean_up_file(file_path: str) -> None:
     """
     Removes a file from the filesystem.

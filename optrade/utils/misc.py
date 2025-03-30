@@ -40,7 +40,8 @@ def generate_random_id(length=10):
     characters = string.ascii_letters + string.digits
     return "".join(random.choice(characters) for _ in range(length))
 
-def datetime_to_tensor(datetime_array, unit='s'):
+
+def datetime_to_tensor(datetime_array, unit="s"):
     """
     Convert various datetime formats to PyTorch tensor of timestamps.
 
@@ -64,7 +65,7 @@ def datetime_to_tensor(datetime_array, unit='s'):
                 dt = np.datetime64(dt)
 
             # Convert to the desired unit
-            timestamp = dt.astype(f'datetime64[{unit}]').astype(np.int64)
+            timestamp = dt.astype(f"datetime64[{unit}]").astype(np.int64)
             timestamps.append(timestamp)
         except Exception as e:
             print(f"Error converting datetime {dt}: {e}")
@@ -73,7 +74,8 @@ def datetime_to_tensor(datetime_array, unit='s'):
 
     return torch.tensor(timestamps, dtype=torch.int64)
 
-def tensor_to_datetime(timestamp_tensor, unit='s', batch_mode=False):
+
+def tensor_to_datetime(timestamp_tensor, unit="s", batch_mode=False):
     """
     Convert PyTorch tensor of timestamps back to numpy datetime64 array.
 
@@ -90,7 +92,7 @@ def tensor_to_datetime(timestamp_tensor, unit='s', batch_mode=False):
     timestamp_array = timestamp_tensor.cpu().numpy()
 
     # NumPy requires a specific string format for conversion from timestamps
-    epoch = np.datetime64('1970-01-01T00:00:00', unit)
+    epoch = np.datetime64("1970-01-01T00:00:00", unit)
 
     if batch_mode:
         # Handle batched data (2D array)
@@ -117,14 +119,15 @@ def tensor_to_datetime(timestamp_tensor, unit='s', batch_mode=False):
 import pandas as pd
 from datetime import datetime
 
+
 def run_test():
     print("Test 1: Single datetime array conversion")
     # Create some datetime samples in different formats
     dt_samples = [
-        np.datetime64('2023-01-01 12:00:00'),
+        np.datetime64("2023-01-01 12:00:00"),
         datetime(2023, 1, 2, 13, 30, 45),
-        '2023-01-03 14:45:30',
-        pd.Timestamp('2023-01-04 16:15:00')
+        "2023-01-03 14:45:30",
+        pd.Timestamp("2023-01-04 16:15:00"),
     ]
     print(f"Original sample: {dt_samples}")
     # Convert to tensor
@@ -137,8 +140,16 @@ def run_test():
 
     print("\nTest 2: Batched datetime conversion")
     # Create a batched tensor (2 batches, 3 timestamps each)
-    batch_1 = [np.datetime64('2023-01-05 09:00:00'), np.datetime64('2023-01-05 10:00:00'), np.datetime64('2023-01-05 11:00:00')]
-    batch_2 = [np.datetime64('2023-01-06 09:00:00'), np.datetime64('2023-01-06 10:00:00'), np.datetime64('2023-01-06 11:00:00')]
+    batch_1 = [
+        np.datetime64("2023-01-05 09:00:00"),
+        np.datetime64("2023-01-05 10:00:00"),
+        np.datetime64("2023-01-05 11:00:00"),
+    ]
+    batch_2 = [
+        np.datetime64("2023-01-06 09:00:00"),
+        np.datetime64("2023-01-06 10:00:00"),
+        np.datetime64("2023-01-06 11:00:00"),
+    ]
     batched_samples = [batch_1, batch_2]
 
     # Convert each batch to tensor
@@ -182,10 +193,9 @@ def run_test():
 
     print("\nTest 3: Real-world timestamp values")
     # Use timestamps similar to what appears in your data
-    test_timestamps = torch.tensor([
-        [1673256600, 1673260200, 1673263800],
-        [1674729000, 1674732600, 1674736200]
-    ])
+    test_timestamps = torch.tensor(
+        [[1673256600, 1673260200, 1673263800], [1674729000, 1674732600, 1674736200]]
+    )
     print(f"Test timestamps shape: {test_timestamps.shape}")
     print(f"Test timestamps: {test_timestamps}")
 
@@ -208,6 +218,7 @@ def run_test():
     print(f"Original timestamps: {test_timestamps}")
     print(f"Reconverted timestamps: {reconverted_tensor}")
     print(f"Equal: {torch.all(test_timestamps == reconverted_tensor).item()}")
+
 
 if __name__ == "__main__":
     run_test()

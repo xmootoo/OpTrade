@@ -178,30 +178,32 @@ class Experiment:
                 save_dir=save_dir,
             )
 
-        self.train_loader, self.val_loader, self.test_loader, self.scaler = get_forecasting_loaders(
-            train_contract_dataset=self.train_contract_dataset,
-            val_contract_dataset=self.val_contract_dataset,
-            test_contract_dataset=self.test_contract_dataset,
-            seq_len=seq_len,
-            pred_len=pred_len,
-            tte_tolerance=tte_tolerance,
-            scaling=scaling,
-            dtype=dtype,
-            core_feats=core_feats,
-            tte_feats=tte_feats,
-            datetime_feats=datetime_feats,
-            target_channels=target_channels,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            num_workers=num_workers,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=persistent_workers,
-            pin_memory=pin_memory,
-            clean_up=clean_up,
-            offline=offline,
-            save_dir=save_dir,
-            verbose=verbose,
+        self.train_loader, self.val_loader, self.test_loader, self.scaler = (
+            get_forecasting_loaders(
+                train_contract_dataset=self.train_contract_dataset,
+                val_contract_dataset=self.val_contract_dataset,
+                test_contract_dataset=self.test_contract_dataset,
+                seq_len=seq_len,
+                pred_len=pred_len,
+                tte_tolerance=tte_tolerance,
+                scaling=scaling,
+                dtype=dtype,
+                core_feats=core_feats,
+                tte_feats=tte_feats,
+                datetime_feats=datetime_feats,
+                target_channels=target_channels,
+                batch_size=batch_size,
+                shuffle=shuffle,
+                drop_last=drop_last,
+                num_workers=num_workers,
+                prefetch_factor=prefetch_factor,
+                persistent_workers=persistent_workers,
+                pin_memory=pin_memory,
+                clean_up=clean_up,
+                offline=offline,
+                save_dir=save_dir,
+                verbose=verbose,
+            )
         )
 
         self.print_master(
@@ -297,11 +299,15 @@ class Experiment:
         """
 
         if train_loader is None:
-            assert hasattr(self, "train_loader"), "A train_loader must be given or initialized using init_loaders() method."
+            assert hasattr(
+                self, "train_loader"
+            ), "A train_loader must be given or initialized using init_loaders() method."
             train_loader = self.train_loader
 
         if val_loader is None:
-            assert hasattr(self, "val_loader"), "A val_loader must be given or initialized using init_loaders() method."
+            assert hasattr(
+                self, "val_loader"
+            ), "A val_loader must be given or initialized using init_loaders() method."
             val_loader = self.val_loader
 
         if best_model_path is None:
@@ -337,9 +343,7 @@ class Experiment:
                 loss = criterion(output, y)
 
                 # Metrics
-                num_batch_examples = torch.tensor(
-                    batch[0].shape[0], device=device
-                )
+                num_batch_examples = torch.tensor(batch[0].shape[0], device=device)
                 total_loss += loss * num_batch_examples
                 running_loss += loss * num_batch_examples
                 running_num_examples += num_batch_examples
@@ -385,7 +389,7 @@ class Experiment:
                     epoch=epoch,
                     best_model_path=self.best_model_path,
                     early_stopping=early_stopping,
-                    device=device
+                    device=device,
                 )
 
             # Early stopping
@@ -437,7 +441,11 @@ class Experiment:
 
         """
         stats = self.evaluate(
-            model=model, loader=val_loader, criterion=criterion, metrics=metrics, device=device
+            model=model,
+            loader=val_loader,
+            criterion=criterion,
+            metrics=metrics,
+            device=device,
         )
 
         val_loss = stats["loss"]
@@ -473,7 +481,7 @@ class Experiment:
         model: nn.Module,
         criterion: nn.Module,
         device,
-        test_loader: Optional[DataLoader]=None,
+        test_loader: Optional[DataLoader] = None,
         metrics: List[str] = ["loss"],
     ) -> None:
         """
@@ -492,7 +500,9 @@ class Experiment:
         """
 
         if test_loader is None:
-            assert hasattr(self, "test_loader"), "A test_loader must be given or initialized using init_loaders() method."
+            assert hasattr(
+                self, "test_loader"
+            ), "A test_loader must be given or initialized using init_loaders() method."
             test_loader = self.test_loader
 
         # Load best model
@@ -501,7 +511,11 @@ class Experiment:
 
         # Test set evaluation
         stats = self.evaluate(
-            model=model, loader=test_loader, criterion=criterion, metrics=metrics, device=device
+            model=model,
+            loader=test_loader,
+            criterion=criterion,
+            metrics=metrics,
+            device=device,
         )
 
         self.log_stats(stats=stats, metrics=metrics, mode="test")
@@ -543,9 +557,7 @@ class Experiment:
                 y = batch[1].to(device)
                 output = model(x)
                 loss = criterion(output, y)
-                num_batch_examples = torch.tensor(
-                    batch[0].shape[0], device=device
-                )
+                num_batch_examples = torch.tensor(batch[0].shape[0], device=device)
                 total_loss += loss * num_batch_examples
 
                 # MAE

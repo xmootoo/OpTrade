@@ -1391,8 +1391,12 @@ if __name__ == "__main__":
     clean_up = True
     offline = False
 
-    df1 = get_strikes(exp="20240419", root="MSFT", clean_up=clean_up, offline=offline, dev_mode=True)
-    df2 = get_expirations(root="MSFT", clean_up=clean_up, offline=offline, dev_mode=True)
+    df1 = get_strikes(
+        exp="20240419", root="MSFT", clean_up=clean_up, offline=offline, dev_mode=True
+    )
+    df2 = get_expirations(
+        root="MSFT", clean_up=clean_up, offline=offline, dev_mode=True
+    )
     df3 = get_roots(clean_up=clean_up, offline=offline, dev_mode=True)
 
     print(df1.head())
@@ -1402,10 +1406,7 @@ if __name__ == "__main__":
     # Test: find_optimal_exp
     try:
         optimal_exp, optimal_tte = find_optimal_exp(
-            root="AAPL",
-            start_date="20241107",
-            tte_tolerance=(20, 40),
-            target_tte=37
+            root="AAPL", start_date="20241107", tte_tolerance=(20, 40), target_tte=37
         )
         print(f"Found valid TTE: {optimal_tte}")
         print(f"Expiration date: {optimal_exp}")
@@ -1443,7 +1444,8 @@ if __name__ == "__main__":
         end_date="20231231",
         clean_up=False,
         offline=False,
-        dev_mode=True)
+        dev_mode=True,
+    )
     print(df.head())
     df = load_stock_data_eod(
         root="BALL",
@@ -1451,7 +1453,7 @@ if __name__ == "__main__":
         end_date="20231231",
         clean_up=False,
         offline=False,
-        dev_mode=True
+        dev_mode=True,
     )
     print(df)
 
@@ -1466,7 +1468,7 @@ if __name__ == "__main__":
         interval_min=1,
         clean_up=False,
         offline=False,
-        dev_mode=True
+        dev_mode=True,
     )
     print(df.head())
 
@@ -1480,6 +1482,6 @@ if __name__ == "__main__":
         strike=225,
         clean_up=False,
         offline=False,
-        dev_mode=True
+        dev_mode=True,
     )
     print(df.head())

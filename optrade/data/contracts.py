@@ -548,7 +548,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         hist_vol=hist_vol,
         save_dir=save_dir,
-        dev_mode=dev_mode
+        dev_mode=dev_mode,
     )
 
     # Offline loading (if already saved)

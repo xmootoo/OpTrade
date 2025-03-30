@@ -22,20 +22,20 @@ class Model(nn.Module):
         input_channels: List[str],
         seq_len: int,
         pred_len: int,
-        attn_dropout: float=0.0,
-        ff_dropout: float=0.0,
-        pred_dropout: float=0.0,
-        batch_first: bool=True,
-        norm_mode: str="batch1d",
-        revin: bool=True,
-        revout: bool=True,
-        revin_affine: bool=True,
-        eps_revin: float=1e-5,
-        patch_dim: int=16,
-        stride: int=1,
-        return_head: bool=True,
-        head_type: str="linear",
-        channel_independent: bool=False,  # Head only
+        attn_dropout: float = 0.0,
+        ff_dropout: float = 0.0,
+        pred_dropout: float = 0.0,
+        batch_first: bool = True,
+        norm_mode: str = "batch1d",
+        revin: bool = True,
+        revout: bool = True,
+        revin_affine: bool = True,
+        eps_revin: float = 1e-5,
+        patch_dim: int = 16,
+        stride: int = 1,
+        return_head: bool = True,
+        head_type: str = "linear",
+        channel_independent: bool = False,  # Head only
         target_channels: Optional[list] = None,  # Head only
     ) -> None:
         super(Model, self).__init__()
@@ -144,7 +144,9 @@ class PatchTSTBackbone(nn.Module):
         self.pred_len = pred_len
         self.target_channels = target_channels
         if target_channels is not None:
-            self.target_channels_idx = [input_channels.index(ch) for ch in target_channels]
+            self.target_channels_idx = [
+                input_channels.index(ch) for ch in target_channels
+            ]
 
         # Encoder
         self.enc = nn.Sequential(

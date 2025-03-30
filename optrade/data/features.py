@@ -433,7 +433,6 @@ def transform_features(
         if "log_stock_returns" in core_feats:
             df["log_stock_returns"] = np.log(1 + returns)
 
-
     if "option_returns" in core_feats or "stock_returns" in core_feats:
         # Drop the first market open (since returns=0)
         first_time = df["datetime"].iloc[0].time()

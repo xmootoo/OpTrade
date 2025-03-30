@@ -34,7 +34,9 @@ class RevIN(nn.Module):
 
         if target_channels is not None:
             self.target_channels = target_channels
-            self.target_channels_idx = [input_channels.index(ch) for ch in target_channels]
+            self.target_channels_idx = [
+                input_channels.index(ch) for ch in target_channels
+            ]
             self.affine_weight = nn.Parameter(torch.ones(len(target_channels)))
             self.affine_bias = nn.Parameter(torch.zeros(len(target_channels)))
         else:

@@ -8,15 +8,13 @@ MODULE_PATH="optrade"
 # List of files and folders to exclude (relative to current directory)
 EXCLUSIONS=(
     "optrade/config"
-    "optrade/analysis"
+    "optrade/analysis/plotting.py"
     "optrade/assets"
-    "optrade/examples"
     "optrade/jobs"
     "optrade/logs"
     "optrade/figures"
     "optrade/personal"
     "optrade/notebooks"
-    "optrade/utils/personal"
     "optrade/main.py"
 )
 

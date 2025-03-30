@@ -74,8 +74,10 @@ class ForecastingDataset(Dataset):
         """
         return self.data.shape[0] - self.seq_len - self.pred_len
 
-    def __getitem__(self, idx: int) -> Union[Tuple[torch.Tensor, torch.Tensor],
-                                           Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]]:
+    def __getitem__(self, idx: int) -> Union[
+        Tuple[torch.Tensor, torch.Tensor],
+        Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray],
+    ]:
         """Get a sample from the dataset.
 
         This method retrieves an input-target pair at the specified index, with input being
@@ -112,31 +114,33 @@ class ForecastingDataset(Dataset):
         input_tensor = input.transpose(0, 1)
         target_tensor = target.transpose(0, 1)
 
-        if self.target_type=="average":
+        if self.target_type == "average":
             target_tensor = target_tensor.mean(dim=0).unsqueeze(0)
-        elif self.target_type=="average_direction":
+        elif self.target_type == "average_direction":
             target_tensor = (target_tensor.mean(dim=0) > 0).unsqueeze(0).float()
-        elif self.target_type=="multistep":
+        elif self.target_type == "multistep":
             pass
         else:
-            raise ValueError("Invalid target_type. Options: 'multistep', 'average', or 'average_direction'.")
-
-        # if self.has_datetime:
-        #     input_datetime = self.datetime[idx : idx + self.seq_len]
-        #     target_datetime = self.datetime[idx + self.seq_len : idx + self.seq_len + self.pred_len]
-        #     return input_tensor, target_tensor, input_datetime, target_datetime
-        # else:
-        #     return input_tensor, target_tensor
+            raise ValueError(
+                "Invalid target_type. Options: 'multistep', 'average', or 'average_direction'."
+            )
 
         if self.has_datetime:
             input_datetime = self.datetime[idx : idx + self.seq_len]
-            target_datetime = self.datetime[idx + self.seq_len : idx + self.seq_len + self.pred_len]
+            target_datetime = self.datetime[
+                idx + self.seq_len : idx + self.seq_len + self.pred_len
+            ]
 
             # Convert datetime arrays to tensors
             input_datetime_tensor = datetime_to_tensor(input_datetime)
             target_datetime_tensor = datetime_to_tensor(target_datetime)
 
-            return input_tensor, target_tensor, input_datetime_tensor, target_datetime_tensor
+            return (
+                input_tensor,
+                target_tensor,
+                input_datetime_tensor,
+                target_datetime_tensor,
+            )
         else:
             return input_tensor, target_tensor
 
@@ -744,23 +748,23 @@ if __name__ == "__main__":
     from optrade.data.contracts import get_contract_datasets
 
     train_cd, val_cd, test_cd = get_contract_datasets(
-        root = root,
-        start_date = total_start_date,
-        end_date = total_end_date,
-        contract_stride = contract_stride,
-        interval_min = interval_min,
-        right = right,
-        target_tte = target_tte,
-        tte_tolerance = tte_tolerance,
-        moneyness = moneyness,
-        strike_band = strike_band,
-        volatility_type = volatility_type,
-        volatility_scaled = volatility_scaled,
-        volatility_scalar = volatility_scalar,
-        verbose = True,
+        root=root,
+        start_date=total_start_date,
+        end_date=total_end_date,
+        contract_stride=contract_stride,
+        interval_min=interval_min,
+        right=right,
+        target_tte=target_tte,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        strike_band=strike_band,
+        volatility_type=volatility_type,
+        volatility_scaled=volatility_scaled,
+        volatility_scalar=volatility_scalar,
+        verbose=True,
         train_split=0.5,
         val_split=0.25,
-        dev_mode=True
+        dev_mode=True,
     )
 
     output = get_forecasting_loaders(
@@ -781,7 +785,7 @@ if __name__ == "__main__":
         save_dir=None,
         verbose=True,
         scaling=True,
-        dev_mode=True
+        dev_mode=True,
     )
     train_loader, val_loader, test_loader = output[0:3]
 
