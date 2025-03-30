@@ -7,6 +7,7 @@ from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
 
+
 # Datasets
 from optrade.data.contracts import ContractDataset
 from optrade.utils.error_handlers import (
@@ -17,6 +18,7 @@ from optrade.utils.error_handlers import (
 
 # Features
 from optrade.data.features import transform_features
+from optrade.utils.misc import datetime_to_tensor, tensor_to_datetime
 
 # Get absolute path for this script
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -50,12 +52,12 @@ class ForecastingDataset(Dataset):
         self.has_datetime = "datetime" in data.columns
         if self.has_datetime:
             self.datetime = data["datetime"].values  # Store as numpy array
-            data_numeric = data.drop(columns=["datetime"])
+            data_numeric = data.drop(columns=["datetime"]).to_numpy()
         else:
-            data_numeric = data
+            data_numeric = data.to_nupy()
 
         self.dtype = eval("torch." + dtype)
-        self.data = torch.tensor(data_numeric.to_numpy(), dtype=self.dtype)
+        self.data = torch.tensor(data_numeric, dtype=self.dtype)
         self.seq_len = seq_len
         self.pred_len = pred_len
         self.target_type = target_type
@@ -119,10 +121,22 @@ class ForecastingDataset(Dataset):
         else:
             raise ValueError("Invalid target_type. Options: 'multistep', 'average', or 'average_direction'.")
 
+        # if self.has_datetime:
+        #     input_datetime = self.datetime[idx : idx + self.seq_len]
+        #     target_datetime = self.datetime[idx + self.seq_len : idx + self.seq_len + self.pred_len]
+        #     return input_tensor, target_tensor, input_datetime, target_datetime
+        # else:
+        #     return input_tensor, target_tensor
+
         if self.has_datetime:
             input_datetime = self.datetime[idx : idx + self.seq_len]
             target_datetime = self.datetime[idx + self.seq_len : idx + self.seq_len + self.pred_len]
-            return input_tensor, target_tensor, input_datetime, target_datetime
+
+            # Convert datetime arrays to tensors
+            input_datetime_tensor = datetime_to_tensor(input_datetime)
+            target_datetime_tensor = datetime_to_tensor(target_datetime)
+
+            return input_tensor, target_tensor, input_datetime_tensor, target_datetime_tensor
         else:
             return input_tensor, target_tensor
 
@@ -204,6 +218,7 @@ def get_forecasting_dataset(
     tte_feats: Optional[List[str]] = None,
     datetime_feats: Optional[List[str]] = None,
     keep_datetime: bool = False,
+    target_type: str = "multistep",
     clean_up: bool = True,
     offline: bool = False,
     intraday: bool = False,
@@ -222,11 +237,12 @@ def get_forecasting_dataset(
 
     Args:
         contract_dataset: ContractDataset object containing option contract parameters
+        tte_tolerance: Tuple of (min, max) time to expiration tolerance in days
         core_feats: List of core features to include
         tte_feats: List of time-to-expiration features to include
         datetime_feats: List of datetime features to include
         keep_datetime: Whether to keep the datetime column in the dataset
-        tte_tolerance: Tuple of (min, max) time to expiration tolerance in days
+        target_type: Type of forecasting target. Options: "multistep" (float), "average" (float), or "average_direction" (binary).
         clean_up: Whether to clean up the data after use
         offline: Whether to load saved contracts from disk
         intraday: Whether to use intraday data
@@ -302,6 +318,7 @@ def get_forecasting_dataset(
                         seq_len=seq_len,
                         pred_len=pred_len,
                         target_channels=target_channels,
+                        target_type=target_type,
                         dtype=dtype,
                     )
                     dataset_list.append(dataset)
@@ -417,6 +434,9 @@ def get_forecasting_loaders(
     core_feats: List[str] = ["option_returns"],
     tte_feats: Optional[List[str]] = None,
     datetime_feats: Optional[List[str]] = None,
+    keep_datetime: bool = False,
+    target_channels: Optional[List[str]] = None,
+    target_type: str = "multistep",
     batch_size: int = 32,
     shuffle: bool = True,
     drop_last: bool = False,
@@ -430,9 +450,9 @@ def get_forecasting_loaders(
     verbose: bool = False,
     scaling: bool = False,
     intraday: bool = False,
-    target_channels: Optional[List[str]] = None,
     dtype: str = "float32",
     warning: bool = True,
+    dev_mode: bool = False,
 ) -> Union[
     Tuple[DataLoader, DataLoader, DataLoader],
     Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
@@ -450,6 +470,8 @@ def get_forecasting_loaders(
         core_feats: List of core features to include
         tte_feats: List of time-to-expiration features to include
         datetime_feats: List of datetime features to include
+        keep_datetime: Whether to keep the datetime column in the dataset
+        target_type: Type of forecasting target. Options: "multistep" (float), "average" (float), or "average_direction" (binary).
         batch_size: Number of samples per batch
         shuffle: Whether to shuffle the data
         drop_last: Whether to drop the last incomplete batch
@@ -480,6 +502,8 @@ def get_forecasting_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        keep_datetime=keep_datetime,
+        target_type=target_type,
         clean_up=clean_up,
         offline=offline,
         intraday=intraday,
@@ -488,6 +512,7 @@ def get_forecasting_loaders(
         save_dir=save_dir,
         verbose=verbose,
         warning=warning,
+        dev_mode=dev_mode,
     )
 
     val_dataset, _ = get_forecasting_dataset(
@@ -498,6 +523,8 @@ def get_forecasting_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        keep_datetime=keep_datetime,
+        target_type=target_type,
         clean_up=clean_up,
         offline=offline,
         intraday=intraday,
@@ -506,6 +533,7 @@ def get_forecasting_loaders(
         save_dir=save_dir,
         verbose=verbose,
         warning=warning,
+        dev_mode=dev_mode,
     )
     test_dataset, _ = get_forecasting_dataset(
         contract_dataset=test_contract_dataset,
@@ -515,6 +543,8 @@ def get_forecasting_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        keep_datetime=keep_datetime,
+        target_type=target_type,
         clean_up=clean_up,
         offline=offline,
         intraday=intraday,
@@ -523,6 +553,7 @@ def get_forecasting_loaders(
         save_dir=save_dir,
         verbose=verbose,
         warning=warning,
+        dev_mode=dev_mode,
     )
 
     if scaling:
@@ -729,6 +760,7 @@ if __name__ == "__main__":
         verbose = True,
         train_split=0.5,
         val_split=0.25,
+        dev_mode=True
     )
 
     output = get_forecasting_loaders(
@@ -736,6 +768,8 @@ if __name__ == "__main__":
         val_contract_dataset=val_cd,
         test_contract_dataset=test_cd,
         tte_tolerance=tte_tolerance,
+        keep_datetime=True,
+        target_type="average",
         seq_len=100,
         pred_len=10,
         core_feats=core_feats,
@@ -743,16 +777,28 @@ if __name__ == "__main__":
         datetime_feats=datetime_feats,
         batch_size=32,
         clean_up=False,
-        offline=False,
+        offline=True,
         save_dir=None,
         verbose=True,
         scaling=True,
+        dev_mode=True
     )
     train_loader, val_loader, test_loader = output[0:3]
 
     print(f"Num train examples: {len(train_loader.dataset)}")
     print(f"Num val examples: {len(val_loader.dataset)}")
     print(f"Num test examples: {len(test_loader.dataset)}")
+
+    for batch in train_loader:
+        x, y, x_dt, y_dt = batch
+        print(f"x ({x.dtype}) shape: {x.shape}. y ({y.dtype}) shape: {y.shape}")
+
+        print(f"x_dt (before): {x_dt.shape}. y_dt (before): {y_dt.shape}")
+        x_dt = tensor_to_datetime(timestamp_tensor=x_dt, batch_mode=True)
+        y_dt = tensor_to_datetime(timestamp_tensor=y_dt, batch_mode=True)
+
+        print(f"x_dt: {x_dt}. y_dt: {y_dt}")
+        break
 
     # # Testing: create_windows
     # from optrade.data.features import transform_features
