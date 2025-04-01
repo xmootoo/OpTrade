@@ -1,8 +1,9 @@
 # Step 1: Find and initialize the optimal contract
-from optrade.data import Contract
+from optrade.data.contracts import Contract
 
 contract = Contract.find_optimal(
     root="AAPL",
+    right="C",              # Call option
     start_date="20230103",  # First trading day of 2023
     target_tte=30,          # Desired expiration: 30 days
     tte_tolerance=(20, 40), # Min 20, max 40 days expiration
