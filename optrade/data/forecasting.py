@@ -54,7 +54,7 @@ class ForecastingDataset(Dataset):
             self.datetime = data["datetime"].values  # Store as numpy array
             data_numeric = data.drop(columns=["datetime"]).to_numpy()
         else:
-            data_numeric = data.to_nupy()
+            data_numeric = data.to_numpy()
 
         self.dtype = eval("torch." + dtype)
         self.data = torch.tensor(data_numeric, dtype=self.dtype)
