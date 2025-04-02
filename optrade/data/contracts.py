@@ -13,7 +13,7 @@ from optrade.data.thetadata import find_optimal_exp
 from optrade.data.thetadata import find_optimal_strike
 from optrade.utils.directories import set_contract_dir
 from optrade.utils.error_handlers import DataValidationError, MARKET_HOLIDAY, WEEKEND
-from optrade.utils.market_metrics import get_train_historical_vol
+from optrade.utils.volatility import get_train_historical_vol
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 

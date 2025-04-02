@@ -9,7 +9,7 @@ from rich.console import Console
 from optrade.data.contracts import ContractDataset
 
 from optrade.data.thetadata import load_stock_data_eod
-from optrade.utils.market_metrics import (
+from optrade.analysis.factors import (
     get_fama_french_factors,
     factor_categorization,
 )
@@ -468,6 +468,7 @@ class Universe:
         volatility_type: Optional[str] = "period",
         volatility_scaled: bool = False,
         volatility_scalar: Optional[float] = None,
+        dev_mode: bool = False,
     ) -> None:
         """
         Downloads options contract datasets and market data for the filtered universe of stocks. To be used in conjunction with
@@ -486,10 +487,10 @@ class Universe:
             volatility_type (str, optional): Type of volatility to use for scaling. Options: "daily", "period", or "annualized".
             volatility_scaled (bool, optional): Whether to scale the volatility.
             volatility_scalar (float, optional): Scalar to multiply the volatility by.
+            dev_mode (bool, optional): Whether to use development mode.
 
         Returns:
             None
-
         """
 
         self.contract_paths = dict()
@@ -526,6 +527,7 @@ class Universe:
                     offline=False,  # Set to False to download data
                     save_dir=self.save_dir,
                     verbose=self.verbose,
+                    dev_mode=dev_mode,
                 )
             )
 
@@ -536,6 +538,7 @@ class Universe:
                 download_only=True,
                 verbose=self.verbose,
                 save_dir=self.save_dir,
+                dev_mode=dev_mode,
             )
             updated_val_contract_dataset = get_forecasting_dataset(
                 contract_dataset=val_contract_dataset,
@@ -543,6 +546,7 @@ class Universe:
                 download_only=True,
                 verbose=self.verbose,
                 save_dir=self.save_dir,
+                dev_mode=dev_mode,
             )
             updated_test_contract_dataset = get_forecasting_dataset(
                 contract_dataset=test_contract_dataset,
@@ -550,6 +554,7 @@ class Universe:
                 download_only=True,
                 verbose=self.verbose,
                 save_dir=self.save_dir,
+                dev_mode=dev_mode,
             )
 
             self.contract_paths[root] = {
@@ -571,7 +576,7 @@ class Universe:
         datetime_feats: Optional[List[str]] = None,
         keep_datetime: bool = False,
         target_channels: Optional[List[str]] = None,
-        target_tyep: str = "multistep",
+        target_type: str = "multistep",
         offline: bool = False,
         batch_size: int = 32,
         shuffle: bool = True,
@@ -673,8 +678,7 @@ if __name__ == "__main__":
         debt_to_equity="low",
         market_cap="high",
         start_date="20210101",
-        end_date="20211001",
-        save_dir="test",
+        end_date="20211231",
         verbose=True,
     )
     universe.set_candidate_roots()  # Fetch index constituents
@@ -686,7 +690,7 @@ if __name__ == "__main__":
     ctx.log(f"Filtered universe: {universe.roots}")
 
     # Set parameters
-    contract_stride = 3
+    contract_stride = 2
     interval_min = 1
     right = "C"
     target_tte = 30
@@ -702,13 +706,15 @@ if __name__ == "__main__":
         interval_min=1,
         right="C",
         target_tte=30,
-        tte_tolerance=(20, 40),
+        tte_tolerance=(15, 45),
         moneyness="ATM",
         train_split=0.5,
         val_split=0.3,
+        dev_mode=True,
     )
 
     # Select a root for forecasting
+    universe.roots = ["AMZN"]
     root = universe.roots[0]
     loaders = universe.get_forecasting_loaders(
         offline=True,
@@ -718,8 +724,11 @@ if __name__ == "__main__":
         pred_len=5,  # 5-minute forecast horizon
         core_feats=["option_returns"],
         target_channels=["option_returns"],
+        target_type="multistep",
+        keep_datetime=True,
         dtype="float32",
         scaling=False,
+        dev_mode=True,
     )
 
     print(f"Train loader: {len(loaders[0].dataset)} samples")

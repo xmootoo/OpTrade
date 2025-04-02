@@ -23,7 +23,7 @@ optrade.utils.error\_handlers
 optrade.utils.market\_metrics
 ------------------------------------
 
-.. automodule:: optrade.utils.market_metrics
+.. automodule:: optrade.utils.volatility
    :members:
    :show-inheritance:
    :undoc-members:
