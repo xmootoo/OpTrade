@@ -569,7 +569,9 @@ class Universe:
         core_feats: List[str] = ["option_returns"],
         tte_feats: Optional[List[str]] = None,
         datetime_feats: Optional[List[str]] = None,
+        keep_datetime: bool = False,
         target_channels: Optional[List[str]] = None,
+        target_tyep: str = "multistep",
         offline: bool = False,
         batch_size: int = 32,
         shuffle: bool = True,
@@ -578,6 +580,7 @@ class Universe:
         prefetch_factor: int = 2,
         pin_memory: bool = torch.cuda.is_available(),
         persistent_workers: bool = True,
+        dev_mode: bool = False,
     ) -> Union[
         Tuple[DataLoader, DataLoader, DataLoader],
         Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
@@ -602,7 +605,9 @@ class Universe:
             core_feats (List[str]): Core features to include in the input data.
             tte_feats (List[str], optional): Time-to-expiration features to include in the input data.
             datetime_feats (List[str], optional): Datetime features to include in the input data.
+            keep_datetime (bool, optional): Whether to keep the datetime features in the input data.
             target_channels (List[str], optional): Target channels to include in the target data.
+            target_type (str, optional): Type of forecasting target. Options: "multistep" (float), "average" (float), or "average_direction" (binary).
             strike_band (float, optional): Strike band for the option.
             volatility_type (str, optional): Type of volatility to use for scaling. Options: "daily", "period", or "annualized".
             volatility_scaled (bool, optional): Whether to scale the volatility.
@@ -614,6 +619,8 @@ class Universe:
             num_workers (int, optional): Number of workers for the data loader.
             prefetch_factor (int, optional): Prefetch factor for the data loader.
             pin_memory (bool, optional): Whether to pin memory for the data loader.
+            persistent_workers (bool, optional): Whether to use persistent workers for the data loader.
+            dev_mode (bool, optional): Whether to use development mode.
 
         Returns:
             Tuple[DataLoader, DataLoader, DataLoader]: Train, validation, and test data loaders if scaling=False.
@@ -632,6 +639,7 @@ class Universe:
             core_feats=core_feats,
             tte_feats=tte_feats,
             datetime_feats=datetime_feats,
+            keep_datetime=keep_datetime,
             batch_size=batch_size,
             shuffle=shuffle,
             drop_last=drop_last,
@@ -646,9 +654,11 @@ class Universe:
             scaling=scaling,
             intraday=False,  # Not implemented yet
             target_channels=target_channels,
+            target_type=target_type,
             seq_len=seq_len,
             pred_len=pred_len,
             dtype=dtype,
+            dev_mode=dev_mode,
         )
 
         return loaders
