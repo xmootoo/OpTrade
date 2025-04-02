@@ -255,10 +255,16 @@ class Analyzer:
             metric_values["rmse"] = np.sqrt(np.mean((preds - targets) ** 2))
         if "mape" in metrics:
             epsilon = 1e-10
-            metric_values["mape"] = np.mean(np.abs((preds - targets) / (targets + epsilon)))
+            metric_values["mape"] = np.mean(
+                np.abs((preds - targets) / (targets + epsilon))
+            )
         if "smape" in metrics:
             epsilon = 1e-10
-            metric_values["smape"] = np.mean(2 * np.abs(preds - targets) / (np.abs(preds) + np.abs(targets) + epsilon))
+            metric_values["smape"] = np.mean(
+                2
+                * np.abs(preds - targets)
+                / (np.abs(preds) + np.abs(targets) + epsilon)
+            )
         if "r^2" in metrics:
             ssr = ((preds - targets) ** 2).sum()
             sst = ((targets - targets.mean()) ** 2).sum()
@@ -677,6 +683,6 @@ if __name__ == "__main__":
         figsize=(12, 6),
         dpi=300,
         save=False,
-        normalize=True
+        normalize=True,
     )
     plt.show()
