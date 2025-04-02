@@ -254,7 +254,11 @@ class Analyzer:
         if "rmse" in metrics:
             metric_values["rmse"] = np.sqrt(np.mean((preds - targets) ** 2))
         if "mape" in metrics:
-            metric_values["mape"] = np.mean(np.abs((preds - targets) / targets))
+            epsilon = 1e-10
+            metric_values["mape"] = np.mean(np.abs((preds - targets) / (targets + epsilon)))
+        if "smape" in metrics:
+            epsilon = 1e-10
+            metric_values["smape"] = np.mean(2 * np.abs(preds - targets) / (np.abs(preds) + np.abs(targets) + epsilon))
         if "r^2" in metrics:
             ssr = ((preds - targets) ** 2).sum()
             sst = ((targets - targets.mean()) ** 2).sum()
@@ -639,11 +643,7 @@ if __name__ == "__main__":
     from optrade.data.forecasting import ForecastingDataset
     from torch.utils.data import DataLoader
 
-    target_channels = (
-        core_feats
-        + ["tte_" + x for x in tte_feats]
-        + ["dt_" + x for x in datetime_feats]
-    )
+    target_channels = ["option_returns"]
     torch_dataset = ForecastingDataset(
         data=data,
         seq_len=100,  # 100-minute lookback window
@@ -656,6 +656,11 @@ if __name__ == "__main__":
 
     model = nn.Linear(100, 10)
 
+    # Randomly initialize weights
+    with torch.no_grad():
+        model.weight = nn.Parameter(torch.randn_like(model.weight))
+        model.bias = nn.Parameter(torch.randn_like(model.bias))
+
     visualizer = Analyzer()
 
     # Test period_visualize
@@ -664,7 +669,7 @@ if __name__ == "__main__":
         period_interval=5,
         model=model,
         dataset=torch_dataset,
-        metrics=["mse", "mae"],
+        metrics=["mse", "mae", "r^2", "mape"],
         batch_size=128,
         x_axis="Time (min)",
         y_axis="MSE & MAE",
@@ -672,5 +677,6 @@ if __name__ == "__main__":
         figsize=(12, 6),
         dpi=300,
         save=False,
+        normalize=True
     )
     plt.show()
