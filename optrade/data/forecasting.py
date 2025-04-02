@@ -145,9 +145,9 @@ class ForecastingDataset(Dataset):
             return input_tensor, target_tensor
 
     def get_item(self, idx: int) -> Union[
-            Tuple[torch.Tensor, torch.Tensor],
-            Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray],
-        ]:
+        Tuple[torch.Tensor, torch.Tensor],
+        Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray],
+    ]:
         """Get a sample from the dataset.
         This method retrieves an input-target pair at the specified index, with input being
         the lookback window and target being the forecast window based on the target_type.
