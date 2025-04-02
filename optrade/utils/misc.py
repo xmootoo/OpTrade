@@ -5,6 +5,7 @@ import time
 import os
 import torch
 import numpy as np
+from typing import Union
 
 
 def format_time_dynamic(seconds):
@@ -33,7 +34,7 @@ def fill_open_zeros(group: pd.DataFrame) -> pd.DataFrame:
     return group
 
 
-def generate_random_id(length=10):
+def generate_random_id(length: int = 10):
     # Seed the random number generator with current time and os-specific random data
     random.seed(int(time.time() * 1000) ^ os.getpid())
 
@@ -41,7 +42,9 @@ def generate_random_id(length=10):
     return "".join(random.choice(characters) for _ in range(length))
 
 
-def datetime_to_tensor(datetime_array, unit="s"):
+def datetime_to_tensor(
+    datetime_array: Union[str, np.datetime64], unit: str = "s"
+) -> torch.Tensor:
     """
     Convert various datetime formats to PyTorch tensor of timestamps.
 
@@ -75,7 +78,11 @@ def datetime_to_tensor(datetime_array, unit="s"):
     return torch.tensor(timestamps, dtype=torch.int64)
 
 
-def tensor_to_datetime(timestamp_tensor, unit="s", batch_mode=False):
+def tensor_to_datetime(
+    timestamp_tensor: torch.Tensor,
+    unit: str = "s",
+    batch_mode: bool = False,
+) -> np.ndarray:
     """
     Convert PyTorch tensor of timestamps back to numpy datetime64 array.
 
@@ -104,7 +111,7 @@ def tensor_to_datetime(timestamp_tensor, unit="s", batch_mode=False):
                 dt = epoch + np.timedelta64(ts, unit)
                 batch_result.append(dt)
             result.append(batch_result)
-        return np.array(result)
+        out = np.array(result)
     else:
         # Handle non-batched data (1D array)
         result = []
@@ -112,7 +119,9 @@ def tensor_to_datetime(timestamp_tensor, unit="s", batch_mode=False):
             # Add the timestamp to the epoch
             dt = epoch + np.timedelta64(ts, unit)
             result.append(dt)
-        return np.array(result)
+        out = np.array(result)
+
+    return out
 
 
 # Test: datetime conversion functions
