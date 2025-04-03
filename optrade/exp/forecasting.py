@@ -89,9 +89,7 @@ class Experiment:
             raise ValueError(f"Invalid logging method: {self.logging}.")
 
     # Initialize device
-    def init_device(self,
-        gpu_id: int = 0,
-        mps: bool = False) -> None:
+    def init_device(self, gpu_id: int = 0, mps: bool = False) -> None:
         """
         Initialize CUDA (or MPS) devices.
 
@@ -225,7 +223,7 @@ class Experiment:
             offline=clean_up,
             save_dir=save_dir,
             verbose=verbose,
-            dev_mode=dev_mode
+            dev_mode=dev_mode,
         )
 
         if validate_contracts:
@@ -236,6 +234,7 @@ class Experiment:
                 validate_contracts=True,
                 verbose=verbose,
                 save_dir=save_dir,
+                dev_mode=dev_mode,
             )
 
             self.val_contract_dataset = get_forecasting_dataset(
@@ -244,6 +243,7 @@ class Experiment:
                 validate_contracts=True,
                 verbose=verbose,
                 save_dir=save_dir,
+                dev_mode=dev_mode,
             )
             self.test_contract_dataset = get_forecasting_dataset(
                 contract_dataset=self.test_contract_dataset,
@@ -251,6 +251,7 @@ class Experiment:
                 validate_contracts=True,
                 verbose=verbose,
                 save_dir=save_dir,
+                dev_mode=dev_mode,
             )
 
         self.train_loader, self.val_loader, self.test_loader, self.scaler = (
@@ -351,7 +352,7 @@ class Experiment:
         optimizer: optim.Optimizer,
         criterion: nn.Module,
         num_epochs: int,
-        device = None,
+        device=None,
         train_loader: Optional[DataLoader] = None,
         val_loader: Optional[DataLoader] = None,
         metrics: List[str] = ["loss"],
@@ -562,7 +563,7 @@ class Experiment:
         self,
         model: Union[nn.Module, BaseEstimator],
         criterion: nn.Module,
-        device = None,
+        device=None,
         test_loader: Optional[DataLoader] = None,
         metrics: List[str] = ["loss"],
     ) -> None:

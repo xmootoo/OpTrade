@@ -297,6 +297,7 @@ class Universe:
                 for factor, value in self.factor_exposures[root].items():
                     table.add_row(factor, f"{float(value):.4f}")
                 self.ctx.print(table)
+
     # Helper function to get percentiles for a given metric
     def get_percentiles(self, metric, bins=3):
         values = [
@@ -445,7 +446,9 @@ class Universe:
         # Fama French factors
         if self.factor_mode is not None:
             if self.verbose:
-                self.ctx.log(f"Computing factor exposures using {self.factor_mode} factors.")
+                self.ctx.log(
+                    f"Computing factor exposures using {self.factor_mode} factors."
+                )
             self.get_factor_exposures()
 
             # Define a function for direct FF categorical filtering
@@ -466,10 +469,16 @@ class Universe:
             filtered_roots.append(filter_direct("value_beta", self.value_beta))
 
             if self.factor_mode == "c4":
-                filtered_roots.append(filter_direct("momentum_beta", self.momentum_beta))
+                filtered_roots.append(
+                    filter_direct("momentum_beta", self.momentum_beta)
+                )
             elif self.factor_mode == "ff5":
-                filtered_roots.append(filter_direct("profitability_beta", self.profitability_beta))
-                filtered_roots.append(filter_direct("investment_beta", self.investment_beta))
+                filtered_roots.append(
+                    filter_direct("profitability_beta", self.profitability_beta)
+                )
+                filtered_roots.append(
+                    filter_direct("investment_beta", self.investment_beta)
+                )
 
         # Take the intersection of all filtered roots
         self.roots = list(set.intersection(*map(set, filtered_roots)))

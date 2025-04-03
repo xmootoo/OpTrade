@@ -191,7 +191,7 @@ def exclude_weight_decay(model, args):
     return param_groups
 
 
-def get_scheduler(args: BaseModel, optimizer, num_batches: int=0):
+def get_scheduler(args: BaseModel, optimizer, num_batches: int = 0):
     if args.train.scheduler == "cosine":
         scheduler = CosineAnnealingLR(
             optimizer,

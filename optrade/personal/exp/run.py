@@ -2,7 +2,13 @@ import torch
 from pydantic import BaseModel
 
 from optrade.exp.forecasting import Experiment
-from optrade.personal.utils.models import get_model, get_optim, get_criterion, get_scheduler
+from optrade.personal.utils.models import (
+    get_model,
+    get_optim,
+    get_criterion,
+    get_scheduler,
+)
+
 
 def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
 
@@ -17,10 +23,7 @@ def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
     )
 
     # Initialize device
-    exp.init_device(
-        mps=args.exp.mps,
-        gpu_id=args.exp.gpu_id
-    )
+    exp.init_device(mps=args.exp.mps, gpu_id=args.exp.gpu_id)
 
     # Step 2: Initialize data loaders with specified configuration
     exp.init_loaders(
@@ -66,19 +69,21 @@ def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
 
     # Select Model, Optimizer, and Loss function
     input_channels = (
-        args.data.core_feats +
-        args.data.tte_feats +
-        args.data.datetime_feats
+        args.data.core_feats + args.data.tte_feats + args.data.datetime_feats
     )
     target_channel_idx = [
         input_channels.index(channel) for channel in args.data.target_channels
     ]
-    model = get_model(args=args, input_channels=input_channels, target_channels_idx=target_channel_idx)
+    model = get_model(
+        args=args, input_channels=input_channels, target_channels_idx=target_channel_idx
+    )
     optimizer = get_optim(args=args, model=model)
     criterion = get_criterion(args=args)
 
     if args.train.scheduler is not None:
-        scheduler = get_scheduler(args=args, optimizer=optimizer, num_batches=len(exp.train_loader))
+        scheduler = get_scheduler(
+            args=args, optimizer=optimizer, num_batches=len(exp.train_loader)
+        )
     else:
         scheduler = None
 
@@ -98,12 +103,12 @@ def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
     exp.test(
         model=model,
         criterion=criterion,
-        metrics=args.eval.metrics,                  # Metrics to compute
+        metrics=args.eval.metrics,  # Metrics to compute
     )
 
     # Step 6: Save model and logs
-    exp.save_logs() # Save experiment logs to disk or neptune
+    exp.save_logs()  # Save experiment logs to disk or neptune
 
 
-if __name__=="__main__":
-    pass
+# if __name__=="__main__":
+#     pass

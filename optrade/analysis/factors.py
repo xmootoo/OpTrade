@@ -293,6 +293,7 @@ def get_universe_factor_exposures(
 # Example usage
 if __name__ == "__main__":
     from rich.console import Console
+
     ctx = Console()
 
     # Set test period (1 year)

@@ -109,9 +109,7 @@ class Data(BaseModel):
         default=2, description="Number of classes for classification tasks."
     )
     num_channels: int = Field(default=321, description="Number of time series channels")
-    batch_size: int = Field(
-        default=32, description="Batch size for the dataloader"
-    )
+    batch_size: int = Field(default=32, description="Batch size for the dataloader")
     drop_last: bool = Field(
         default=False, description="Whether to drop the last batch."
     )
@@ -281,7 +279,6 @@ class Data(BaseModel):
     )
 
 
-
 class Conformal(BaseModel):
     conf: bool = Field(
         default=False,
@@ -375,11 +372,13 @@ class Train(BaseModel):
         description="Whether to use channel independent linear layers for the head.",
     )
 
+
 class Evaluation(BaseModel):
     metrics: List[str] = Field(
         default=["loss"],
         description="Metrics to use for evaluation.",
     )
+
 
 class Scheduler(BaseModel):
     warmup_steps: int = Field(
