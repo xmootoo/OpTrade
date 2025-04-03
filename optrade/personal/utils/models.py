@@ -14,6 +14,7 @@ from typing import List
 from optrade.torch.models.patchtst import Model as PatchTST
 from optrade.torch.models.recurrent import Model as RecurrentModel
 from optrade.torch.models.linear import Model as Linear
+from docs.examples.forecasting_torch import optimizer
 from optrade.torch.models.dlinear import Model as DLinear
 from optrade.torch.models.tsmixer import Model as TSMixer
 from optrade.torch.models.emforecaster import Model as EMForecaster
@@ -21,22 +22,22 @@ from optrade.torch.models.emforecaster import Model as EMForecaster
 # Optimizers and Schedulers
 from torch import optim
 
-# from time_series.utils.schedulers import WarmupCosineSchedule, PatchTSTSchedule
-# from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
+from optrade.personal.utils.schedulers import WarmupCosineSchedule
+from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
 
 
 def get_model(
     args: BaseModel,
-    generator=torch.Generator(),
-    target_channels_idx: List[int] = None,
+    input_channels: List[str],
+    target_channels_idx: List[int],
 ) -> nn.Module:
     if args.exp.model_id == "PatchTST":
         model = PatchTST(
+            input_channels=input_channels,
             num_enc_layers=args.patchtst.num_enc_layers,
             d_model=args.patchtst.d_model,
             d_ff=args.patchtst.d_ff,
             num_heads=args.patchtst.num_heads,
-            num_channels=args.data.num_channels,
             seq_len=args.data.seq_len,
             pred_len=args.data.pred_len,
             attn_dropout=args.patchtst.attn_dropout,
@@ -151,15 +152,12 @@ def get_model(
     return model
 
 
-def get_optim(args, model, optimizer_type="adamw"):
-    # if args.exp.sklearn:
-    #     return None
-
+def get_optim(args, model):
     optimizer_classes = {"adam": optim.Adam, "adamw": optim.AdamW}
 
-    if optimizer_type not in optimizer_classes:
+    if args.train.optimizer not in optimizer_classes:
         raise ValueError("Please select a valid optimizer.")
-    optimizer_class = optimizer_classes[optimizer_type]
+    optimizer_class = optimizer_classes[args.train.optimizer]
 
     param_groups = exclude_weight_decay(
         model, args
@@ -193,20 +191,15 @@ def exclude_weight_decay(model, args):
     return param_groups
 
 
-def get_scheduler(args, scheduler_type, training_mode, optimizer, num_batches=0):
-    # if args.exp.sklearn:
-    #     return None
-
-    if scheduler_type == "cosine":
+def get_scheduler(args: BaseModel, optimizer, num_batches: int=0):
+    if args.train.scheduler == "cosine":
         scheduler = CosineAnnealingLR(
             optimizer,
             T_max=args.train.epochs,
             eta_min=args.train.lr * 1e-2,
             last_epoch=args.scheduler.last_epoch,
         )
-    elif scheduler_type == "patchtst" and training_mode == "supervised":
-        scheduler = PatchTSTSchedule(optimizer, args, num_batches)
-    elif scheduler_type == "onecycle" and training_mode == "supervised":
+    elif args.train.scheduler == "onecycle":
         scheduler = OneCycleLR(
             optimizer=optimizer,
             steps_per_epoch=num_batches,
@@ -214,26 +207,24 @@ def get_scheduler(args, scheduler_type, training_mode, optimizer, num_batches=0)
             epochs=args.train.epochs,
             max_lr=args.train.lr,
         )
-    elif scheduler_type is None:
-        return None
     else:
         raise ValueError("Please select a valid scheduler_type.")
     return scheduler
 
 
-def get_criterion(args, criterion_type):
-    if criterion_type == "MSE":
+def get_criterion(args: BaseModel) -> nn.Module:
+    if args.train.criterion == "MSE":
         return nn.MSELoss()
-    elif criterion_type == "SmoothL1":
+    elif args.train.criterion == "SmoothL1":
         return nn.SmoothL1Loss()
-    elif criterion_type == "BCE":
+    elif args.train.criterion == "BCE":
         return nn.BCEWithLogitsLoss()
-    elif criterion_type == "BCE_normal":
+    elif args.train.criterion == "BCE_normal":
         return nn.BCELoss()
-    elif criterion_type == "CE":
+    elif args.train.criterion == "CE":
         return nn.CrossEntropyLoss()
     else:
-        raise ValueError("Please select a valid criterion_type.")
+        raise ValueError("Please select a valid criterion.")
 
 
 def forward_pass(args, model, batch, model_id, device):
