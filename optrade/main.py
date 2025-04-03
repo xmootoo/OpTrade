@@ -4,7 +4,6 @@ import sys
 from datetime import datetime
 from optrade.config.config import load_config
 import torch
-from dotenv import load_dotenv
 from rich.console import Console
 from rich.pretty import pprint
 import warnings
@@ -12,7 +11,10 @@ from pydantic import BaseModel
 from typing import Dict, Any
 from pathlib import Path
 
+
 from optrade.personal.exp.run import run_forecasting_experiment
+
+BASE_DIR = Path(__file__).parent.parent.absolute()
 
 warnings.filterwarnings(
     "ignore", message="h5py not installed, hdf5 features will not be supported."
@@ -58,15 +60,13 @@ def update_global_config(
     return global_config
 
 
-def main(job_name="test", ablation=None, ablation_id=1):
+def run_job(job_name="test", ablation=None, ablation_id=1):
 
     # Rich console
-    load_dotenv()
     console = Console()
 
     # Load experimental configuration
-    base_dir = Path(__file__).parent.parent.absolute()
-    args_path = base_dir / "optrade" / "jobs" / job_name / "args.yaml"
+    args_path = BASE_DIR / "optrade" / "jobs" / job_name / "args.yaml"
     args = load_config(args_path)
     if ablation is not None:
         args = update_global_config(ablation, args, ablation_id)
@@ -85,13 +85,12 @@ def main(job_name="test", ablation=None, ablation_id=1):
 
 
 if __name__ == "__main__":
-    # Non-hyperparameter tuning
+    # Single Job (Non-hyperparameter tuning)
     warnings.filterwarnings(
         "ignore", message="h5py not installed, hdf5 features will not be supported."
     )
     parser = argparse.ArgumentParser(description="Run experiment")
     parser.add_argument("job_name", type=str, default="test", help="Name of the job")
-    parser.add_argument("--venv_test", action="store_true", help="Flag for venv test")
     parser.add_argument(
         "--ablation", type=str, default=None, help="Ablation study configuration"
     )
@@ -101,20 +100,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.venv_test:
-        print("Running in venv test mode")
-        # Add any venv test specific code here
+    if args.ablation is not None:
+        try:
+            ablation = json.loads(args.ablation)
+            run_job(
+                job_name=args.job_name,
+                ablation=ablation,
+                ablation_id=args.ablation_id,
+            )
+        except json.JSONDecodeError:
+            print("Error: Invalid JSON string for ablation configuration")
+            sys.exit(1)
     else:
-        if args.ablation is not None:
-            try:
-                ablation = json.loads(args.ablation)
-                main(
-                    job_name=args.job_name,
-                    ablation=ablation,
-                    ablation_id=args.ablation_id,
-                )
-            except json.JSONDecodeError:
-                print("Error: Invalid JSON string for ablation configuration")
-                sys.exit(1)
-        else:
-            main(args.job_name)
+        run_job(args.job_name)

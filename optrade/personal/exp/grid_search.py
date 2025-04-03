@@ -1,11 +1,12 @@
 from pathlib import Path
 import itertools
 import yaml
+import sys
 from typing import Dict, List, Any, Tuple
 from rich.console import Console
 import argparse
 
-from optrade.main import main
+from optrade.main import run_job
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -41,7 +42,7 @@ def grid_search(job_name: str) -> None:
 
     for i, ablation in enumerate(ablation_combinations):
         console.log(f"Running ablation {i} (locally): {ablation}")
-        main(job_name=job_name, ablation=ablation, ablation_id=i)
+        run_job(job_name=job_name, ablation=ablation, ablation_id=i)
 
 
 if __name__ == "__main__":

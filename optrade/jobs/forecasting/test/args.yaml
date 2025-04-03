@@ -19,8 +19,27 @@ data:
   train_split: 0.65
   val_split: 0.2
   num_channels: 1
-  num_workers: 4
   scale: True
+  dev_mode: True
+  target_type: "multistep"
+
+  # Dataloader (CPU setup)
+  batch_size: 128
+  prefetch_factor: 2
+  num_workers: 0
+  persistent_workers: False
+  pin_memory: False
+  shuffle: True
+  drop_last: False
+
+  # # Dataloader (GPU Setup)
+  # batch_size: 128
+  # prefetch_factor: 4
+  # num_workers: 4  # Typically set to number of CPU cores
+  # persistent_workers: True
+  # pin_memory: True
+  # shuffle: True
+  # drop_last: False
 
   # Dataset
   root: "AAPL"
@@ -85,7 +104,6 @@ train:
   # scheduler: "onecycle"
   dropout: 0.3
   epochs: 10
-  batch_size: 64
   lr: 1e-4
   early_stopping: True
   weight_decay: 1e-5
