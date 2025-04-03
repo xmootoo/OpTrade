@@ -1,9 +1,7 @@
-import os
 import json
 import argparse
 import sys
 from datetime import datetime
-from optrade.exp.exp import Experiment
 from optrade.config.config import load_config
 import torch
 from dotenv import load_dotenv
@@ -12,6 +10,9 @@ from rich.pretty import pprint
 import warnings
 from pydantic import BaseModel
 from typing import Dict, Any
+from pathlib import Path
+
+from optrade.personal.exp.run import run_forecasting_experiment
 
 warnings.filterwarnings(
     "ignore", message="h5py not installed, hdf5 features will not be supported."
@@ -64,8 +65,8 @@ def main(job_name="test", ablation=None, ablation_id=1):
     console = Console()
 
     # Load experimental configuration
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    args_path = os.path.join(base_dir, "optrade", "jobs", job_name, "args.yaml")
+    base_dir = Path(__file__).parent.parent.absolute()
+    args_path = base_dir / "optrade" / "jobs" / job_name / "args.yaml"
     args = load_config(args_path)
     if ablation is not None:
         args = update_global_config(ablation, args, ablation_id)
@@ -80,12 +81,7 @@ def main(job_name="test", ablation=None, ablation_id=1):
 
         # Print args
         pprint(args, expand_all=True)
-
-        # Initialize experiment
-        exp = Experiment(args)
-
-        console.log("Using single device")
-        exp.run()
+        run_forecasting_experiment(args, ablation_id)
 
 
 if __name__ == "__main__":
