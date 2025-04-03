@@ -484,7 +484,7 @@ def get_forecasting_loaders(
     warning: bool = True,
     dev_mode: bool = False,
 ) -> Union[
-    Tuple[DataLoader, DataLoader, DataLoader],
+    Tuple[DataLoader, DataLoader, DataLoader, None],
     Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
 ]:
     """
