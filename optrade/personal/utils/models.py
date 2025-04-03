@@ -14,7 +14,6 @@ from typing import List
 from optrade.torch.models.patchtst import Model as PatchTST
 from optrade.torch.models.recurrent import Model as RecurrentModel
 from optrade.torch.models.linear import Model as Linear
-from docs.examples.forecasting_torch import optimizer
 from optrade.torch.models.dlinear import Model as DLinear
 from optrade.torch.models.tsmixer import Model as TSMixer
 from optrade.torch.models.emforecaster import Model as EMForecaster
