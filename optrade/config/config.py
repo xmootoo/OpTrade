@@ -1,4 +1,5 @@
 import warnings
+from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
@@ -607,9 +608,9 @@ class Global(BaseModel):
     rnn: RecurrentModel = RecurrentModel()
 
 
-def load_config(file_path: str) -> Global:
+def load_config(file_path: Path) -> Global:
     print(f"Received file_path in load_config: {file_path}")
-    print(f"Absolute file_path in load_config: {os.path.abspath(file_path)}")
+    print(f"Absolute file_path in load_config: {file_path.absolute()}")
     with open(file_path, "r") as file:
         config_data = yaml.safe_load(file)
     return Global(**config_data)
