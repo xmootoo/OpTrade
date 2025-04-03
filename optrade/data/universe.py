@@ -6,11 +6,12 @@ import torch
 from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
 from rich.console import Console
+from rich.table import Table
 from optrade.data.contracts import ContractDataset
 
 from optrade.data.thetadata import load_stock_data_eod
 from optrade.analysis.factors import (
-    get_fama_french_factors,
+    get_factor_exposures,
     factor_categorization,
 )
 from optrade.utils.stock_categories import (
@@ -49,6 +50,7 @@ class Universe:
         value_beta: Optional[str] = None,
         profitability_beta: Optional[str] = None,
         investment_beta: Optional[str] = None,
+        momentum_beta: Optional[str] = None,
         save_dir: Optional[str] = None,
         verbose: bool = False,
     ) -> None:
@@ -66,35 +68,36 @@ class Universe:
             candidate_roots (list, optional): Candidate root symbols to be filtered by other parameters.
                 Used only if no collection (sp_500, nasdaq_100, etc.) is selected.
             volatility (str, optional): The volatility of the stock.
-                Options: 'very_low' (bottom 20%), 'low' (20-40%), 'medium' (40-60%),
-                'high' (60-80%), 'very_high' (top 20%).
+                Options: 'low', 'medium', 'high'. Based on the terciles of volatility from the candidate universe.
             pe_ratio (str, optional): The P/E ratio of the stock.
-                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+                Options: 'low', 'medium', 'high'. Based on the terciles of P/E ratio from the candidate universe.
             debt_to_equity (str, optional): The debt to equity ratio of the stock.
-                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+                Options: 'low', 'medium', 'high'. Based on the terciles of debt to equity from the candidate universe.
             beta (str, optional): The beta of the stock.
-                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+                Options: 'low', 'medium', 'high'. Based on the terciles of beta from the candidate universe.
             market_cap (str, optional): The market cap of the stock.
-                Options: 'low' (small cap), 'medium' (mid cap), 'high' (large cap).
+                Options: 'low', 'medium', 'high'. Based on the terciles of market cap from the candidate universe.
             sector (str, optional): The sector of the stock.
                 Options: 'tech', 'healthcare', 'financial', 'consumer_cyclical',
                 'consumer_defensive', 'industrial', 'energy', 'materials', 'utilities',
                 'real_estate', 'communication'.
             industry (str, optional): The industry of the stock matching Yahoo Finance classifications.
             dividend_yield (str, optional): The dividend yield of the stock.
-                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+                Options: 'low', 'medium', 'high'. Based on the terciles of dividend yield from the candidate universe.
             earnings_volatility (str, optional): The earnings volatility of the stock.
-                Options: 'low' (bottom 33%), 'medium' (middle 33%), 'high' (top 33%).
+                Options: 'low', 'medium', 'high'. Based on the terciles of earnings volatility from the candidate universe.
             market_beta (str, optional): The market beta of the stock.
-                Options: 'high', 'low', 'neutral'.
+                Options: 'high', 'low', 'neutral'. Based on the absolute thresholds of < 0.9 and > 1.1.
             size_beta (str, optional): The size beta of the stock.
-                Options: 'small_cap', 'large_cap', 'neutral'.
+                Options: 'small_cap', 'large_cap', 'neutral'. Based on 30th and 70th percentiles of beta from the candidate universe.
             value_beta (str, optional): The value beta of the stock.
-                Options: 'value', 'growth', 'neutral'.
+                Options: 'value', 'growth', 'neutral'. Based on 30th and 70th percentiles of beta from the candidate universe.
             profitability_beta (str, optional): The profitability beta of the stock.
-                Options: 'robust', 'weak', 'neutral'.
+                Options: 'robust', 'weak', 'neutral'. Based on 30th and 70th percentiles of beta from the candidate universe.
             investment_beta (str, optional): The investment beta of the stock.
-                Options: 'conservative', 'aggressive', 'neutral'.
+                Options: 'conservative', 'aggressive', 'neutral'. Based on 30th and 70th percentiles of beta from the candidate universe.
+            momentum_beta: (str, optional): The momentum beta of the stock used in Carhart 4-Factor model.
+                Options: 'high', 'low', 'neutral'. Based on 30th and 70th percentiles of beta from the candidate universe.
             save_dir (str, optional): Directory to save the contract datasets and raw data.
             verbose (bool): Whether to print verbose output. Default is False.
         """
@@ -133,14 +136,17 @@ class Universe:
         self.value_beta = value_beta
         self.profitability_beta = profitability_beta
         self.investment_beta = investment_beta
+        self.momentum_beta = momentum_beta
 
         # Check if any of the ff factors are set
         if any([profitability_beta, investment_beta]):
-            self.ff_mode = "5_factor"
+            self.factor_mode = "ff5"
+        elif any([momentum_beta]):
+            self.factor_mode = "c4"
         elif any([market_beta, size_beta, value_beta]):
-            self.ff_mode = "3_factor"
+            self.factor_mode = "ff3"
         else:
-            self.ff_mode = None
+            self.factor_mode = None
 
         # Directory and logging
         self.save_dir = save_dir
@@ -250,7 +256,7 @@ class Universe:
                     )
                 self.roots.remove(root)
 
-    def get_fama_french_factors(self) -> None:
+    def get_factor_exposures(self) -> None:
 
         # Assert that roots is an attribute of self and is not empty
         assert (
@@ -258,32 +264,39 @@ class Universe:
         ), "No roots available. Run set_candidate_roots() first."
 
         assert (
-            hasattr(self, "ff_mode") and self.ff_mode
-        ), "No Fama-French mode specified. Set ff_mode to '3_factor' or '5_factor'."
+            hasattr(self, "factor_mode") and self.factor_mode
+        ), "No Factor mode specified. Set factor_mode to 'ff3', 'c4', or 'ff5'."
 
-        self.ff_factors = dict()
+        self.factor_exposures = dict()
 
+        # Fetch Fama-French factors for each root
         for root in self.roots:
             try:
-                self.ff_factors[root] = get_fama_french_factors(
+                self.factor_exposures[root] = get_factor_exposures(
                     root=root,
                     start_date=self.start_date,
                     end_date=self.end_date,
-                    mode=self.ff_mode,
+                    mode=self.factor_mode,
                 )
-                ff_factor_categories = factor_categorization(
-                    factors=self.ff_factors[root], mode=self.ff_mode
-                )
-                self.fundamentals[root].update(ff_factor_categories)
-                if self.verbose:
-                    self.ctx.log(
-                        f"Fama-French factors for {root}: {self.ff_factors[root]}"
-                    )
             except:
                 if self.verbose:
                     self.ctx.log(f"Could not fetch Fama-French factors for {root}.")
                 self.roots.remove(root)
 
+        factor_categories = factor_categorization(
+            factors=self.factor_exposures, mode=self.factor_mode
+        )
+
+        # Update the fundamentals with the factor categories
+        for root in self.roots:
+            self.fundamentals[root].update(factor_categories[root])
+            if self.verbose:
+                table = Table(title=f"Factor exposures for {root}")
+                table.add_column("Factor")
+                table.add_column("Value")
+                for factor, value in self.factor_exposures[root].items():
+                    table.add_row(factor, f"{float(value):.4f}")
+                self.ctx.print(table)
     # Helper function to get percentiles for a given metric
     def get_percentiles(self, metric, bins=3):
         values = [
@@ -393,66 +406,80 @@ class Universe:
             return
 
         # Create a copy of roots to filter
-        filtered_roots = self.roots.copy()
+        starting_roots = self.roots.copy()
+        filtered_roots = []
 
         # Apply all filters
-        # Five-level factors
-        filtered_roots = self.filter_five_level(
-            filtered_roots, "volatility", self.volatility
+        filtered_roots.append(
+            self.filter_three_level(starting_roots, "volatility", self.volatility)
         )
 
-        # Three-level factors
-        filtered_roots = self.filter_three_level(
-            filtered_roots, "pe_ratio", self.pe_ratio
+        filtered_roots.append(
+            self.filter_three_level(starting_roots, "pe_ratio", self.pe_ratio)
         )
-        filtered_roots = self.filter_three_level(
-            filtered_roots, "debt_to_equity", self.debt_to_equity
+        filtered_roots.append(
+            self.filter_three_level(
+                starting_roots, "debt_to_equity", self.debt_to_equity
+            )
         )
-        filtered_roots = self.filter_three_level(filtered_roots, "beta", self.beta)
-        filtered_roots = self.filter_three_level(
-            filtered_roots, "market_cap", self.market_cap
+        filtered_roots.append(
+            self.filter_three_level(starting_roots, "beta", self.beta)
         )
-        filtered_roots = self.filter_three_level(
-            filtered_roots, "dividend_yield", self.dividend_yield
+        filtered_roots.append(
+            self.filter_three_level(starting_roots, "market_cap", self.market_cap)
+        )
+        filtered_roots.append(
+            self.filter_three_level(
+                starting_roots, "dividend_yield", self.dividend_yield
+            )
         )
 
         # Categorical factors
-        filtered_roots = self.filter_categorical(filtered_roots, "sector", self.sector)
-        filtered_roots = self.filter_categorical(
-            filtered_roots, "industry", self.industry
+        filtered_roots.append(
+            self.filter_categorical(starting_roots, "sector", self.sector)
+        )
+        filtered_roots.append(
+            self.filter_categorical(starting_roots, "industry", self.industry)
         )
 
         # Fama French factors
-        if self.ff_mode is not None:
-            self.get_fama_french_factors()
+        if self.factor_mode is not None:
+            if self.verbose:
+                self.ctx.log(f"Computing factor exposures using {self.factor_mode} factors.")
+            self.get_factor_exposures()
 
             # Define a function for direct FF categorical filtering
-            def filter_ff_direct(metric, desired_category):
+            def filter_direct(metric, desired_category):
                 if desired_category is None:
-                    return filtered_roots
+                    return starting_roots
 
                 result = []
-                for root in filtered_roots:
+                for root in starting_roots:
                     if self.fundamentals[root][metric] == desired_category:
                         result.append(root)
 
                 return result
 
-            # Apply FF factor filters directly using the specified categories
-            filtered_roots = filter_ff_direct("market_beta", self.market_beta)
-            filtered_roots = filter_ff_direct("size_beta", self.size_beta)
-            filtered_roots = filter_ff_direct("value_beta", self.value_beta)
+            # Apply factor filters directly using the specified categories
+            filtered_roots.append(filter_direct("market_beta", self.market_beta))
+            filtered_roots.append(filter_direct("size_beta", self.size_beta))
+            filtered_roots.append(filter_direct("value_beta", self.value_beta))
 
-            if self.ff_mode == "5_factor":
-                filtered_roots = filter_ff_direct(
-                    "profitability_beta", self.profitability_beta
-                )
-                filtered_roots = filter_ff_direct(
-                    "investment_beta", self.investment_beta
-                )
+            if self.factor_mode == "c4":
+                filtered_roots.append(filter_direct("momentum_beta", self.momentum_beta))
+            elif self.factor_mode == "ff5":
+                filtered_roots.append(filter_direct("profitability_beta", self.profitability_beta))
+                filtered_roots.append(filter_direct("investment_beta", self.investment_beta))
 
-        # Update roots to the filtered list
-        self.roots = filtered_roots
+        # Take the intersection of all filtered roots
+        self.roots = list(set.intersection(*map(set, filtered_roots)))
+        assert (
+            len(self.roots) != 0
+        ), "No stocks left after filtering. Use less filtering or increase the size of your candidate universe."
+
+        if self.verbose:
+            self.ctx.log(f"Candidate universe: {starting_roots}")
+            self.ctx.log(f"Filtered universe: {self.roots}")
 
     def download(
         self,
@@ -675,19 +702,18 @@ if __name__ == "__main__":
     # Create a Universe instance
     universe = Universe(
         dow_jones=True,
-        debt_to_equity="low",
-        market_cap="high",
+        # debt_to_equity="low",
+        momentum_beta="low",
+        # market_cap="high",
         start_date="20210101",
         end_date="20211231",
         verbose=True,
     )
     universe.set_candidate_roots()  # Fetch index constituents
     universe.get_fundamentals()  # Fetch fundamental data
-    print(f"Universe: {universe.roots}")
 
     # Filter the universe for stocks with low debt-to-equity and high market cap
     universe.filter_universe()
-    ctx.log(f"Filtered universe: {universe.roots}")
 
     # Set parameters
     contract_stride = 2
@@ -701,6 +727,8 @@ if __name__ == "__main__":
     volatility_scaled = False
 
     # Download contracts and raw data for the filtered universe
+    universe.roots = ["AMZN"]
+    root = universe.roots[0]
     universe.download(
         contract_stride=3,
         interval_min=1,
@@ -714,8 +742,6 @@ if __name__ == "__main__":
     )
 
     # Select a root for forecasting
-    universe.roots = ["AMZN"]
-    root = universe.roots[0]
     loaders = universe.get_forecasting_loaders(
         offline=True,
         root=root,
