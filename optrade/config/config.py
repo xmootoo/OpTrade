@@ -52,9 +52,6 @@ class Experiment(BaseModel):
         default=datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
         description="Neptune run ID",
     )
-    early_stopping: bool = Field(
-        default=True, description="Whether to use early stopping"
-    )
     acc: bool = Field(
         default=False, description="Evaluate accuracy or not for classification tasks"
     )
@@ -111,9 +108,23 @@ class Data(BaseModel):
         default=2, description="Number of classes for classification tasks."
     )
     num_channels: int = Field(default=321, description="Number of time series channels")
+    batch_size: int = Field(
+        default=32, description="Batch size for the dataloader"
+    )
     drop_last: bool = Field(
         default=False, description="Whether to drop the last batch."
     )
+    persistent_workers: bool = Field(
+        default=True,
+        description="Whether to use persistent workers for the dataloader.",
+    )
+    pin_memory: bool = Field(
+        default=True, description="Whether to pin memory for the dataloader."
+    )
+    prefetch_factor: int = Field(
+        default=2, description="Prefetch factor for the dataloader"
+    )
+    shuffle: bool = Field(default=True, description="Whether to shuffle all datasets")
     scale: bool = Field(default=True, description="Normalize data along each channel.")
     balance: bool = Field(
         default=True, description="Balance classes within dataset for classification."
@@ -136,7 +147,7 @@ class Data(BaseModel):
     shuffle_test: bool = Field(
         default=False, description="Whether to shuffle the test set"
     )
-    shuffle: bool = Field(default=True, description="Whether to shuffle all datasets")
+
     patching: bool = Field(
         default=False, description="Whether to use patching for the dataset (LSTM only)"
     )
@@ -221,21 +232,33 @@ class Data(BaseModel):
         default=["option_returns"],
         description="Target channels used in the target window.",
     )
+    target_type: str = Field(
+        default="multistep",
+        description="Target type different forecasting tasks. Options: 'multistep', 'average', or 'average_direction'.",
+    )
     clean_up: bool = Field(
-        default=True,
+        default=False,
         description="Whether to clean up the CSV files after saving data from ThetaData API.",
     )
     offline: bool = Field(
         default=False,
         description="Whether to use offline data instead of calling ThetaData API directly.",
     )
-    save_dir: str = Field(
-        default="../historical_data/", description="Directory to save the data."
+    save_dir: Optional[str] = Field(
+        default=None, description="Directory to save the data."
     )
     verbose: bool = Field(default=True, description="Verbose print for data loading.")
     intraday: bool = Field(
         default=False,
         description="Whether to use intraday data for the dataset or allow crossover between different days.",
+    )
+    validate_cpontracts: bool = Field(
+        default=False,
+        description="Whether to validate the contracts in the dataset.",
+    )
+    dev_mode: bool = Field(
+        default=False,
+        description="Whether to use development mode (uses different file directory saving).",
     )
 
     # Features
@@ -251,6 +274,11 @@ class Data(BaseModel):
         default=["sin_minute_of_day"],
         description="Datetime features to use for the time series.",
     )
+    keep_datetime: bool = Field(
+        default=False,
+        description="Whether to keep datetime features in the dataset.",
+    )
+
 
 
 class Conformal(BaseModel):
@@ -277,6 +305,9 @@ class Conformal(BaseModel):
 
 
 class Train(BaseModel):
+    early_stopping: bool = Field(
+        default=True, description="Whether to use early stopping"
+    )
     optimizer: str = Field(
         default="adam",
         description="Optimizer for supervised learning: 'adam' or 'adamw'",
@@ -327,6 +358,10 @@ class Train(BaseModel):
     early_stopping: bool = Field(
         default=False, description="Early stopping for supervised learning."
     )
+    early_stopping_patience: int = Field(
+        default=10,
+        description="Patience for early stopping. Number of epochs to wait before stopping.",
+    )
     head_type: str = Field(
         default="linear",
         description="Head type for supervised learning: 'linear' or 'mlp'",
@@ -339,16 +374,11 @@ class Train(BaseModel):
         description="Whether to use channel independent linear layers for the head.",
     )
 
-
-class EarlyStopping(BaseModel):
-    patience: int = Field(default=10, description="Patience for early stopping.")
-    verbose: bool = Field(
-        default=True, description="Verbose print for early stopping class."
+class Evaluation(BaseModel):
+    metrics: List[str] = Field(
+        default=["loss"],
+        description="Metrics to use for evaluation.",
     )
-    delta: float = Field(
-        default=0.0, description="Delta additive to the best scores for early stopping."
-    )
-
 
 class Scheduler(BaseModel):
     warmup_steps: int = Field(
@@ -566,7 +596,6 @@ class Global(BaseModel):
     exp: Experiment = Experiment()
     data: Data = Data()
     train: Train = Train()
-    early_stopping: EarlyStopping = EarlyStopping()
     scheduler: Scheduler = Scheduler()
     patchtst: PatchTST = PatchTST()
     dlinear: DLinear = DLinear()
