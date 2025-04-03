@@ -3,7 +3,7 @@ import pandas_datareader.data as web
 import statsmodels.api as sm
 from datetime import datetime
 import warnings
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Union, List
 
 warnings.filterwarnings("ignore", message="The argument 'date_parser' is deprecated")
 
@@ -11,26 +11,28 @@ warnings.filterwarnings("ignore", message="The argument 'date_parser' is depreca
 from optrade.data.thetadata import load_stock_data_eod
 
 
-def get_fama_french_factors(
+def get_factor_model_exposures(
     root: str,
     start_date: str,
     end_date: str,
-    mode: str = "3_factor",
+    mode: str = "ff3",
 ) -> Dict[str, Any]:
     """
-    Calculate Fama-French factor model exposures for a stock over the specified period.
+    Calculate factor model exposures for a stock over the specified period.
+    Supports Fama-French 3-factor (ff3), Fama-French 5-factor (ff5), and Carhart 4-factor (c4) models.
 
     Args:
         root (str): Root symbol of the underlying security
         start_date (str): Start date in YYYYMMDD format
         end_date (str): End date in YYYYMMDD format
-        mode (str): Mode for the Fama-French model ("3_factor" or "5_factor")
+        mode (str): Mode for the factor model. Options: "ff3" (Fama-French 3 factor), "ff5" (Fama-French 5 factor), or "c4" (Carhart 4 factor).
 
     Returns:
         Dictionary containing the factor betas:
         - market_beta: Market excess return sensitivity
         - size_beta: Small Minus Big (SMB) factor exposure
         - value_beta: High Minus Low (HML) book-to-market factor exposure
+        - momentum_beta: Winners Minus Losers (WML) momentum factor (Carhart model only)
         - profitability_beta: Robust Minus Weak (RMW) profitability factor (5-factor only)
         - investment_beta: Conservative Minus Aggressive (CMA) investment factor (5-factor only)
         - r_squared: Proportion of return variation explained by the factors
@@ -41,7 +43,7 @@ def get_fama_french_factors(
         "ignore", message="The argument 'date_parser' is deprecated"
     )
 
-    # Shift the start_date by -1 day to get returns for the current day
+    # Convert date strings to datetime objects
     ff_start_date = datetime.strptime(start_date, "%Y%m%d")
     ff_end_date = datetime.strptime(end_date, "%Y%m%d")
 
@@ -64,8 +66,8 @@ def get_fama_french_factors(
     # Drop all other columns besides Date and returns
     stock_data = stock_data[["Date", "returns"]]
 
-    # Get Fama-French factor data based on mode
-    if mode == "3_factor":
+    # Get factor data based on mode
+    if mode == "ff3":
         ff_data = web.DataReader(
             "F-F_Research_Data_Factors_daily",
             "famafrench",
@@ -73,7 +75,7 @@ def get_fama_french_factors(
             end=ff_end_date,
         )[0]
         factor_columns = ["Mkt-RF", "SMB", "HML"]
-    elif mode == "5_factor":  # 5_factor
+    elif mode == "ff5":
         ff_data = web.DataReader(
             "F-F_Research_Data_5_Factors_2x3_daily",
             "famafrench",
@@ -81,8 +83,31 @@ def get_fama_french_factors(
             end=ff_end_date,
         )[0]
         factor_columns = ["Mkt-RF", "SMB", "HML", "RMW", "CMA"]
+    elif mode == "c4":
+        # Get FF 3-factor data
+        ff_data = web.DataReader(
+            "F-F_Research_Data_Factors_daily",
+            "famafrench",
+            start=ff_start_date,
+            end=ff_end_date,
+        )[0]
+
+        # Get momentum factor data - note the column name has trailing spaces
+        mom_data = web.DataReader(
+            "F-F_Momentum_Factor_daily",
+            "famafrench",
+            start=ff_start_date,
+            end=ff_end_date,
+        )[0]
+
+        # Fix the column name to remove trailing spaces
+        mom_data.columns = [col.strip() for col in mom_data.columns]
+
+        # Merge FF 3-factor with momentum
+        ff_data = pd.merge(ff_data, mom_data, left_index=True, right_index=True)
+        factor_columns = ["Mkt-RF", "SMB", "HML", "Mom"]
     else:
-        raise ValueError(f"Invalid mode: {mode}. Choose '3_factor' or '5_factor'.")
+        raise ValueError(f"Invalid mode: {mode}. Choose 'ff3', 'c4', or 'ff5'.")
 
     # Convert percentages to decimals
     ff_data = ff_data / 100
@@ -118,8 +143,12 @@ def get_fama_french_factors(
         "r_squared": model.rsquared,
     }
 
+    # Add momentum for Carhart model
+    if mode == "c4":
+        result["momentum_beta"] = model.params.get("Mom", None)
+
     # Add additional factors for 5-factor model
-    if mode == "5_factor":
+    if mode == "ff5":
         result["profitability_beta"] = model.params.get("RMW", None)
         result["investment_beta"] = model.params.get("CMA", None)
 
@@ -127,125 +156,176 @@ def get_fama_french_factors(
 
 
 def factor_categorization(
-    factors: Dict[str, float], mode: str = "3_factor"
-) -> Dict[str, str]:
+    factors: Dict[str, Dict[str, float]], mode: str = "ff3"
+) -> Dict[str, Dict[str, str]]:
     """
-    Categorize a stock based on its Fama-French factor exposures.
+    Categorize stocks based on their factor model exposures using percentiles.
 
     Args:
-        factors (Dict[str, float]): Dictionary containing factor betas for the stock
-        mode (str): Mode for the Fama-French model ("3_factor" or "5_factor")
+        factors: Nested dictionary where:
+            - Outer key is the root symbol
+            - Inner key is the factor type
+            - Value is the factor beta
+        mode: Factor model type ("ff3", "ff5", or "c4")
 
     Returns:
-        Dict[str, str]: Dictionary with categorizations for each factor dimension
+        Nested dictionary with categorizations for each stock and factor
     """
-    categorization = {}
+    # Define factor sets for each model
+    model_factors = {
+        "ff3": {"market_beta", "size_beta", "value_beta"},
+        "ff5": {
+            "market_beta",
+            "size_beta",
+            "value_beta",
+            "profitability_beta",
+            "investment_beta",
+        },
+        "c4": {"market_beta", "size_beta", "value_beta", "momentum_beta"},
+    }
 
-    # Market beta categorization
-    if factors["market_beta"] > 1.1:
-        categorization["market_beta"] = "high"
-    elif factors["market_beta"] < 0.9:
-        categorization["market_beta"] = "low"
-    else:
-        categorization["market_beta"] = "neutral"
+    # Get relevant factors for this mode
+    relevant_factors = model_factors[mode]
 
-    # Size factor categorization
-    if factors["size_beta"] > 0.2:
-        categorization["size_beta"] = "small_cap"
-    elif factors["size_beta"] < -0.2:
-        categorization["size_beta"] = "large_cap"
-    else:
-        categorization["size_beta"] = "neutral"
+    # Define factor category mappings
+    factor_mappings = {
+        "market_beta": {"high": "high", "low": "low", "neutral": "neutral"},
+        "size_beta": {"high": "small_cap", "low": "large_cap", "neutral": "neutral"},
+        "value_beta": {"high": "value", "low": "growth", "neutral": "neutral"},
+        "momentum_beta": {"high": "high", "low": "low", "neutral": "neutral"},
+        "profitability_beta": {"high": "robust", "low": "weak", "neutral": "neutral"},
+        "investment_beta": {
+            "high": "conservative",
+            "low": "aggressive",
+            "neutral": "neutral",
+        },
+    }
 
-    # Value factor categorization
-    if factors["value_beta"] > 0.2:
-        categorization["value_beta"] = "value"
-    elif factors["value_beta"] < -0.2:
-        categorization["value_beta"] = "growth"
-    else:
-        categorization["value_beta"] = "neutral"
+    # Calculate percentiles for each relevant factor
+    percentiles = {}
+    for factor_type in relevant_factors:
+        # Extract values, ignoring None
+        values = [
+            f[factor_type]
+            for f in factors.values()
+            if factor_type in f and f[factor_type] is not None
+        ]
 
-    # For 5-factor model, add profitability and investment categorizations
-    if mode == "5_factor":
-        # Profitability factor categorization
-        if factors["profitability_beta"] > 0.2:
-            categorization["profitability_beta"] = "robust"
-        elif factors["profitability_beta"] < -0.2:
-            categorization["profitability_beta"] = "weak"
-        else:
-            categorization["profitability_beta"] = "neutral"
+        if values:
+            percentiles[factor_type] = [
+                np.percentile(values, 30),  # 30th percentile
+                np.percentile(values, 70),  # 70th percentile
+            ]
 
-        # Investment factor categorization
-        if factors["investment_beta"] > 0.2:
-            categorization["investment_beta"] = "conservative"
-        elif factors["investment_beta"] < -0.2:
-            categorization["investment_beta"] = "aggressive"
-        else:
-            categorization["investment_beta"] = "neutral"
+    # Function to categorize a single factor value
+    def categorize_factor(factor_type, value):
+        # Special case for market beta
+        if factor_type == "market_beta":
+            if value > 1.1:
+                return "high"
+            elif value < 0.9:
+                return "low"
+            else:
+                return "neutral"
 
-    return categorization
+        # For other factors, use percentiles if available
+        if factor_type in percentiles:
+            if value > percentiles[factor_type][1]:
+                return factor_mappings[factor_type]["high"]
+            elif value < percentiles[factor_type][0]:
+                return factor_mappings[factor_type]["low"]
+
+        # Default case
+        return factor_mappings[factor_type]["neutral"]
+
+    # Build the categorization result
+    result = {}
+    for root, root_factors in factors.items():
+        result[root] = {}
+
+        for factor_type in relevant_factors:
+            if factor_type in root_factors and root_factors[factor_type] is not None:
+                result[root][factor_type] = categorize_factor(
+                    factor_type, root_factors[factor_type]
+                )
+
+    return result
 
 
+# Function to calculate factor exposures for multiple stocks
+def get_factor_exposures_for_universe(
+    symbols: List[str], start_date: str, end_date: str, mode: str = "ff3"
+) -> Dict[str, Dict[str, float]]:
+    """
+    Calculate factor model exposures for multiple stocks over the specified period.
+
+    Args:
+        symbols: List of stock symbols to analyze
+        start_date: Start date in YYYYMMDD format
+        end_date: End date in YYYYMMDD format
+        mode: Factor model to use ("ff3", "ff5", or "c4")
+
+    Returns:
+        Nested dictionary where:
+        - Outer key is the root symbol
+        - Inner key is the factor type
+        - Value is the factor beta
+    """
+    # Collect factor betas for all stocks
+    all_factors = {}
+
+    for symbol in symbols:
+        try:
+            # Get factor exposures for the stock
+            factors = get_factor_model_exposures(
+                symbol, start_date, end_date, mode=mode
+            )
+            all_factors[symbol] = factors
+        except Exception as e:
+            print(f"Error processing {symbol}: {e}")
+            continue
+
+    return all_factors
+
+
+# Example usage
 if __name__ == "__main__":
-    # Choose a well-known stock
-    symbol = "AAPL"
+    import numpy as np
+    from rich.console import Console
+    ctx = Console()
 
     # Set test period (1 year)
     start_date = "20230101"  # YYYYMMDD format
     end_date = "20231231"  # YYYYMMDD format
 
+    # Define a sample universe of stocks
+    sample_universe = [
+        "AAPL",
+        "MSFT",
+        "AMZN",
+        "GOOGL",
+        "META",
+        "TSLA",
+        "NVDA",
+        "JPM",
+        "V",
+        "PG",
+    ]
+
     print(
-        f"Testing Fama-French 5-factor exposures for {symbol} from {start_date} to {end_date}"
+        f"Testing Carhart 4-factor model for sample universe from {start_date} to {end_date}"
     )
 
-    # Calculate Fama-French exposures directly using the symbol
-    result = get_fama_french_factors(symbol, start_date, end_date, mode="5_factor")
-
-    # Print results
-    print("\nFama-French 5-Factor Exposures:")
-    print(
-        f"Market Beta: {result['market_beta']:.4f}"
-        if result["market_beta"] is not None
-        else "Market Beta: None"
-    )
-    print(
-        f"Size Beta (SMB): {result['size_beta']:.4f}"
-        if result["size_beta"] is not None
-        else "Size Beta: None"
-    )
-    print(
-        f"Value Beta (HML): {result['value_beta']:.4f}"
-        if result["value_beta"] is not None
-        else "Value Beta: None"
-    )
-    print(
-        f"Profitability Beta (RMW): {result['profitability_beta']:.4f}"
-        if result["profitability_beta"] is not None
-        else "Profitability Beta: None"
-    )
-    print(
-        f"Investment Beta (CMA): {result['investment_beta']:.4f}"
-        if result["investment_beta"] is not None
-        else "Investment Beta: None"
-    )
-    print(
-        f"R-squared: {result['r_squared']:.4f}"
-        if result["r_squared"] is not None
-        else "R-squared: None"
+    # Calculate factor exposures for all stocks in the universe
+    universe_factors = get_factor_exposures_for_universe(
+        sample_universe, start_date, end_date, mode="c4"
     )
 
-    # Categorize the stock based on its factor exposures
-    categorization = factor_categorization(result, mode="5_factor")
-
-    # Add this code at the end of your if __name__ == "__main__": block
-
-    # Categorize the stock based on its factor exposures
-    categorization = factor_categorization(result, mode="5_factor")
-
-    # Print the categorization results
-    print("\nStock Factor Categorization:")
-    print(f"Market: {categorization['market_beta']}")
-    print(f"Size: {categorization['size_beta']}")
-    print(f"Value: {categorization['value_beta']}")
-    print(f"Profitability: {categorization['profitability_beta']}")
-    print(f"Investment: {categorization['investment_beta']}")
+    # Categorize the stocks based on their factor exposures
+    universe_categorization = factor_categorization(universe_factors, mode="c4")
+    print("\nStock Factor Categorization and Values:")
+    for symbol, factors in universe_categorization.items():
+        ctx.log(f"{symbol}: {factors}")
+    print("\nFactor Exposures:")
+    for symbol, factors in universe_factors.items():
+        ctx.log(f"{symbol}: {factors}")
