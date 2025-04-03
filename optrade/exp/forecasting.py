@@ -3,9 +3,10 @@ import warnings
 import random
 import time
 import neptune
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 from pathlib import Path
 from rich.console import Console
+from sklearn.base import BaseEstimator
 
 warnings.filterwarnings(
     "ignore", message="h5py not installed, hdf5 features will not be supported."
@@ -15,7 +16,7 @@ warnings.filterwarnings(
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import torch.optim as optim
 from torch.optim.lr_scheduler import _LRScheduler
 
@@ -87,6 +88,31 @@ class Experiment:
         else:
             raise ValueError(f"Invalid logging method: {self.logging}.")
 
+    # Initialize device
+    def init_device(self,
+        gpu_id: int = 0,
+        mps: bool = False) -> None:
+        """
+        Initialize CUDA (or MPS) devices.
+
+        Args:
+            gpu_id: The GPU ID to use.
+            mps: Whether to use MPS (Metal Performance Shaders) for macOS.
+
+        Returns:
+            None
+        """
+        if mps:
+            self.device = torch.device(
+                "mps" if torch.backends.mps.is_available() else "cpu"
+            )
+            self.print_master("MPS hardware acceleration activated.")
+        elif torch.cuda.is_available():
+            self.device = torch.device(f"cuda:{gpu_id}")
+        else:
+            self.device = torch.device("cpu")
+            self.print_master("CUDA not available. Running on CPU.")
+
     def init_loaders(
         self,
         root: str,
@@ -107,7 +133,9 @@ class Experiment:
         core_feats: List[str] = ["option_returns"],
         tte_feats: Optional[List[str]] = None,
         datetime_feats: Optional[List[str]] = None,
+        keep_datetime: bool = False,
         target_channels: Optional[List[str]] = None,
+        target_type: str = "multistep",
         strike_band: Optional[float] = 0.05,
         volatility_type: Optional[str] = "period",
         volatility_scaled: bool = False,
@@ -124,7 +152,53 @@ class Experiment:
         save_dir: Optional[str] = None,
         verbose: bool = False,
         validate_contracts: bool = True,
+        dev_mode: bool = False,
     ) -> None:
+        """
+
+        Initializes the data loaders for training, validation, and testing.
+
+        Args:
+            root: The root directory containing the data.
+            start_date: The start date for the data in YYYYMMDD format.
+            end_date: The end date for the data in YYYYMMDD format.
+            contract_stride: The stride for the contracts.
+            interval_min: The interval in minutes for the data.
+            right: The option type (C for call, P for put).
+            target_tte: The target time to expiration in minutes.
+            moneyness: The moneyness type (ATM, OTM, ITM).
+            train_split: The fraction of data to use for training.
+            val_split: The fraction of data to use for validation.
+            strike_band: The band to select the strike price for OTM or ITM options.
+            volatility_type: The type of historical volatility to use.
+            volatility_scaled: Whether to scale strike selection by the volatility.
+            volatility_scalar: The scalar to multiply the volatility.
+            validate_contracts: Whether to validate contracts by requesting the data from ThetaData API.
+            seq_len: The sequence length of the lookback window.
+            pred_len: The prediction length of the forecast window.
+            scaling: Whether to apply normalization.
+            core_feats: The core features to use for the model.
+            tte_feats: The time-to-expiration features to use for the model.
+            datetime_feats: The datetime features to use for the model.
+            keep_datetime: Whether to keep the datetime column in the dataset.
+            target_channels: The target channels to use for the model.
+            target_type: The type of target. Options: "multistep", "average", or "average_direction".
+            batch_size: The batch size for the data loaders.
+            shuffle: Whether to shuffle the data.
+            drop_last: Whether to drop the last batch if it is smaller than the batch size.
+            num_workers: The number of workers for the data loaders.
+            prefetch_factor: The number of batches to prefetch.
+            pin_memory: Whether to pin memory for the data loaders.
+            persistent_workers: Whether to use persistent workers for the data loaders.
+            clean_up: Whether to clean up the data after loading.
+            offline: Whether to use offline mode.
+            save_dir: The directory to save the data.
+            verbose: Whether to print verbose output.
+            dev_mode: Whether to run in development mode.
+
+        Returns:
+            None
+        """
 
         self.print_master("Generating contract datasets...")
         (
@@ -151,6 +225,7 @@ class Experiment:
             offline=clean_up,
             save_dir=save_dir,
             verbose=verbose,
+            dev_mode=dev_mode
         )
 
         if validate_contracts:
@@ -186,23 +261,27 @@ class Experiment:
                 seq_len=seq_len,
                 pred_len=pred_len,
                 tte_tolerance=tte_tolerance,
-                scaling=scaling,
-                dtype=dtype,
                 core_feats=core_feats,
                 tte_feats=tte_feats,
                 datetime_feats=datetime_feats,
+                keep_datetime=keep_datetime,
                 target_channels=target_channels,
+                target_type=target_type,
                 batch_size=batch_size,
                 shuffle=shuffle,
                 drop_last=drop_last,
                 num_workers=num_workers,
                 prefetch_factor=prefetch_factor,
-                persistent_workers=persistent_workers,
                 pin_memory=pin_memory,
+                persistent_workers=persistent_workers,
                 clean_up=clean_up,
                 offline=offline,
                 save_dir=save_dir,
                 verbose=verbose,
+                scaling=scaling,
+                intraday=False,
+                dtype=dtype,
+                dev_mode=dev_mode,
             )
         )
 
@@ -268,11 +347,11 @@ class Experiment:
 
     def train(
         self,
-        model: nn.Module,
+        model: Union[nn.Module, BaseEstimator],
         optimizer: optim.Optimizer,
         criterion: nn.Module,
         num_epochs: int,
-        device,
+        device = None,
         train_loader: Optional[DataLoader] = None,
         val_loader: Optional[DataLoader] = None,
         metrics: List[str] = ["loss"],
@@ -297,6 +376,9 @@ class Experiment:
             patience: The number of epochs to wait before stopping.
             scheduler: The learning rate scheduler.
         """
+
+        if device is None:
+            device = self.device
 
         if train_loader is None:
             assert hasattr(
@@ -413,7 +495,7 @@ class Experiment:
 
     def validate(
         self,
-        model: nn.Module,
+        model: Union[nn.Module, BaseEstimator],
         val_loader: DataLoader,
         criterion: nn.Module,
         device,
@@ -478,9 +560,9 @@ class Experiment:
 
     def test(
         self,
-        model: nn.Module,
+        model: Union[nn.Module, BaseEstimator],
         criterion: nn.Module,
-        device,
+        device = None,
         test_loader: Optional[DataLoader] = None,
         metrics: List[str] = ["loss"],
     ) -> None:
@@ -498,6 +580,8 @@ class Experiment:
             None
 
         """
+        if device is None:
+            device = self.device
 
         if test_loader is None:
             assert hasattr(
@@ -522,7 +606,7 @@ class Experiment:
 
     def evaluate(
         self,
-        model: nn.Module,
+        model: Union[nn.Module, BaseEstimator],
         loader: DataLoader,
         criterion: nn.Module,
         device,
