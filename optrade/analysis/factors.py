@@ -3,6 +3,7 @@ import pandas_datareader.data as web
 import statsmodels.api as sm
 from datetime import datetime
 import warnings
+import numpy as np
 from typing import Dict, Any, Optional, Union, List
 
 warnings.filterwarnings("ignore", message="The argument 'date_parser' is deprecated")
@@ -11,7 +12,7 @@ warnings.filterwarnings("ignore", message="The argument 'date_parser' is depreca
 from optrade.data.thetadata import load_stock_data_eod
 
 
-def get_factor_model_exposures(
+def get_factor_exposures(
     root: str,
     start_date: str,
     end_date: str,
@@ -44,8 +45,8 @@ def get_factor_model_exposures(
     )
 
     # Convert date strings to datetime objects
-    ff_start_date = datetime.strptime(start_date, "%Y%m%d")
-    ff_end_date = datetime.strptime(end_date, "%Y%m%d")
+    factor_start_date = datetime.strptime(start_date, "%Y%m%d")
+    factor_end_date = datetime.strptime(end_date, "%Y%m%d")
 
     # Get stock data
     stock_data = load_stock_data_eod(
@@ -68,60 +69,60 @@ def get_factor_model_exposures(
 
     # Get factor data based on mode
     if mode == "ff3":
-        ff_data = web.DataReader(
+        factor_data = web.DataReader(
             "F-F_Research_Data_Factors_daily",
             "famafrench",
-            start=ff_start_date,
-            end=ff_end_date,
+            start=factor_start_date,
+            end=factor_end_date,
         )[0]
         factor_columns = ["Mkt-RF", "SMB", "HML"]
     elif mode == "ff5":
-        ff_data = web.DataReader(
+        factor_data = web.DataReader(
             "F-F_Research_Data_5_Factors_2x3_daily",
             "famafrench",
-            start=ff_start_date,
-            end=ff_end_date,
+            start=factor_start_date,
+            end=factor_end_date,
         )[0]
         factor_columns = ["Mkt-RF", "SMB", "HML", "RMW", "CMA"]
     elif mode == "c4":
         # Get FF 3-factor data
-        ff_data = web.DataReader(
+        factor_data = web.DataReader(
             "F-F_Research_Data_Factors_daily",
             "famafrench",
-            start=ff_start_date,
-            end=ff_end_date,
+            start=factor_start_date,
+            end=factor_end_date,
         )[0]
 
         # Get momentum factor data - note the column name has trailing spaces
         mom_data = web.DataReader(
             "F-F_Momentum_Factor_daily",
             "famafrench",
-            start=ff_start_date,
-            end=ff_end_date,
+            start=factor_start_date,
+            end=factor_end_date,
         )[0]
 
         # Fix the column name to remove trailing spaces
         mom_data.columns = [col.strip() for col in mom_data.columns]
 
         # Merge FF 3-factor with momentum
-        ff_data = pd.merge(ff_data, mom_data, left_index=True, right_index=True)
+        factor_data = pd.merge(factor_data, mom_data, left_index=True, right_index=True)
         factor_columns = ["Mkt-RF", "SMB", "HML", "Mom"]
     else:
         raise ValueError(f"Invalid mode: {mode}. Choose 'ff3', 'c4', or 'ff5'.")
 
     # Convert percentages to decimals
-    ff_data = ff_data / 100
+    factor_data = factor_data / 100
 
-    # Truncate ff_data to the same date range as stock_data["Date"]
+    # Truncate factor_data to the same date range as stock_data["Date"]
     valid_dates = pd.DatetimeIndex(stock_data["Date"])
-    ff_data = ff_data.loc[ff_data.index.intersection(valid_dates)]
+    factor_data = factor_data.loc[factor_data.index.intersection(valid_dates)]
 
     # Reset index to make Date a column
-    ff_data_reset = ff_data.reset_index()
-    ff_data_reset["Date"] = ff_data_reset["Date"].dt.date
+    factor_data_reset = factor_data.reset_index()
+    factor_data_reset["Date"] = factor_data_reset["Date"].dt.date
 
-    # Merge stock_data with ff_data on Date
-    aligned_data = pd.merge(stock_data, ff_data_reset, on="Date", how="inner")
+    # Merge stock_data with factor_data on Date
+    aligned_data = pd.merge(stock_data, factor_data_reset, on="Date", how="inner")
 
     # Linear regression
     X = aligned_data[factor_columns]
@@ -253,14 +254,14 @@ def factor_categorization(
 
 
 # Function to calculate factor exposures for multiple stocks
-def get_factor_exposures_for_universe(
-    symbols: List[str], start_date: str, end_date: str, mode: str = "ff3"
+def get_universe_factor_exposures(
+    roots: List[str], start_date: str, end_date: str, mode: str = "ff3"
 ) -> Dict[str, Dict[str, float]]:
     """
     Calculate factor model exposures for multiple stocks over the specified period.
 
     Args:
-        symbols: List of stock symbols to analyze
+        roots: List of stock roots to analyze
         start_date: Start date in YYYYMMDD format
         end_date: End date in YYYYMMDD format
         mode: Factor model to use ("ff3", "ff5", or "c4")
@@ -274,14 +275,15 @@ def get_factor_exposures_for_universe(
     # Collect factor betas for all stocks
     all_factors = {}
 
-    for symbol in symbols:
+    for root in roots:
         try:
             # Get factor exposures for the stock
-            factors = get_factor_model_exposures(
-                symbol, start_date, end_date, mode=mode
+            factors = get_factor_exposures(
+                root=root, start_date=start_date, end_date=end_date, mode=mode
             )
             all_factors[symbol] = factors
         except Exception as e:
+            all_factors[symbol] = None
             print(f"Error processing {symbol}: {e}")
             continue
 
@@ -290,7 +292,6 @@ def get_factor_exposures_for_universe(
 
 # Example usage
 if __name__ == "__main__":
-    import numpy as np
     from rich.console import Console
     ctx = Console()
 
@@ -317,7 +318,7 @@ if __name__ == "__main__":
     )
 
     # Calculate factor exposures for all stocks in the universe
-    universe_factors = get_factor_exposures_for_universe(
+    universe_factors = get_universe_factor_exposures(
         sample_universe, start_date, end_date, mode="c4"
     )
 
