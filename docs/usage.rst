@@ -22,7 +22,7 @@ function to load and transform the data for all contracts:
    :language: python
    :linenos:
 
-Example (Forecasting Experiments)
+Example (PyTorch Forecasting)
 --------------
 
 When running forecasting experiments, you can use the `Experiment` class from `optrade.exp.forecasting`
