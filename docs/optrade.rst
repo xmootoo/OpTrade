@@ -4,6 +4,7 @@
    optrade.data
    optrade.exp
    optrade.torch
+   optrade.analysis
    optrade.utils
 
 Module contents
