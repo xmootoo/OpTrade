@@ -15,6 +15,7 @@ import string
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
+
 def generate_random_id(length=10):
     # Seed the random number generator with current time and os-specific random data
     random.seed(int(time.time() * 1000) ^ os.getpid())
@@ -147,11 +148,13 @@ class Data(BaseModel):
     prefetch_factor: Optional[int] = Field(
         default=2, description="Prefetch factor for the dataloader"
     )
-    @validator('prefetch_factor', pre=True)
+
+    @validator("prefetch_factor", pre=True)
     def convert_zero_to_none(cls, v):
         if v == 0:
             return None
         return v
+
     shuffle_test: bool = Field(
         default=False, description="Whether to shuffle the test set"
     )
@@ -252,6 +255,10 @@ class Data(BaseModel):
         default=False,
         description="Whether to use offline data instead of calling ThetaData API directly.",
     )
+    download_only: bool = Field(
+        default=False,
+        description="Whether to download data only and not run the experiment.",
+    )
     save_dir: Optional[str] = Field(
         default=None, description="Directory to save the data."
     )
@@ -287,9 +294,11 @@ class Data(BaseModel):
         description="Whether to keep datetime features in the dataset.",
     )
 
+
 # TODO: Implement universe class
 class Universe(BaseModel):
     pass
+
 
 class Conformal(BaseModel):
     conf: bool = Field(

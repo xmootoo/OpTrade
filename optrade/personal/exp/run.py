@@ -20,6 +20,7 @@ def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
         exp_id=args.exp.id,
         neptune_project_name=args.exp.project_name,
         neptune_api_token=args.exp.api_token,
+        download_only=args.data.download_only,
     )
 
     # Initialize device
@@ -65,7 +66,11 @@ def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
         verbose=args.data.verbose,
         validate_contracts=args.data.validate_contracts,
         dev_mode=args.data.dev_mode,
+        download_only=args.data.download_only,
     )
+
+    if args.data.download_only:
+        return
 
     # Select Model, Optimizer, and Loss function
     input_channels = (
@@ -110,5 +115,5 @@ def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
     exp.save_logs()  # Save experiment logs to disk or neptune
 
 
-# if __name__=="__main__":
-#     pass
+if __name__ == "__main__":
+    pass

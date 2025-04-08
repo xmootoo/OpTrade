@@ -8,10 +8,6 @@ from pathlib import Path
 from rich.console import Console
 from sklearn.base import BaseEstimator
 
-warnings.filterwarnings(
-    "ignore", message="h5py not installed, hdf5 features will not be supported."
-)
-
 # Torch
 import numpy as np
 import torch
@@ -26,6 +22,10 @@ from optrade.data.forecasting import get_forecasting_dataset, get_forecasting_lo
 from optrade.utils.train import EarlyStopping
 from optrade.utils.misc import format_time_dynamic, generate_random_id
 
+warnings.filterwarnings(
+    "ignore", message="h5py not installed, hdf5 features will not be supported."
+)
+
 
 class Experiment:
     def __init__(
@@ -37,6 +37,7 @@ class Experiment:
         exp_id: str = generate_random_id(length=6),
         neptune_project_name: Optional[str] = None,
         neptune_api_token: Optional[str] = None,
+        download_only: bool = False,
     ) -> None:
         """
 
@@ -70,7 +71,9 @@ class Experiment:
         else:
             self.log_dir = self.log_dir / "logs" / exp_id
 
-        self.init_logger(exp_id=exp_id)
+        # Set up logging directory
+        if not download_only:
+            self.init_logger(exp_id=exp_id)
 
         self.set_seed()
 
@@ -186,6 +189,7 @@ class Experiment:
         verbose: bool = False,
         validate_contracts: bool = True,
         dev_mode: bool = False,
+        download_only: bool = False,
     ) -> None:
         """
 
@@ -207,7 +211,7 @@ class Experiment:
             volatility_scaled: Whether to scale strike selection by the volatility.
             volatility_scalar: The scalar to multiply the volatility.
             validate_contracts: Whether to validate contracts by requesting the data from ThetaData API.
-            seq_len: The sequence length of the lookback window.
+            seq_len: The sequence length of the lookback widow.
             pred_len: The prediction length of the forecast window.
             scaling: Whether to apply normalization.
             core_feats: The core features to use for the model.
@@ -228,10 +232,15 @@ class Experiment:
             save_dir: The directory to save the data.
             verbose: Whether to print verbose output.
             dev_mode: Whether to run in development mode.
+            download_only: Whether to only download the data without running an experiment.
 
         Returns:
             None
         """
+
+        if download_only:
+            offline = clean_up = validate_contracts = False
+            self.print_master(f"Downloading data only without running an experiment.")
 
         self.print_master("Generating contract datasets...")
         (
@@ -261,12 +270,13 @@ class Experiment:
             dev_mode=dev_mode,
         )
 
-        if validate_contracts:
+        if validate_contracts or download_only:
             self.print_master("Validating contracts with ThetaData API...")
             self.train_contract_dataset = get_forecasting_dataset(
                 contract_dataset=self.train_contract_dataset,
                 tte_tolerance=tte_tolerance,
-                validate_contracts=True,
+                validate_contracts=validate_contracts,
+                download_only=download_only,
                 verbose=verbose,
                 save_dir=save_dir,
                 dev_mode=dev_mode,
@@ -275,7 +285,8 @@ class Experiment:
             self.val_contract_dataset = get_forecasting_dataset(
                 contract_dataset=self.val_contract_dataset,
                 tte_tolerance=tte_tolerance,
-                validate_contracts=True,
+                validate_contracts=validate_contracts,
+                download_only=download_only,
                 verbose=verbose,
                 save_dir=save_dir,
                 dev_mode=dev_mode,
@@ -283,11 +294,15 @@ class Experiment:
             self.test_contract_dataset = get_forecasting_dataset(
                 contract_dataset=self.test_contract_dataset,
                 tte_tolerance=tte_tolerance,
-                validate_contracts=True,
+                validate_contracts=validate_contracts,
+                download_only=download_only,
                 verbose=verbose,
                 save_dir=save_dir,
                 dev_mode=dev_mode,
             )
+
+        if download_only:
+            return
 
         self.train_loader, self.val_loader, self.test_loader, self.scaler = (
             get_forecasting_loaders(

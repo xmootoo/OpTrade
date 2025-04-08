@@ -20,6 +20,7 @@ warnings.filterwarnings(
     "ignore", message="h5py not installed, hdf5 features will not be supported."
 )
 
+
 def update_global_config(
     ablation_config: Dict[str, Any], global_config: BaseModel, ablation_id: int
 ) -> BaseModel:
@@ -78,12 +79,12 @@ def run_job(job_name="test", ablation=None, ablation_id=1):
         args.exp.seed = seed_list[i]
         args.exp.time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        # Print args
-        pprint(args, expand_all=True)
-        run_forecasting_experiment(args, ablation_id)
+    # Print args
+    pprint(args, expand_all=True)
+    run_forecasting_experiment(args, ablation_id)
 
 
-def main():
+if __name__ == "__main__":
     # Single Job (Non-hyperparameter tuning)
     warnings.filterwarnings(
         "ignore", message="h5py not installed, hdf5 features will not be supported."
@@ -111,7 +112,3 @@ def main():
             sys.exit(1)
     else:
         run_job(args.job_name)
-
-
-if __name__ == "__main__":
-    main()

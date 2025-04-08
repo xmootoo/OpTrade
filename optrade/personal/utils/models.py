@@ -11,12 +11,12 @@ warnings.filterwarnings("ignore", message="h5py not installed")
 from typing import List
 
 # Supervised Models
-from optrade.torch.models.patchtst import Model as PatchTST
-from optrade.torch.models.recurrent import Model as RecurrentModel
-from optrade.torch.models.linear import Model as Linear
-from optrade.torch.models.dlinear import Model as DLinear
-from optrade.torch.models.tsmixer import Model as TSMixer
-from optrade.torch.models.emforecaster import Model as EMForecaster
+from optrade.pytorch.models.patchtst import Model as PatchTST
+from optrade.pytorch.models.recurrent import Model as RecurrentModel
+from optrade.pytorch.models.linear import Model as Linear
+from optrade.pytorch.models.dlinear import Model as DLinear
+from optrade.pytorch.models.tsmixer import Model as TSMixer
+from optrade.pytorch.models.emforecaster import Model as EMForecaster
 
 # Optimizers and Schedulers
 from torch import optim
