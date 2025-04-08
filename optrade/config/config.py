@@ -608,6 +608,7 @@ class Global(BaseModel):
     exp: Experiment = Experiment()
     data: Data = Data()
     train: Train = Train()
+    eval: Evaluation = Evaluation()
     scheduler: Scheduler = Scheduler()
     patchtst: PatchTST = PatchTST()
     dlinear: DLinear = DLinear()
