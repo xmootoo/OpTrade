@@ -240,6 +240,7 @@ class ContractDataset:
         save_dir: Optional[str] = None,
         warning: bool = True,
         dev_mode: bool = False,
+        contract_dir: Optional[Path] = None,
     ) -> None:
         """
         Initialize the ContractDataset with the specified parameters.
@@ -277,24 +278,28 @@ class ContractDataset:
         self.warning = warning
 
         self.contracts = []
-        self.contract_dir = set_contract_dir(
-            SCRIPT_DIR=SCRIPT_DIR,
-            root=root,
-            start_date=total_start_date,
-            end_date=total_end_date,
-            contract_stride=contract_stride,
-            interval_min=interval_min,
-            right=right,
-            target_tte=target_tte,
-            tte_tolerance=tte_tolerance,
-            moneyness=moneyness,
-            strike_band=strike_band,
-            volatility_scaled=volatility_scaled,
-            volatility_scalar=volatility_scalar,
-            hist_vol=hist_vol,
-            save_dir=save_dir,
-            dev_mode=dev_mode,
-        )
+
+        if contract_dir is None:
+            self.contract_dir = set_contract_dir(
+                SCRIPT_DIR=SCRIPT_DIR,
+                root=root,
+                start_date=total_start_date,
+                end_date=total_end_date,
+                contract_stride=contract_stride,
+                interval_min=interval_min,
+                right=right,
+                target_tte=target_tte,
+                tte_tolerance=tte_tolerance,
+                moneyness=moneyness,
+                strike_band=strike_band,
+                volatility_scaled=volatility_scaled,
+                volatility_scalar=volatility_scalar,
+                hist_vol=hist_vol,
+                save_dir=save_dir,
+                dev_mode=dev_mode,
+            )
+        else:
+            self.contract_dir = Path(contract_dir)
 
     def generate(self) -> "ContractDataset":
         """
@@ -613,6 +618,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
+        contract_dir=contract_dir,
         dev_mode=dev_mode,
     ).generate()
 
@@ -637,6 +643,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
+        contract_dir=contract_dir,
         dev_mode=dev_mode,
     ).generate()
 
@@ -657,6 +664,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
+        contract_dir=contract_dir,
         dev_mode=dev_mode,
     ).generate()
 
