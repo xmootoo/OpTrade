@@ -13,11 +13,11 @@ from optrade.personal.utils.models import (
 def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
 
     exp = Experiment(
-        logdir=args.exp.logdir,
+        log_dir=args.exp.log_dir,
         logging="neptune" if args.exp.neptune else "offline",
         seed=args.exp.seed,
         ablation_id=ablation_id,
-        exp_id=args.exp.exp_id,
+        exp_id=args.exp.id,
         neptune_project_name=args.exp.project_name,
         neptune_api_token=args.exp.api_token,
     )

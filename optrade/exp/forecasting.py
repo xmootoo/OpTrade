@@ -30,7 +30,7 @@ from optrade.utils.misc import format_time_dynamic, generate_random_id
 class Experiment:
     def __init__(
         self,
-        logdir: str = "logs",
+        log_dir: str = "logs",
         logging: str = "offline",
         seed: int = 42,
         ablation_id: Optional[int] = None,
@@ -63,17 +63,14 @@ class Experiment:
         self.neptune_project_name = neptune_project_name
         self.neptune_api_token = neptune_api_token
         self.exp_id = exp_id
+        self.log_dir = Path(log_dir)
 
         if ablation_id:
-            self.log_dir = Path("logs") / exp_id / str(ablation_id)
+            self.log_dir = self.log_dir / "logs" / exp_id / str(ablation_id)
         else:
-            self.log_dir = Path("logs") / exp_id
+            self.log_dir = self.log_dir / "logs" / exp_id
 
-        self.init_logger(
-            logdir=logdir,
-            ablation_id=ablation_id,
-            exp_id=exp_id,
-        )
+        self.init_logger(exp_id=exp_id)
 
         self.set_seed()
 
@@ -110,6 +107,44 @@ class Experiment:
         else:
             self.device = torch.device("cpu")
             self.print_master("CUDA not available. Running on CPU.")
+
+    def init_logger(
+        self,
+        exp_id: str,
+    ) -> None:
+        """
+        Initialize the logger.
+
+        Args:
+            logdir: The directory to save logs.
+            ablation_id: The ablation ID.
+            exp_id: The experiment ID.
+
+        Returns:
+            None
+        """
+
+        if self.logging == "neptune":
+            # Initialize Neptune run with the time-based ID
+            self.logger = neptune.init_run(
+                project=self.neptune_project_name,
+                api_token=self.neptune_api_token,
+                custom_run_id=exp_id,
+            )
+            self.print_master("Neptune logger initialized.")
+        elif self.logging == "offline":
+            self.logger = dict()
+            self.log_file = self.log_dir / "log.json"
+
+            if Path(self.log_dir).exists():
+                self.print_master(f"Using existing log directory: {self.log_dir}")
+            else:
+                Path(self.log_dir).mkdir(parents=True, exist_ok=True)
+                self.print_master(f"Created new log directory: {self.log_dir}")
+
+            self.print_master("Offline logger initialized.")
+        else:
+            raise ValueError(f"Invalid logging method: {self.logging}.")
 
     def init_loaders(
         self,
@@ -299,46 +334,6 @@ class Experiment:
         if torch.cuda.is_available():
             torch.cuda.manual_seed(self.seed)  # GPU
             torch.cuda.manual_seed_all(self.seed)  # multi-GPU
-
-    def init_logger(
-        self,
-        logdir: str,
-        ablation_id: int,
-        exp_id: str,
-    ) -> None:
-        """
-        Initialize the logger.
-
-        Args:
-            logdir: The directory to save logs.
-            ablation_id: The ablation ID.
-            exp_id: The experiment ID.
-
-        Returns:
-            None
-        """
-
-        if self.logging == "neptune":
-            # Initialize Neptune run with the time-based ID
-            self.logger = neptune.init_run(
-                project=self.neptune_project_name,
-                api_token=self.neptune_api_token,
-                custom_run_id=exp_id,
-            )
-            self.print_master("Neptune logger initialized.")
-        elif self.logging == "offline":
-            self.logger = dict()
-            self.log_file = self.log_dir / "log.json"
-
-            if Path(self.log_dir).exists():
-                self.print_master(f"Using existing log directory: {self.log_dir}")
-            else:
-                Path(self.log_dir).mkdir(parents=True, exist_ok=True)
-                self.print_master(f"Created new log directory: {self.log_dir}")
-
-            self.print_master("Offline logger initialized.")
-        else:
-            raise ValueError(f"Invalid logging method: {self.logging}.")
 
     def init_earlystopping(self, path: str, patience: int) -> None:
         self.early_stopping = EarlyStopping(
