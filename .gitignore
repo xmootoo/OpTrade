@@ -7,9 +7,9 @@ test.py
 figures/
 logs/
 .neptune/
-optrade/exp/scripts
 poetry.lock
 dist/
 .read
 requirements.in
 docs/_build/
+optrade_venv/
