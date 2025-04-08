@@ -255,7 +255,7 @@ class Experiment:
             train_split=train_split,
             val_split=val_split,
             clean_up=clean_up,
-            offline=clean_up,
+            offline=offline,
             save_dir=save_dir,
             verbose=verbose,
             dev_mode=dev_mode,
