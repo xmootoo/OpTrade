@@ -276,6 +276,7 @@ class ContractDataset:
         self.hist_vol = hist_vol
         self.verbose = verbose
         self.warning = warning
+        self.dev_mode = dev_mode
 
         self.contracts = []
 
@@ -345,6 +346,7 @@ class ContractDataset:
                         volatility_scalar=self.volatility_scalar,
                         verbose=self.verbose,
                         warning=self.warning,
+                        dev_mode=self.dev_mode,
                     )
 
                     if attempt_date > current_date:
