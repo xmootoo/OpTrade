@@ -3,7 +3,7 @@
 
    optrade.data
    optrade.exp
-   optrade.torch
+   optrade.pytorch
    optrade.analysis
    optrade.utils
 

@@ -1,16 +1,16 @@
-optrade.torch
+optrade.pytorch
 =====================
 
 .. toctree::
    :maxdepth: 4
 
-   optrade.torch.models
-   optrade.torch.utils
+   optrade.pytorch.models
+   optrade.pytorch.utils
 
 Module contents
 ---------------
 
-.. automodule:: optrade.torch
+.. automodule:: optrade.pytorch
    :members:
    :show-inheritance:
    :undoc-members:

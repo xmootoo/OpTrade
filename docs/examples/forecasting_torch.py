@@ -41,7 +41,7 @@ exp.init_loaders(
 )
 
 # Step 3: Define model architecture
-from optrade.torch.models.patchtst import Model as PatchTST
+from optrade.pytorch.models.patchtst import Model as PatchTST
 model = PatchTST(
     num_enc_layers=2,                  # Number of Transformer encoder layers
     d_model=32,                        # Model dimension (embedding size)

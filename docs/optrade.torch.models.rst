@@ -1,61 +1,61 @@
-optrade.torch.models
+optrade.pytorch.models
 ============================
 
 
 ----------
 
-optrade.torch.models.dlinear
+optrade.pytorch.models.dlinear
 -----------------------------------
 
-.. automodule:: optrade.torch.models.dlinear
+.. automodule:: optrade.pytorch.models.dlinear
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.emforecaster
+optrade.pytorch.models.emforecaster
 ----------------------------------------
 
-.. automodule:: optrade.torch.models.emforecaster
+.. automodule:: optrade.pytorch.models.emforecaster
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.linear
+optrade.pytorch.models.linear
 ----------------------------------
 
-.. automodule:: optrade.torch.models.linear
+.. automodule:: optrade.pytorch.models.linear
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.mamba
+optrade.pytorch.models.mamba
 ---------------------------------
 
-.. automodule:: optrade.torch.models.mamba
+.. automodule:: optrade.pytorch.models.mamba
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.patchtst
+optrade.pytorch.models.patchtst
 ------------------------------------
 
-.. automodule:: optrade.torch.models.patchtst
+.. automodule:: optrade.pytorch.models.patchtst
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.recurrent
+optrade.pytorch.models.recurrent
 -------------------------------------
 
-.. automodule:: optrade.torch.models.recurrent
+.. automodule:: optrade.pytorch.models.recurrent
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.torch.models.tsmixer
+optrade.pytorch.models.tsmixer
 -----------------------------------
 
-.. automodule:: optrade.torch.models.tsmixer
+.. automodule:: optrade.pytorch.models.tsmixer
    :members:
    :show-inheritance:
    :undoc-members:
@@ -63,7 +63,7 @@ optrade.torch.models.tsmixer
 Module contents
 ---------------
 
-.. automodule:: optrade.torch.models
+.. automodule:: optrade.pytorch.models
    :members:
    :show-inheritance:
    :undoc-members:
