@@ -1,11 +1,31 @@
 [tool.poetry]
 name = "optrade"
-version = "0.0.5"
-description = "Options Forecasting and Trading Framework"
+version = "0.0.6"
+description = "Options Forecasting and Trading Framework for Quantitative Research"
 authors = ["Xavier Mootoo"]
 license = "MIT"
 readme = "README.md"
 packages = [{ include = "optrade" }]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    "*.egg",
+    "optrade/data/historical_data/",
+    "optrade/data/temp/",
+    "__pycache__/",
+    ".ropeproject/",
+    "test.py",
+    "figures/",
+    "**/logs/",
+    ".neptune/",
+    "docs/",
+    "optrade_venv/",
+    "**/.DS_Store",
+]
+
 
 [tool.poetry.group.docs]
 optional = true
@@ -60,7 +80,6 @@ include = '\.pyi?$'
 [tool.flake8]
 max-line-length = 88
 extend-ignore = "E203"
-exclude = [".git", "__pycache__", "build", "dist"]
 
 [build-system]
 requires = ["poetry-core"]
