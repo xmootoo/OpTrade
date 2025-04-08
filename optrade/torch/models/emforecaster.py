@@ -203,9 +203,9 @@ class Model(nn.Module):
         self._revin = True
         self.revin = RevIN(
             num_channels=self.num_channels,
+            target_channels=self.target_channels,
             eps=self.eps_revin,
             affine=self.revin_affine,
-            target_channels=self.target_channels,
         )
 
     def get_patch_model(self) -> nn.Module:
