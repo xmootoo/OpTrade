@@ -141,7 +141,7 @@ torch_loader = DataLoader(torch_dataset)
 ```
 
 ### Forecasting (PyTorch)
-When running forecasting experiments, you can use the `Experiment` class from `optrade.exp.forecasting` which supports PyTorch deep learning (DL) models. Several state-of-the-art models are available in the `optrade.torch.models`, allowing you to easily experiment with different modern DL architectures:
+When running forecasting experiments, you can use the `Experiment` class from `optrade.exp.forecasting` which supports PyTorch deep learning (DL) models. Several state-of-the-art models are available in the `optrade.pytorch.models`, allowing you to easily experiment with different modern DL architectures:
 
 ```py
 # Step 1: Initialize the experiment with offline logging
@@ -187,7 +187,7 @@ exp.init_loaders(
 )
 
 # Step 3: Define model architecture
-from optrade.torch.models.patchtst import Model as PatchTST
+from optrade.pytorch.models.patchtst import Model as PatchTST
 model = PatchTST(
     num_enc_layers=2,                  # Number of Transformer encoder layers
     d_model=32,                        # Model dimension (embedding size)
