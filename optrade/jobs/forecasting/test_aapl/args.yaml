@@ -1,0 +1,135 @@
+exp:
+  project_name: "optrade1/AAPL"
+  model_id: "EMForecaster"
+  learning_type: "sl"
+  seed_list: [54930]
+  seed: 54930
+  mae: True
+  task: "forecasting"
+  neptune: False
+  gpu_id: 0
+
+data:
+  verbose: True
+  validate_contracts: False
+  dev_mode: True
+  patch_dim: 8
+  patch_stride: -1
+  window_stride: 1
+  dtype: "float32"
+  seq_len: 32
+  pred_len: 4
+  train_split: 0.33
+  val_split: 0.33
+  num_channels: 1
+  scale: True
+  target_type: "multistep"
+
+  # Dataloader (CPU setup)
+  batch_size: 128
+  prefetch_factor: 0
+  num_workers: 0
+  persistent_workers: False
+  pin_memory: False
+  shuffle: True
+  drop_last: False
+
+  # # Dataloader (GPU Setup)
+  # batch_size: 128
+  # prefetch_factor: 4
+  # num_workers: 4  # Typically set to number of CPU cores
+  # persistent_workers: True
+  # pin_memory: True
+  # shuffle: True
+  # drop_last: False
+
+  # Dataset
+  clean_up: False
+  offline: True
+  root: "AAPL"
+  start_date: "20230107"
+  end_date: "20230628"
+  contract_stride: 3
+  interval_min: 1
+  right: "C"
+  moneyness: "ATM"
+  strike_band: 0.05
+  volatility_scaled: False
+  target_tte: 30
+  tte_tolerance: [15, 45]
+  target_channels: ["option_returns"]
+  scaling: True
+
+  # Features
+  core_feats: [
+      "option_returns",
+      "stock_returns",
+      # "distance_to_strike",
+      "moneyness",
+      "option_lob_imbalance",
+      "option_quote_spread",
+      "stock_lob_imbalance",
+      "stock_quote_spread",
+      # "option_mid_price",
+      # "option_bid_size",
+      # "option_bid",
+      # "option_ask_size",
+      # "option_close",
+      "option_volume",
+      # "option_count",
+      # "stock_mid_price",
+      # "stock_bid_size",
+      # "stock_bid",
+      # "stock_ask_size",
+      # "stock_ask",
+      "stock_volume",
+      # "stock_count",
+    ]
+
+  # TTE features
+  tte_feats: [
+      "sqrt",
+      # "exp_decay"
+    ]
+
+  # Datetime features
+  datetime_feats: [
+      "sin_minute_of_day",
+      # "cos_minute_of_day",
+      "sin_hour_of_week",
+      # "cos_hour_of_week",
+    ]
+
+train:
+  optimizer: "adam"
+  criterion: "MSE"
+  scheduler: "cosine"
+  dropout: 0.3
+  epochs: 5
+  lr: 1e-4
+  early_stopping: True
+  weight_decay: 1e-5
+  return_head: True
+
+  # RevIN
+  revin: True
+  revin_affine: True
+  revout: True
+  eps_revin: 1e-5
+
+# EMForecaster
+emf:
+  patch_norm: "none"
+  patch_act: "gelu"
+  patch_embed_dim: 128
+  num_enc_layers: 1
+  dropout: 0.3
+  patch_model_id: "TSMixer"
+  d_model: 128
+
+# scheduler:
+#   pct_start: 0.3
+#   lradj: "type3"
+
+early_stopping:
+  patience: 20

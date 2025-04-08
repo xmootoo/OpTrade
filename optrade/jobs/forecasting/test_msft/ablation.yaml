@@ -1,0 +1,13 @@
+job_name: "forecasting/test"
+
+ablations:
+  exp.project_name: ["optrade1/AAPL"]
+  emf.patch_model_id: ["TSMixer"]
+  data.num_channels: [1]
+  tsmixer.dropout: [0.3]
+  data.seq_len: [336]
+  data.pred_len: [192, 336, 512]
+  train.scheduler: ["cosine"]
+  train.lr: [0.0001]
+  train.batch_size: [512]
+  exp.gpu_id: [0]
