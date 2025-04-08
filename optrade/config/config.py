@@ -7,8 +7,8 @@ import os
 import yaml
 import time
 from datetime import datetime
-from pydantic import BaseModel, Field
-from typing import Set, Tuple, List, Optional, Dict, Union
+from pydantic import BaseModel, Field, validator
+from typing import Set, Tuple, List, Optional, Dict, Union, Any
 
 import random
 import string
@@ -144,9 +144,14 @@ class Data(BaseModel):
     pin_memory: bool = Field(
         default=True, description="Whether to pin memory for the dataloader"
     )
-    prefetch_factor: int = Field(
+    prefetch_factor: Optional[int] = Field(
         default=2, description="Prefetch factor for the dataloader"
     )
+    @validator('prefetch_factor', pre=True)
+    def convert_zero_to_none(cls, v):
+        if v == 0:
+            return None
+        return v
     shuffle_test: bool = Field(
         default=False, description="Whether to shuffle the test set"
     )
@@ -282,6 +287,9 @@ class Data(BaseModel):
         description="Whether to keep datetime features in the dataset.",
     )
 
+# TODO: Implement universe class
+class Universe(BaseModel):
+    pass
 
 class Conformal(BaseModel):
     conf: bool = Field(

@@ -17,8 +17,8 @@ data:
   dtype: "float32"
   seq_len: 32
   pred_len: 4
-  train_split: 0.65
-  val_split: 0.2
+  train_split: 0.33
+  val_split: 0.33
   num_channels: 1
   scale: True
   dev_mode: True
@@ -26,7 +26,7 @@ data:
 
   # Dataloader (CPU setup)
   batch_size: 128
-  prefetch_factor: 2
+  prefetch_factor: 0
   num_workers: 0
   persistent_workers: False
   pin_memory: False
@@ -45,7 +45,7 @@ data:
   # Dataset
   root: "AAPL"
   start_date: "20230107"
-  end_date: "20231228"
+  end_date: "20230628"
   contract_stride: 3
   interval_min: 1
   right: "C"
