@@ -313,6 +313,7 @@ def find_optimal_exp(
     target_tte: int,
     tte_tolerance: Tuple[int, int],
     clean_up: bool = True,
+    dev_mode: bool = False,
 ) -> Tuple[Optional[str], Optional[int]]:
     """
     Returns the closest valid TTE to target_tte within tolerance range and its expiration date.
@@ -336,6 +337,7 @@ def find_optimal_exp(
     expirations = get_expirations(
         root=root,
         clean_up=clean_up,
+        dev_mode=dev_mode,
     ).values.squeeze()
 
     # Convert start_date to datetime

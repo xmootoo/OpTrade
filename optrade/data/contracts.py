@@ -123,6 +123,7 @@ class Contract:
             target_tte=target_tte,
             tte_tolerance=tte_tolerance,
             clean_up=True,
+            dev_mode=dev_mode,
         )
 
         ctx = Console()
@@ -163,6 +164,7 @@ class Contract:
             volatility_scaled=volatility_scaled,
             volatility_scalar=volatility_scalar,
             clean_up=True,
+            dev_mode=dev_mode,
         )
 
         if verbose:
@@ -237,6 +239,7 @@ class ContractDataset:
         verbose: bool = False,
         save_dir: Optional[str] = None,
         warning: bool = True,
+        dev_mode: bool = False,
     ) -> None:
         """
         Initialize the ContractDataset with the specified parameters.
@@ -290,6 +293,7 @@ class ContractDataset:
             volatility_scalar=volatility_scalar,
             hist_vol=hist_vol,
             save_dir=save_dir,
+            dev_mode=dev_mode,
         )
 
     def generate(self) -> "ContractDataset":
@@ -609,6 +613,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
+        dev_mode=dev_mode,
     ).generate()
 
     (
@@ -632,6 +637,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
+        dev_mode=dev_mode,
     ).generate()
 
     ctx.log("------------CREATING TEST CONTRACTS------------") if verbose else None
@@ -651,6 +657,7 @@ def get_contract_datasets(
         volatility_scalar=volatility_scalar,
         verbose=verbose,
         save_dir=save_dir,
+        dev_mode=dev_mode,
     ).generate()
 
     # Check that train_contracts, val_contracts, and test_contracts are nonempty
