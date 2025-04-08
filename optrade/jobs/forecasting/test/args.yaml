@@ -10,6 +10,7 @@ exp:
   gpu_id: 0
 
 data:
+  verbose: True
   patch_dim: 8
   patch_stride: -1
   window_stride: 1
@@ -55,7 +56,7 @@ data:
   tte_tolerance: [15, 45]
   target_channels: ["option_returns"]
   clean_up: False
-  offline: True
+  offline: False
   scaling: True
 
   # Features
