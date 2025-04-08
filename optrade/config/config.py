@@ -13,6 +13,7 @@ from typing import Set, Tuple, List, Optional, Dict, Union
 import random
 import string
 
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 def generate_random_id(length=10):
     # Seed the random number generator with current time and os-specific random data
@@ -34,6 +35,9 @@ class Experiment(BaseModel):
     seed: int = Field(default=2024, description="Random seed")
     learning_type: str = Field(
         default="sl", description="Type of learning: 'sl', 'ssl'"
+    )
+    log_dir: Path = Field(
+        default=SCRIPT_DIR.parent, description="Directory to save the 'logs' folder."
     )
     id: str = Field(
         default_factory=generate_random_id,
@@ -246,12 +250,12 @@ class Data(BaseModel):
     save_dir: Optional[str] = Field(
         default=None, description="Directory to save the data."
     )
-    verbose: bool = Field(default=True, description="Verbose print for data loading.")
+    verbose: bool = Field(default=False, description="Verbose print for data loading.")
     intraday: bool = Field(
         default=False,
         description="Whether to use intraday data for the dataset or allow crossover between different days.",
     )
-    validate_cpontracts: bool = Field(
+    validate_contracts: bool = Field(
         default=False,
         description="Whether to validate the contracts in the dataset.",
     )
