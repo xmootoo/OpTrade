@@ -5,7 +5,7 @@ export CUDA_LAUNCH_BLOCKING=1
 
 # Define list of ablations
 ablations=(
-   "forecasting/test"
+   "forecasting/v1/emforecaster"
 )
 
 # Set the number of parallel jobs (default to 2 if not specified)
