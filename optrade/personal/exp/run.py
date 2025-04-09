@@ -1,5 +1,4 @@
-import torch
-from pydantic import BaseModel
+from optrade.config.config import Global
 
 from optrade.exp.forecasting import Experiment
 from optrade.personal.utils.models import (
@@ -10,7 +9,7 @@ from optrade.personal.utils.models import (
 )
 
 
-def run_forecasting_experiment(args: BaseModel, ablation_id: int) -> None:
+def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
 
     exp = Experiment(
         log_dir=args.exp.log_dir,
