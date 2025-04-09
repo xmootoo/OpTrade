@@ -1,0 +1,5 @@
+ablations:
+  data.start_date: ["20240409"]
+  data.end_date: ["20250409"]
+  data.contract_stride: [1]
+  data.interval_min: [5, 15, 30, "EOD"]
