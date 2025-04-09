@@ -32,7 +32,7 @@ from torch.utils.data import DataLoader
 from optrade.utils.train import EarlyStopping
 from optrade.utils.misc import format_time_dynamic
 from optrade.data.forecasting import get_forecasting_loaders
-from optrade.utils.personal.models import (
+from optrade.utils.dev.models import (
     get_criterion,
     get_model,
     get_optim,
@@ -42,7 +42,7 @@ from optrade.utils.personal.models import (
     forward_pass,
 )
 
-from optrade.utils.personal.logger import log_pydantic, epoch_logger
+from optrade.utils.dev.logger import log_pydantic, epoch_logger
 
 
 class Experiment:

@@ -21,7 +21,7 @@ from optrade.pytorch.models.emforecaster import Model as EMForecaster
 # Optimizers and Schedulers
 from torch import optim
 
-from optrade.personal.utils.schedulers import WarmupCosineSchedule
+from optrade.dev.utils.schedulers import WarmupCosineSchedule
 from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
 
 
