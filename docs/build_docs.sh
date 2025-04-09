@@ -13,7 +13,7 @@ EXCLUSIONS=(
     "optrade/jobs"
     "optrade/logs"
     "optrade/figures"
-    "optrade/personal"
+    "optrade/dev"
     "optrade/notebooks"
     "optrade/main.py"
 )
