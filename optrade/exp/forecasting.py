@@ -30,7 +30,7 @@ warnings.filterwarnings(
 class Experiment:
     def __init__(
         self,
-        log_dir: str = "logs",
+        log_dir: Union[str, Path] = "logs",
         logging: str = "offline",
         seed: int = 42,
         ablation_id: Optional[int] = None,
@@ -180,7 +180,7 @@ class Experiment:
         shuffle: bool = True,
         drop_last: bool = False,
         num_workers: int = 4,
-        prefetch_factor: int = 2,
+        prefetch_factor: Optional[int] = 2,
         pin_memory: bool = torch.cuda.is_available(),
         persistent_workers: bool = True,
         clean_up: bool = False,
