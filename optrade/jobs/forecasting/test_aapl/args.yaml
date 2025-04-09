@@ -1,5 +1,5 @@
 exp:
-  project_name: "optrade1/AAPL"
+  project_name: "optrade1/Version-1"
   model_id: "EMForecaster"
   learning_type: "sl"
   seed_list: [54930]
@@ -10,8 +10,10 @@ exp:
   gpu_id: 0
 
 data:
-  verbose: True
   validate_contracts: False
+  download_only: False
+  clean_up: False
+  offline: True
   dev_mode: True
   patch_dim: 8
   patch_stride: -1
@@ -24,6 +26,7 @@ data:
   num_channels: 1
   scale: True
   target_type: "multistep"
+  verbose: True
 
   # Dataloader (CPU setup)
   batch_size: 128
@@ -43,9 +46,7 @@ data:
   # shuffle: True
   # drop_last: False
 
-  # Dataset
-  clean_up: False
-  offline: True
+  # Historical Data
   root: "AAPL"
   start_date: "20230107"
   end_date: "20230628"
@@ -57,10 +58,10 @@ data:
   volatility_scaled: False
   target_tte: 30
   tte_tolerance: [15, 45]
-  target_channels: ["option_returns"]
-  scaling: True
 
   # Features
+  target_channels: ["option_returns"]
+  scaling: True
   core_feats: [
       "option_returns",
       "stock_returns",
@@ -126,10 +127,6 @@ emf:
   dropout: 0.3
   patch_model_id: "TSMixer"
   d_model: 128
-
-# scheduler:
-#   pct_start: 0.3
-#   lradj: "type3"
 
 early_stopping:
   patience: 20
