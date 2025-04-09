@@ -50,6 +50,7 @@ autodoc_default_options = {
     # NEW
     # 'imported-members': False,  # Don't show imported modules
     'show-inheritance': False,  # Hide inheritance info
+    'no-signature': True,  # Hide signatures to avoid parameter repetition
 }
 
 # NEW
