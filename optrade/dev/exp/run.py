@@ -27,31 +27,31 @@ def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
 
     # Step 2: Initialize data loaders with specified configuration
     exp.init_loaders(
-        root=args.data.root,
-        start_date=args.data.start_date,
-        end_date=args.data.end_date,
-        contract_stride=args.data.contract_stride,
-        interval_min=args.data.interval_min,
-        right=args.data.right,
-        target_tte=args.data.target_tte,
-        tte_tolerance=args.data.tte_tolerance,
-        moneyness=args.data.moneyness,
+        root=args.contracts.root,
+        start_date=args.contracts.start_date,
+        end_date=args.contracts.end_date,
+        contract_stride=args.contracts.stride,
+        interval_min=args.contracts.interval_min,
+        right=args.contracts.right,
+        target_tte=args.contracts.target_tte,
+        tte_tolerance=args.contracts.tte_tolerance,
+        moneyness=args.contracts.moneyness,
         train_split=args.data.train_split,
         val_split=args.data.val_split,
         seq_len=args.data.seq_len,
         pred_len=args.data.pred_len,
-        scaling=args.data.scaling,
+        scaling=args.feats.scaling,
         dtype=args.data.dtype,
-        core_feats=args.data.core_feats,
-        tte_feats=args.data.tte_feats,
-        datetime_feats=args.data.datetime_feats,
-        keep_datetime=args.data.keep_datetime,
-        target_channels=args.data.target_channels,
-        target_type=args.data.target_type,
-        strike_band=args.data.strike_band,
-        volatility_type=args.data.volatility_type,
-        volatility_scaled=args.data.volatility_scaled,
-        volatility_scalar=args.data.volatility_scalar,
+        core_feats=args.feats.core,
+        tte_feats=args.feats.tte,
+        datetime_feats=args.feats.datetime,
+        keep_datetime=args.feats.keep_datetime,
+        target_channels=args.feats.target_channels,
+        target_type=args.feats.target_channels,
+        strike_band=args.contracts.strike_band,
+        volatility_type=args.contracts.volatility_type,
+        volatility_scaled=args.contracts.volatility_scaled,
+        volatility_scalar=args.contracts.volatility_scalar,
         batch_size=args.data.batch_size,
         shuffle=args.data.shuffle,
         drop_last=args.data.drop_last,
@@ -73,10 +73,10 @@ def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
 
     # Select Model, Optimizer, and Loss function
     input_channels = (
-        args.data.core_feats + args.data.tte_feats + args.data.datetime_feats
+        args.feats.core + args.feats.tte + args.feats.datetime
     )
     target_channel_idx = [
-        input_channels.index(channel) for channel in args.data.target_channels
+        input_channels.index(channel) for channel in args.feats.target_channels
     ]
     model = get_model(
         args=args, input_channels=input_channels, target_channels_idx=target_channel_idx

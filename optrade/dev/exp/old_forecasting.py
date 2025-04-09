@@ -101,24 +101,24 @@ class Experiment:
         """
 
         loaders = get_forecasting_loaders(
-            root=self.args.data.root,
-            start_date=self.args.data.start_date,
-            end_date=self.args.data.end_date,
-            contract_stride=self.args.data.contract_stride,
-            interval_min=self.args.data.interval_min,
-            right=self.args.data.right,
-            target_tte=self.args.data.target_tte,
-            tte_tolerance=self.args.data.tte_tolerance,
-            moneyness=self.args.data.moneyness,
-            strike_band=self.args.data.strike_band,
-            volatility_type=self.args.data.volatility_type,
-            volatility_scaled=self.args.data.volatility_scaled,
-            volatility_scalar=self.args.data.volatility_scalar,
+            root=self.args.contracts.root,
+            start_date=self.args.contracts.start_date,
+            end_date=self.args.contracts.end_date,
+            contract_stride=self.args.contracts.stride,
+            interval_min=self.args.contracts.interval_min,
+            right=self.args.contracts.right,
+            target_tte=self.args.contracts.target_tte,
+            tte_tolerance=self.args.contracts.tte_tolerance,
+            moneyness=self.args.contracts.moneyness,
+            strike_band=self.args.contracts.strike_band,
+            volatility_type=self.args.contracts.volatility_type,
+            volatility_scaled=self.args.contracts.volatility_scaled,
+            volatility_scalar=self.args.contracts.volatility_scalar,
             train_split=self.args.data.train_split,
             val_split=self.args.data.val_split,
-            core_feats=self.args.data.core_feats,
-            tte_feats=self.args.data.tte_feats,
-            datetime_feats=self.args.data.datetime_feats,
+            core_feats=self.args.feats.core,
+            tte_feats=self.args.feats.tte,
+            datetime_feats=self.args.feats.datetime,
             batch_size=self.args.train.batch_size,
             shuffle=self.args.data.shuffle,
             drop_last=self.args.data.drop_last,
@@ -128,9 +128,9 @@ class Experiment:
             clean_up=self.args.data.clean_up,
             offline=self.args.data.offline,
             verbose=self.args.data.verbose,
-            scaling=self.args.data.scaling,
-            intraday=self.args.data.intraday,
-            target_channels=self.args.data.target_channels,
+            scaling=self.args.feats.scaling,
+            intraday=self.args.feats.intraday,
+            target_channels=self.args.feats.target_channels,
             seq_len=self.args.data.seq_len,
             pred_len=self.args.data.pred_len,
             dtype=self.args.data.dtype,
@@ -138,7 +138,7 @@ class Experiment:
 
         self.train_loader, self.val_loader, self.test_loader = loaders[:3]
 
-        if self.args.data.scaling:
+        if self.args.feats.scaling:
             self.scaler = loaders[3]
 
     def init_model(self):
@@ -146,7 +146,7 @@ class Experiment:
         Initialize the model.
         """
         self.model = get_model(
-            self.args, self.generator, self.args.data.target_channels
+            self.args, self.generator, self.args.feats.target_channels
         )
         self.model.to(self.device)
         num_params = self.count_parameters()

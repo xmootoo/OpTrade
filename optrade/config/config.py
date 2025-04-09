@@ -71,10 +71,6 @@ class Experiment(BaseModel):
     mae: bool = Field(
         default=False, description="Evaluate mean absolute error or not for forecasting"
     )
-    other_metrics: bool = Field(
-        default=False,
-        description="Whether to use other metrics for classification evaluation (e.g., F1-score",
-    )
     best_model_metric: str = Field(
         default="loss",
         description="Metric to use for model saving and early stopping. Options: 'loss', 'acc', 'ch_acc'",
@@ -110,8 +106,6 @@ class Data(BaseModel):
         default=2, description="Number of classes for classification tasks."
     )
     num_channels: int = Field(default=321, description="Number of time series channels")
-
-    scale: bool = Field(default=True, description="Normalize data along each channel.")
     balance: bool = Field(
         default=True, description="Balance classes within dataset for classification."
     )
@@ -152,16 +146,70 @@ class Data(BaseModel):
         default=False, description="Whether to shuffle the test set"
     )
 
-    # Patching
-    patching: bool = Field(
-        default=False, description="Whether to use patching for the dataset (LSTM only)"
+
+    # Download Parameters
+    clean_up: bool = Field(
+        default=False,
+        description="Whether to clean up the CSV files after saving data from ThetaData API.",
     )
-    patch_dim: int = Field(default=16, description="Patch dimension or patch length.")
-    patch_stride: int = Field(
-        default=8, description="Patch stride for generating patches.}"
+    offline: bool = Field(
+        default=False,
+        description="Whether to use offline data instead of calling ThetaData API directly.",
+    )
+    download_only: bool = Field(
+        default=False,
+        description="Whether to download data only and not run the experiment.",
+    )
+    save_dir: Optional[str] = Field(
+        default=None, description="Directory to save the data."
+    )
+    verbose: bool = Field(default=False, description="Verbose print for data loading.")
+    validate_contracts: bool = Field(
+        default=False,
+        description="Whether to validate the contracts in the dataset.",
+    )
+    dev_mode: bool = Field(
+        default=False,
+        description="Whether to use development mode (uses specific directory management for saving and loading data).",
     )
 
 
+class Features(BaseModel):
+    target_channels: Optional[List[str]] = Field(
+        default=["option_returns"],
+        description="Target channels used in the target window.",
+    )
+    target_type: str = Field(
+        default="multistep",
+        description="Target type different forecasting tasks. Options: 'multistep', 'average', or 'average_direction'.",
+    )
+    core: List[str] = Field(
+        default=["option_mid_price"],
+        description="Core features of option and underlying data",
+    )
+    tte: List[str] = Field(
+        default=["sqrt"],
+        description="Time-to-Expiration (TTE) features for option contracts.",
+    )
+    datetime: List[str] = Field(
+        default=["sin_minute_of_day"],
+        description="Datetime features to use for the time series.",
+    )
+    keep_datetime: bool = Field(
+        default=False,
+        description="Whether to keep datetime features in the dataset.",
+    )
+    scaling: bool = Field(
+        default=False,
+        description="Whether to use z-score normalize each channel using StandardScaler (scikit-learn).",
+    )
+    intraday: bool = Field(
+        default=False,
+        description="Whether to use intraday data for the dataset or allow crossover between different days.",
+    )
+
+
+class Contracts(BaseModel):
     # Contract Parameters
     root: str = Field(
         default="AAPL", description="The root symbol of the underlying security"
@@ -210,70 +258,11 @@ class Data(BaseModel):
         default=(15, 45),
         description="Tolerance range for selecting a contract if exact target_tte does not exist",
     )
-    contract_stride: int = Field(
+    stride: int = Field(
         default=5,
         description="Stride length used to select multiple contracts at different dates",
     )
 
-    # Download Parameters
-    clean_up: bool = Field(
-        default=False,
-        description="Whether to clean up the CSV files after saving data from ThetaData API.",
-    )
-    offline: bool = Field(
-        default=False,
-        description="Whether to use offline data instead of calling ThetaData API directly.",
-    )
-    download_only: bool = Field(
-        default=False,
-        description="Whether to download data only and not run the experiment.",
-    )
-    save_dir: Optional[str] = Field(
-        default=None, description="Directory to save the data."
-    )
-    verbose: bool = Field(default=False, description="Verbose print for data loading.")
-    validate_contracts: bool = Field(
-        default=False,
-        description="Whether to validate the contracts in the dataset.",
-    )
-    dev_mode: bool = Field(
-        default=False,
-        description="Whether to use development mode (uses different file directory saving).",
-    )
-
-    # Features
-    target_channels: Optional[List[str]] = Field(
-        default=["option_returns"],
-        description="Target channels used in the target window.",
-    )
-    target_type: str = Field(
-        default="multistep",
-        description="Target type different forecasting tasks. Options: 'multistep', 'average', or 'average_direction'.",
-    )
-    core_feats: List[str] = Field(
-        default=["option_mid_price"],
-        description="Core features of option and underlying data",
-    )
-    tte_feats: List[str] = Field(
-        default=["sqrt"],
-        description="Time-to-Expiration (TTE) features for option contracts.",
-    )
-    datetime_feats: List[str] = Field(
-        default=["sin_minute_of_day"],
-        description="Datetime features to use for the time series.",
-    )
-    keep_datetime: bool = Field(
-        default=False,
-        description="Whether to keep datetime features in the dataset.",
-    )
-    scaling: bool = Field(
-        default=False,
-        description="Whether to use z-score normalize each channel using StandardScaler (scikit-learn).",
-    )
-    intraday: bool = Field(
-        default=False,
-        description="Whether to use intraday data for the dataset or allow crossover between different days.",
-    )
 
 
 class Conformal(BaseModel):
@@ -416,6 +405,10 @@ class Scheduler(BaseModel):
 
 
 class PatchTST(BaseModel):
+    patch_dim: int = Field(default=16, description="Patch dimension or patch length.")
+    patch_stride: int = Field(
+        default=8, description="Patch stride for generating patches.}"
+    )
     num_enc_layers: int = Field(
         default=3, description="Number of encoder layers for the PatchTST model."
     )
@@ -529,6 +522,10 @@ class ModernTCN(BaseModel):
 
 
 class EMForecaster(BaseModel):
+    patch_dim: int = Field(default=16, description="Patch dimension or patch length.")
+    patch_stride: int = Field(
+        default=8, description="Patch stride for generating patches.}"
+    )
     patch_norm: str = Field(
         default="none",
         description="Normalization mode for the PatchedForecaster model. Options: 'none', 'layer'",
@@ -587,11 +584,20 @@ class RecurrentModel(BaseModel):
     num_enc_layers: int = Field(
         default=1, description="Number of encoder layers for the RecurrentModel."
     )
+    patching: bool = Field(
+        default=False, description="Whether to use patching for the dataset (LSTM only)"
+    )
+    patch_dim: int = Field(default=16, description="Patch dimension or patch length.")
+    patch_stride: int = Field(
+        default=8, description="Patch stride for generating patches.}"
+    )
 
 
 class Global(BaseModel):
     exp: Experiment = Experiment()
     data: Data = Data()
+    contracts: Contracts = Contracts()
+    feats: Features = Features()
     train: Train = Train()
     eval: Evaluation = Evaluation()
     scheduler: Scheduler = Scheduler()
