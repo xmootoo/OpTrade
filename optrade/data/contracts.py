@@ -28,21 +28,20 @@ class Contract:
 
     def __init__(
         self,
-        root: str = "AAPL",
-        start_date: str = "20241107",
-        exp: str = "20241206",
-        strike: float = 225,
-        interval_min: int = 1,
-        right: str = "C",
+        root: str,
+        start_date: str,
+        exp: str,
+        strike: float,
+        interval_min: int,
+        right: str,
     ):
         """Initialize a Contract instance.
-
         Args:
-            root: Root symbol of the underlying security
-            start_date: Start date in YYYYMMDD format
-            exp: Expiration date in YYYYMMDD format
-            strike: Strike price
-            interval_min: Interval in minutes
+            root: Root symbol of the underlying security (e.g., "AAPL" representing Apple Inc.)
+            start_date: Start date in YYYYMMDD format (e.g., "20241107" representing November 7, 2024)
+            exp: Expiration date in YYYYMMDD format (e.g., "20241206" representing December 6, 2024)
+            strike: Strike price (e.g., 225 representing $225)
+            interval_min: Interval in minutes (e.g., 1 representing 1 minute)
             right: Option type ('C' for call, 'P' for put)
         """
         self.root = root
@@ -223,17 +222,17 @@ class ContractDataset:
 
     def __init__(
         self,
-        root: str = "AAPL",
-        total_start_date: str = "20231107",
-        total_end_date: str = "20241114",
-        contract_stride: int = 5,
-        interval_min: int = 1,
-        right: str = "C",
-        target_tte: int = 30,
-        tte_tolerance: Tuple[int, int] = (25, 35),
-        moneyness: str = "OTM",
+        root: str,
+        total_start_date: str,
+        total_end_date: str,
+        contract_stride: int,
+        interval_min: int,
+        right: str,
+        target_tte: int,
+        tte_tolerance: Tuple[int, int],
+        moneyness: str,
         strike_band: float = 0.05,
-        volatility_scaled: bool = True,
+        volatility_scaled: bool = False,
         volatility_scalar: float = 1.0,
         hist_vol: Optional[float] = None,
         verbose: bool = False,
