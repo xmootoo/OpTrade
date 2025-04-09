@@ -3,7 +3,7 @@ This document details the data pipeline for options forecasting and trading, whi
 
 ## Table of Contents
 - [Data Sources (ThetaData API)](#thetadata-api)
-  - [Option Data](#option-data) 
+  - [Option Data](#option-data)
   - [Underlying Security Data](#underlying-asset-data)
   - [Data Usage Notes](#data-usage-notes)
 - [Contract Model](#contract-model)
@@ -21,7 +21,7 @@ This document details the data pipeline for options forecasting and trading, whi
 
 ## Data Sources  (ThetaData API)
 ### Option Data
-We utilize the [ThetaData API](https://http-docs.thetadata.us/) to obtain options data consolidated by the Options Price Reporting Authority (OPRA). The data includes quotes and OHLC metrics at 1-minute intervals during regular trading hours (9:30 AM - 4:00 PM EST). Note that this requires an active subscription to both the option and stock VALUE packages, although not free, are (relatively) cheap in comparison to other financial market data providers. To run any of the data scripts found in [`optrade/data/thetadata/`](optrade/data/thetadata/), a ThetaData terminal must running. The function [`load_option_data`](optrade/data/thetadata/options.py): 
+We utilize the [ThetaData API](https://http-docs.thetadata.us/) to obtain options data consolidated by the Options Price Reporting Authority (OPRA). The data includes quotes and OHLC metrics at 1-minute intervals during regular trading hours (9:30 AM - 4:00 PM EST). Note that this requires an active subscription to both the option and stock VALUE packages, although not free, are (relatively) cheap in comparison to other financial market data providers. To run any of the data scripts found in [`optrade/data/thetadata/`](optrade/data/thetadata/), a ThetaData terminal must running. The function [`load_option_data`](optrade/data/thetadata/options.py):
 
 ```py
 def load_option_data(
@@ -82,7 +82,7 @@ and [`ThetaData (Stock OHLCVC)`](https://http-docs.thetadata.us/operations/get-v
 
 
 ### Data Usage Notes & Information
-* If `exp` < `end_date`, data will be provided until the option expires (i.e. final date is `exp`). 
+* If `exp` < `end_date`, data will be provided until the option expires (i.e. final date is `exp`).
 * If `start_date` is requested before the option contract begins, the function will throw a `DataValidationError` (this is our validation, not ThetaData API's). This error will notify the user that their requested `start_date` is too early and will provide the actual start date of the contract. Note that ThetaData API does not explicitly provide contract inception dates; instead, it simply returns data from the earliest available date for that contract, requiring users to determine the true contract start date through trial and error.
 * All individual equity options (e.g., AAPL, MSFT) are **American options**, allowing for exercise at any time prior to expiration. However, all index options (e.g., SPX, VIX) are **European options**, which can only be exercised at expiration.
 * For shorter intervals (e.g., `interval_min`=1), a significant portion of OHLCVC data may contain zeroes, i.e. no eligible trades ocurred within the time period due to low liquidity. Increasing `interval_min` will reduce this issue, but will not eliminate it (even for more liquid options).
@@ -107,7 +107,7 @@ class Contract(BaseModel):
     strike: int = Field(default=225, description="Strike price")
     interval_min: int = Field(default=1, description="Interval in minutes")
     right: str = Field(default="C", description="Option type (C for call, P for put)")
-  
+
     ...
 ```
 
@@ -136,10 +136,10 @@ def find_optimal(
     """
     # Find the best expiration date based on target TTE
     exp, * = find_optimal_exp(...)
-    
+
     # Find the best strike price based on moneyness and volatility
     strike = find_optimal_strike(...)
-    
+
     # Return the constructed Contract instance
     return cls(...)
 ```
@@ -179,7 +179,7 @@ class ContractDataset:
 ```
 
 ### Contract Dataset Generation
-The `ContractDataset` class contains the [`generate_contracts`](optrade/src/preprocessing/data/datasets.py#L76) method which creates a series of `Contract` modles by starting from the initial date and advancing by a specified stride (in days), calling `Contract.find_optimal` at each selected date. This creates a series of contracts that meet the specified criteria and handles special cases such as weekends and market holidays.
+The `ContractDataset` class contains the [`generate_contracts`](optrade/src/preprocessing/data/datasets.py#L76) method which creates a series of `Contract` objects by starting from the initial date and advancing by a specified stride (in days), calling `Contract.find_optimal` at each selected date. This creates a series of contracts that meet the specified criteria and handles special cases such as weekends and market holidays.
 
 ```python
 def generate_contracts(self) -> "ContractDataset":
@@ -214,7 +214,7 @@ def get_combined_dataset(
 ) -> Dataset:
     # Function implementation...
 ```
-This function iterates through each contract in a `ContractDataset` object, and attempts to load data for each contract using the [`get_data`](optrade/data/thetadata/get_data.py) function, with error handling for various data validation issues. Since the start of each option contract is not provided by ThetaData, it is not uncommon to request to the underlying data and option data for the same start date, only to have the option data start later because the contract wasn't issued at the start date provided. In this case, the function will adjust the start date of the contract to the first available option data. 
+This function iterates through each contract in a `ContractDataset` object, and attempts to load data for each contract using the [`get_data`](optrade/data/thetadata/get_data.py) function, with error handling for various data validation issues. Since the start of each option contract is not provided by ThetaData, it is not uncommon to request to the underlying data and option data for the same start date, only to have the option data start later because the contract wasn't issued at the start date provided. In this case, the function will adjust the start date of the contract to the first available option data.
 
 
 ### PyTorch ForecastingDataset
@@ -250,6 +250,3 @@ class ForecastingDataset(Dataset):
         return input, target
 ```
 By creating a `ForecastingDataset` instance for each contract, we can now concatenate all of the datasets together to form a single dataset object, with temporal separation provided between each contract. The concatenation is handled naturally by the PyTorch's `ConcatDataset` class, which is the final output of `get_combined_dataset`.
-
-
-

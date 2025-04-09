@@ -6,7 +6,7 @@
 OpTrade
 =====================
 
-OpTrade is a complete toolkit for quantitative research and development of options trading strategies. By abstracting away the complexity of data handling and experimental setup, researchers and traders can focus on what matters most: developing and testing alpha-generating ideas.
+OpTrade is a complete toolkit for quantitative research and development of options trading strategies. By abstracting away the complexity of data handling and experimental design, researchers and traders can focus on what matters most: developing and testing alpha-generating ideas.
 
 .. image:: _static/optrade_light.png
     :alt: OpTrade Framework
