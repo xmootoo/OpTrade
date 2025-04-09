@@ -36,6 +36,7 @@ class Contract:
         right: str,
     ):
         """Initialize a Contract instance.
+
         Args:
             root: Root symbol of the underlying security (e.g., "AAPL" representing Apple Inc.)
             start_date: Start date in YYYYMMDD format (e.g., "20241107" representing November 7, 2024)
@@ -43,6 +44,9 @@ class Contract:
             strike: Strike price (e.g., 225 representing $225)
             interval_min: Interval in minutes (e.g., 1 representing 1 minute)
             right: Option type ('C' for call, 'P' for put)
+
+        Returns:
+            None
         """
         self.root = root
         self.start_date = start_date
