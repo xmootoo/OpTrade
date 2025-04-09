@@ -61,10 +61,6 @@ class Experiment(BaseModel):
     acc: bool = Field(
         default=False, description="Evaluate accuracy or not for classification tasks"
     )
-    ch_acc: bool = Field(
-        default=False,
-        description="Evaluate whole channel accuracy or not for classification tasks",
-    )
     thresh: float = Field(
         default=0.5, description="The threshold for binary classification"
     )
@@ -83,12 +79,8 @@ class Experiment(BaseModel):
         default=False,
         description="Whether to use MPS for Apple silicon hardware acceleration",
     )
-    grid_search: bool = Field(
-        default=False,
-        description="Whether to use grid search for hyperparameter tuning",
-    )
     task: str = Field(
-        default="classification",
+        default="forecasting",
         description="Task type. Options: 'forecasting', 'classification'",
     )
     gpu_id: int = Field(
@@ -114,21 +106,7 @@ class Data(BaseModel):
         default=2, description="Number of classes for classification tasks."
     )
     num_channels: int = Field(default=321, description="Number of time series channels")
-    batch_size: int = Field(default=32, description="Batch size for the dataloader")
-    drop_last: bool = Field(
-        default=False, description="Whether to drop the last batch."
-    )
-    persistent_workers: bool = Field(
-        default=True,
-        description="Whether to use persistent workers for the dataloader.",
-    )
-    pin_memory: bool = Field(
-        default=True, description="Whether to pin memory for the dataloader."
-    )
-    prefetch_factor: int = Field(
-        default=2, description="Prefetch factor for the dataloader"
-    )
-    shuffle: bool = Field(default=True, description="Whether to shuffle all datasets")
+
     scale: bool = Field(default=True, description="Normalize data along each channel.")
     balance: bool = Field(
         default=True, description="Balance classes within dataset for classification."
@@ -139,6 +117,17 @@ class Data(BaseModel):
     val_split: float = Field(
         default=0.2, description="Portion of data used for validation"
     )
+
+    # PyTorch Dataloader
+    batch_size: int = Field(default=32, description="Batch size for the dataloader")
+    drop_last: bool = Field(
+        default=False, description="Whether to drop the last batch."
+    )
+    persistent_workers: bool = Field(
+        default=True,
+        description="Whether to use persistent workers for the dataloader.",
+    )
+    shuffle: bool = Field(default=True, description="Whether to shuffle all datasets")
     num_workers: int = Field(
         default=4, description="Number of workers for the dataloader"
     )
@@ -159,6 +148,7 @@ class Data(BaseModel):
         default=False, description="Whether to shuffle the test set"
     )
 
+    # Patching
     patching: bool = Field(
         default=False, description="Whether to use patching for the dataset (LSTM only)"
     )
@@ -166,28 +156,9 @@ class Data(BaseModel):
     patch_stride: int = Field(
         default=8, description="Patch stride for generating patches.}"
     )
-    univariate: bool = Field(
-        default=False,
-        description="Whether to process a multivariate time series as univariate data (mixed together but separated by channel)",
-    )
-    seq_load: bool = Field(
-        default=False,
-        description="Whether to use sequential dataloading. Loads train datasets first, and then test set at test time.",
-    )
-    numpy_data: bool = Field(
-        default=False,
-        description="Whether to use numpy data in dataloading (will not be converted to torch tensors).",
-    )
-    difference_input: bool = Field(
-        default=False,
-        description="Whether to use 1st-order differencing on the input data for forecasting.",
-    )
-    scaling: bool = Field(
-        default=False,
-        description="Whether to use z-score normalize each channel using StandardScaler (scikit-learn).",
-    )
 
-    # Option/Underlying Parameters
+
+    # Contract Parameters
     root: str = Field(
         default="AAPL", description="The root symbol of the underlying security"
     )
@@ -239,14 +210,8 @@ class Data(BaseModel):
         default=5,
         description="Stride length used to select multiple contracts at different dates",
     )
-    target_channels: Optional[List[str]] = Field(
-        default=["option_returns"],
-        description="Target channels used in the target window.",
-    )
-    target_type: str = Field(
-        default="multistep",
-        description="Target type different forecasting tasks. Options: 'multistep', 'average', or 'average_direction'.",
-    )
+
+    # Download Parameters
     clean_up: bool = Field(
         default=False,
         description="Whether to clean up the CSV files after saving data from ThetaData API.",
@@ -263,10 +228,6 @@ class Data(BaseModel):
         default=None, description="Directory to save the data."
     )
     verbose: bool = Field(default=False, description="Verbose print for data loading.")
-    intraday: bool = Field(
-        default=False,
-        description="Whether to use intraday data for the dataset or allow crossover between different days.",
-    )
     validate_contracts: bool = Field(
         default=False,
         description="Whether to validate the contracts in the dataset.",
@@ -277,6 +238,14 @@ class Data(BaseModel):
     )
 
     # Features
+    target_channels: Optional[List[str]] = Field(
+        default=["option_returns"],
+        description="Target channels used in the target window.",
+    )
+    target_type: str = Field(
+        default="multistep",
+        description="Target type different forecasting tasks. Options: 'multistep', 'average', or 'average_direction'.",
+    )
     core_feats: List[str] = Field(
         default=["option_mid_price"],
         description="Core features of option and underlying data",
@@ -293,11 +262,14 @@ class Data(BaseModel):
         default=False,
         description="Whether to keep datetime features in the dataset.",
     )
-
-
-# TODO: Implement universe class
-class Universe(BaseModel):
-    pass
+    scaling: bool = Field(
+        default=False,
+        description="Whether to use z-score normalize each channel using StandardScaler (scikit-learn).",
+    )
+    intraday: bool = Field(
+        default=False,
+        description="Whether to use intraday data for the dataset or allow crossover between different days.",
+    )
 
 
 class Conformal(BaseModel):
