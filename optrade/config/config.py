@@ -25,6 +25,10 @@ def generate_random_id(length=10):
 
 
 class Experiment(BaseModel):
+    parent: Optional[str] = Field(
+        default=None,
+        description="Parent experiment ID for nested experiments. If not None, it will replace all Global values specified in the jobs/parent/<parent_name>/ablation.yaml for experiments with parent=<parent_name>.",
+    )
     model_id: str = Field(
         default="PatchTSTBlind",
         description="Model ID. Options: 'PatchTSTOG', 'PatchTSTBlind', 'JEPA', 'DualJEPA'",
