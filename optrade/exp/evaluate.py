@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from typing import List, Dict, Union, Tuple
+from typing import List, Union, Tuple
 from sklearn.metrics import (
     mean_squared_error,
     mean_absolute_error,
@@ -10,8 +10,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
-    roc_auc_score,
-    confusion_matrix
+    roc_auc_score
 )
 
 def get_metrics(
