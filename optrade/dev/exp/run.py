@@ -47,7 +47,7 @@ def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
         datetime_feats=args.feats.datetime,
         keep_datetime=args.feats.keep_datetime,
         target_channels=args.feats.target_channels,
-        target_type=args.feats.target_channels,
+        target_type=args.feats.target_type,
         strike_band=args.contracts.strike_band,
         volatility_type=args.contracts.volatility_type,
         volatility_scaled=args.contracts.volatility_scaled,
@@ -108,6 +108,7 @@ def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
         model=model,
         criterion=criterion,
         metrics=args.eval.metrics,  # Metrics to compute
+        target_type=args.feats.target_type,
     )
 
     # Step 6: Save model and logs
