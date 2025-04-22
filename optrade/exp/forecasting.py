@@ -21,6 +21,7 @@ from optrade.data.contracts import get_contract_datasets
 from optrade.data.forecasting import get_forecasting_dataset, get_forecasting_loaders
 from optrade.utils.train import EarlyStopping
 from optrade.utils.misc import format_time_dynamic, generate_random_id
+from optrade.exp.evaluate import get_metrics
 
 warnings.filterwarnings(
     "ignore", message="h5py not installed, hdf5 features will not be supported."
@@ -515,6 +516,7 @@ class Experiment:
         epoch: Optional[int] = None,
         best_model_path: Optional[str] = None,
         early_stopping: Optional[bool] = False,
+        target_type: str = "multistep",
     ) -> None:
         """
         Validates the model.
@@ -539,6 +541,7 @@ class Experiment:
             criterion=criterion,
             metrics=metrics,
             device=device,
+            target_type=target_type,
         )
 
         val_loss = stats["loss"]
@@ -575,7 +578,8 @@ class Experiment:
         criterion: nn.Module,
         device=None,
         test_loader: Optional[DataLoader] = None,
-        metrics: List[str] = ["loss"],
+        metrics: List[str] = ["mse"],
+        target_type: str = "multistep",
     ) -> None:
         """
 
@@ -611,6 +615,7 @@ class Experiment:
             criterion=criterion,
             metrics=metrics,
             device=device,
+            target_type=target_type,
         )
 
         self.log_stats(stats=stats, metrics=metrics, mode="test")
@@ -621,7 +626,8 @@ class Experiment:
         loader: DataLoader,
         criterion: nn.Module,
         device,
-        metrics: List[str] = ["loss"],
+        metrics: List[str] = ["mse"],
+        target_type: str = "multistep",
     ) -> dict:
         """
         Evaluates the model and returns metrics. Used in validation and testing.
@@ -644,30 +650,28 @@ class Experiment:
         with torch.no_grad():
 
             # Initialize Metrics
-            total_loss = torch.tensor(0.0, device=device)
-            total_mae = torch.tensor(0.0, device=device)
+            total_metrics = np.zeros(len(metrics))
 
             for i, batch in enumerate(loader):
                 x = batch[0].to(device)
                 y = batch[1].to(device)
                 output = model(x)
                 loss = criterion(output, y)
-                num_batch_examples = torch.tensor(batch[0].shape[0], device=device)
-                total_loss += loss * num_batch_examples
 
-                # MAE
-                if "mae" in metrics:
-                    total_mae += (
-                        mae_loss(output, batch[1].to(device)) * num_batch_examples
-                    )
+                # Compute metrics
+                num_batch_examples = batch[0].shape[0]
+                batch_metrics, metric_keys = get_metrics(
+                    metrics=metrics,
+                    output=output,
+                    target=y,
+                    target_type=target_type,
+                )
+                total_metrics +=  batch_metrics * num_batch_examples
 
-        # Loss
-        if "loss" in metrics:
-            stats["loss"] = total_loss.item() / num_examples
-
-        # MAE
-        if "mae" in metrics:
-            stats["mae"] = total_mae.item() / num_examples
+        # Return metrics in dictionary format
+        stats = dict()
+        for i, metric in enumerate(metric_keys):
+            stats[metric] = total_metrics[i] / num_examples
 
         return stats
 
@@ -675,14 +679,18 @@ class Experiment:
         modes = {"val": "Validation", "test": "Test"}
         Mode = modes[mode]
 
-        loss = stats["loss"]
-        self.print_master(f"Model {Mode} Loss: {loss:.6f}")
-        self.epoch_logger(self.logger, f"{mode}/loss", loss)
+        for metric in metrics:
+            self.print_master(f"Model {Mode} {metric}: {stats[metric]:.6f}")
+            self.epoch_logger(self.logger, f"{mode}/{metric}", stats[metric])
 
-        if "mae" in metrics:
-            mae_value = stats["mae"]
-            self.print_master(f"Model {Mode} MAE: {mae_value:.6f}")
-            self.epoch_logger(self.logger, f"{mode}/mae", mae_value)
+        # loss = stats["loss"]
+        # self.print_master(f"Model {Mode} Loss: {loss:.6f}")
+        # self.epoch_logger(self.logger, f"{mode}/loss", loss)
+
+        # if "mae" in metrics:
+        #     mae_value = stats["mae"]
+        #     self.print_master(f"Model {Mode} MAE: {mae_value:.6f}")
+        #     self.epoch_logger(self.logger, f"{mode}/mae", mae_value)
 
     def epoch_logger(self, logger, key: str, value: str) -> None:
         if self.logging == "neptune":
