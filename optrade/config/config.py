@@ -72,7 +72,7 @@ class Experiment(BaseModel):
         default=False, description="Evaluate mean absolute error or not for forecasting"
     )
     best_model_metric: str = Field(
-        default="loss",
+        default="mse",
         description="Metric to use for model saving and early stopping. Options: 'loss', 'acc', 'ch_acc'",
     )
     mps: bool = Field(
@@ -361,8 +361,8 @@ class Train(BaseModel):
 
 class Evaluation(BaseModel):
     metrics: List[str] = Field(
-        default=["loss"],
-        description="Metrics to use for evaluation.",
+        default=["mse"],
+        description="Metrics to use for evaluation. Options (regression): 'mse', 'rmse', 'mae', 'mape', 'r2'. Options (classification): 'accuracy', 'f1', 'precision', 'recall', 'auc'.",
     )
 
 

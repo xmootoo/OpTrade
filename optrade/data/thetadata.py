@@ -1443,7 +1443,7 @@ if __name__ == "__main__":
     df = load_stock_data(
         root="AAPL",
         start_date="20230101",
-        end_date="20231231",
+        end_date="20230231",
         clean_up=False,
         offline=False,
         dev_mode=True,
@@ -1452,7 +1452,7 @@ if __name__ == "__main__":
     df = load_stock_data_eod(
         root="BALL",
         start_date="20230101",
-        end_date="20231231",
+        end_date="20230231",
         clean_up=False,
         offline=False,
         dev_mode=True,

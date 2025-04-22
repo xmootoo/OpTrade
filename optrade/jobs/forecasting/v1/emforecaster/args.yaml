@@ -61,6 +61,7 @@ data:
   tte_tolerance: [15, 45]
 
   # Features
+feats:
   target_channels: ["option_returns"]
   scaling: True
   core_feats: [
@@ -101,6 +102,9 @@ data:
       "sin_hour_of_week",
       # "cos_hour_of_week",
     ]
+
+eval:
+  metrics: ["mse", "mae", "rmse", "r2", "mape"]
 
 train:
   optimizer: "adam"

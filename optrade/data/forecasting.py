@@ -99,7 +99,7 @@ class ForecastingDataset(Dataset):
             Otherwise:
                 tuple: A tuple containing (input_tensor, target_tensor)
                     - input_tensor: Lookback window of shape (num_features, seq_len).
-                    - target_tensor: Target window with shape as described above.
+                    - target_tensor: Target window with shape as described above depending on `target_type` arg.
         """
         input = self.data[idx : idx + self.seq_len]
 

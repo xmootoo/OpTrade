@@ -371,6 +371,7 @@ class Experiment:
         early_stopping: bool = False,
         patience: Optional[int] = None,
         scheduler: Optional[_LRScheduler] = None,
+        target_type: str = "multistep",
     ) -> nn.Module:
         """
             Trains a model.
@@ -484,6 +485,7 @@ class Experiment:
                     best_model_path=self.best_model_path,
                     early_stopping=early_stopping,
                     device=device,
+                    target_type=target_type,
                 )
 
             # Early stopping
@@ -543,14 +545,12 @@ class Experiment:
             device=device,
             target_type=target_type,
         )
-
-        val_loss = stats["loss"]
         self.log_stats(stats=stats, metrics=metrics, mode="val")
 
-        if best_model_metric == "loss":
-            val_metric = val_loss
-        elif best_model_metric in {"acc"}:
-            val_metric = -stats[best_model_metric]
+        if best_model_metric in {"mse", "mae", "rmse", "mape"}:
+            val_metric = stats[best_model_metric] # Minimizing metrics
+        elif best_model_metric in {"r2", "accuracy", "precision", "recall", "f1", "auc"}:
+            val_metric = -stats[best_model_metric] # Maximizing metrics
         else:
             raise ValueError(f"Invalid best model metric: {best_model_metric}")
 
@@ -682,15 +682,6 @@ class Experiment:
         for metric in metrics:
             self.print_master(f"Model {Mode} {metric}: {stats[metric]:.6f}")
             self.epoch_logger(self.logger, f"{mode}/{metric}", stats[metric])
-
-        # loss = stats["loss"]
-        # self.print_master(f"Model {Mode} Loss: {loss:.6f}")
-        # self.epoch_logger(self.logger, f"{mode}/loss", loss)
-
-        # if "mae" in metrics:
-        #     mae_value = stats["mae"]
-        #     self.print_master(f"Model {Mode} MAE: {mae_value:.6f}")
-        #     self.epoch_logger(self.logger, f"{mode}/mae", mae_value)
 
     def epoch_logger(self, logger, key: str, value: str) -> None:
         if self.logging == "neptune":
