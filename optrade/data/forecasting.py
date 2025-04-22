@@ -1,3 +1,4 @@
+from copy import deepcopy
 from pathlib import Path
 from typing import Tuple, List, Union, Optional
 from rich.console import Console
@@ -249,7 +250,7 @@ def get_forecasting_dataset(
     datetime_feats: Optional[List[str]] = None,
     keep_datetime: bool = False,
     target_type: str = "multistep",
-    clean_up: bool = True,
+    clean_up: bool = False,
     offline: bool = False,
     intraday: bool = False,
     target_channels: Optional[List[str]] = None,
@@ -312,7 +313,7 @@ def get_forecasting_dataset(
         assert pred_len is not None, "pred_len must be provided for forecasting dataset"
 
     # Save initial contracts to compare adjusted contracts later
-    initial_contracts = contract_dataset.contracts.copy()
+    initial_contracts = deepcopy(contract_dataset.contracts)
 
     # Iterate through each contract in the ContractDataset
     for contract in contract_dataset.contracts:
@@ -441,7 +442,7 @@ def get_forecasting_dataset(
                 # Remove contract from ContractDataset
                 contract_dataset.contracts.remove(contract)
 
-    # Check for duplicates in contract_dataset.contracts and remove any duplicates
+    # Remove any duplicates in contract_dataset.contracts and
     contract_dataset.contracts = list(set(contract_dataset.contracts))
 
     # If contract_dataset.contracts != initial_contracts, update the save directory
@@ -476,7 +477,7 @@ def get_forecasting_loaders(
     prefetch_factor: int = 2,
     pin_memory: bool = torch.cuda.is_available(),
     persistent_workers: bool = True,
-    clean_up: bool = True,
+    clean_up: bool = False,
     offline: bool = False,
     save_dir: Optional[str] = None,
     verbose: bool = False,
