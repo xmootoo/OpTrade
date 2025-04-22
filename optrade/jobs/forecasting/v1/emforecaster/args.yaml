@@ -11,10 +11,10 @@ exp:
   gpu_id: 0
 
 data:
-  validate_contracts: True
   download_only: True
+  offline: True
   clean_up: False
-  offline: False
+  validate_contracts: False # (DO NOT turn this on if you have pre-downloaded data)
   dev_mode: True
   patch_dim: 8
   patch_stride: -1
@@ -47,11 +47,10 @@ data:
   # shuffle: True
   # drop_last: False
 
-  # Historical Data
+contracts:
   root: "AAPL"
   start_date: "20230107"
   end_date: "20230628"
-  contract_stride: 3
   interval_min: 1
   right: "C"
   moneyness: "ATM"
@@ -59,6 +58,7 @@ data:
   volatility_scaled: False
   target_tte: 30
   tte_tolerance: [15, 45]
+  stride: 3
 
   # Features
 feats:
