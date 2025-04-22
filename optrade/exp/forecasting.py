@@ -240,70 +240,72 @@ class Experiment:
         """
 
         if download_only:
+            self.print_master("Download only mode (no experiments)")
             offline = clean_up = validate_contracts = False
-            self.print_master(f"Downloading data only without running an experiment.")
 
-        self.print_master("Generating contract datasets...")
-        (
-            self.train_contract_dataset,
-            self.val_contract_dataset,
-            self.test_contract_dataset,
-        ) = get_contract_datasets(
-            root=root,
-            start_date=start_date,
-            end_date=end_date,
-            contract_stride=contract_stride,
-            interval_min=interval_min,
-            right=right,
-            target_tte=target_tte,
-            tte_tolerance=tte_tolerance,
-            moneyness=moneyness,
-            strike_band=strike_band,
-            volatility_type=volatility_type,
-            volatility_scaled=volatility_scaled,
-            volatility_scalar=volatility_scalar,
-            train_split=train_split,
-            val_split=val_split,
-            clean_up=clean_up,
-            offline=offline,
-            save_dir=save_dir,
-            verbose=verbose,
-            dev_mode=dev_mode,
-        )
+        action = "Loading" if offline else "Generating"
+        with self.ctx.status(f"{action} contract datasets"):
+            (
+                self.train_contract_dataset,
+                self.val_contract_dataset,
+                self.test_contract_dataset,
+            ) = get_contract_datasets(
+                root=root,
+                start_date=start_date,
+                end_date=end_date,
+                contract_stride=contract_stride,
+                interval_min=interval_min,
+                right=right,
+                target_tte=target_tte,
+                tte_tolerance=tte_tolerance,
+                moneyness=moneyness,
+                strike_band=strike_band,
+                volatility_type=volatility_type,
+                volatility_scaled=volatility_scaled,
+                volatility_scalar=volatility_scalar,
+                train_split=train_split,
+                val_split=val_split,
+                clean_up=clean_up,
+                offline=offline,
+                save_dir=save_dir,
+                verbose=verbose,
+                dev_mode=dev_mode,
+            )
 
         if validate_contracts or download_only:
-            self.print_master("Validating contracts with ThetaData API...")
-            self.train_contract_dataset = get_forecasting_dataset(
-                contract_dataset=self.train_contract_dataset,
-                tte_tolerance=tte_tolerance,
-                validate_contracts=validate_contracts,
-                download_only=download_only,
-                verbose=verbose,
-                save_dir=save_dir,
-                dev_mode=dev_mode,
-            )
+            action = "Validating contracts" if validate_contracts else "Downloading data"
+            with self.ctx.status(f"{action} with ThetaData API"):
+                self.train_contract_dataset = get_forecasting_dataset(
+                    contract_dataset=self.train_contract_dataset,
+                    tte_tolerance=tte_tolerance,
+                    validate_contracts=validate_contracts,
+                    download_only=download_only,
+                    verbose=verbose,
+                    save_dir=save_dir,
+                    dev_mode=dev_mode,
+                )
 
-            self.val_contract_dataset = get_forecasting_dataset(
-                contract_dataset=self.val_contract_dataset,
-                tte_tolerance=tte_tolerance,
-                validate_contracts=validate_contracts,
-                download_only=download_only,
-                verbose=verbose,
-                save_dir=save_dir,
-                dev_mode=dev_mode,
-            )
-            self.test_contract_dataset = get_forecasting_dataset(
-                contract_dataset=self.test_contract_dataset,
-                tte_tolerance=tte_tolerance,
-                validate_contracts=validate_contracts,
-                download_only=download_only,
-                verbose=verbose,
-                save_dir=save_dir,
-                dev_mode=dev_mode,
-            )
+                self.val_contract_dataset = get_forecasting_dataset(
+                    contract_dataset=self.val_contract_dataset,
+                    tte_tolerance=tte_tolerance,
+                    validate_contracts=validate_contracts,
+                    download_only=download_only,
+                    verbose=verbose,
+                    save_dir=save_dir,
+                    dev_mode=dev_mode,
+                )
+                self.test_contract_dataset = get_forecasting_dataset(
+                    contract_dataset=self.test_contract_dataset,
+                    tte_tolerance=tte_tolerance,
+                    validate_contracts=validate_contracts,
+                    download_only=download_only,
+                    verbose=verbose,
+                    save_dir=save_dir,
+                    dev_mode=dev_mode,
+                )
 
-        if download_only:
-            return
+            if download_only:
+                return
 
         self.train_loader, self.val_loader, self.test_loader, self.scaler = (
             get_forecasting_loaders(
@@ -412,7 +414,7 @@ class Experiment:
 
         # Deep learning (PyTorch) pipeline
         num_examples = len(train_loader.dataset)
-        self.print_master(f"Training on {num_examples} examples...")
+        self.print_master(f"Training on {num_examples} examples")
 
         self.best_val_metric = float("inf")
         if early_stopping:
@@ -420,7 +422,7 @@ class Experiment:
                 patience is not None
             ), "Patience must be specified for early stopping."
             self.init_earlystopping(patience=patience, path=self.best_model_path)
-            self.print_master("Early stopping initialized.")
+            self.print_master("Early stopping initialized")
 
         # <--------------- Training --------------->
         for epoch in range(num_epochs):
