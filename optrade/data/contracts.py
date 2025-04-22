@@ -532,6 +532,7 @@ def get_contract_datasets(
     Returns:
         Training, validation, and test contract datasets.
     """
+    ctx = Console()
 
     # Volatility-based selection of strikes (Optional)
     if volatility_scaled:
@@ -567,18 +568,20 @@ def get_contract_datasets(
 
     # Offline loading (if already saved)
     if offline:
-        if not all(
-            (
-                (contract_dir / "train_contracts.pkl").exists(),
-                (contract_dir / "val_contracts.pkl").exists(),
-                (contract_dir / "test_contracts.pkl").exists(),
-            )
-        ):
-            raise FileNotFoundError(f"Missing contract files in {contract_dir}")
+        with ctx.status("Loading ContractDataset objects (offline)"):
+            if not all(
+                (
+                    (contract_dir / "train_contracts.pkl").exists(),
+                    (contract_dir / "val_contracts.pkl").exists(),
+                    (contract_dir / "test_contracts.pkl").exists(),
+                )
+            ):
+                raise FileNotFoundError(f"Missing contract files in {contract_dir}")
 
-        train_contracts = ContractDataset.load(contract_dir / "train_contracts.pkl")
-        val_contracts = ContractDataset.load(contract_dir / "val_contracts.pkl")
-        test_contracts = ContractDataset.load(contract_dir / "test_contracts.pkl")
+            train_contracts = ContractDataset.load(contract_dir / "train_contracts.pkl")
+            val_contracts = ContractDataset.load(contract_dir / "val_contracts.pkl")
+            test_contracts = ContractDataset.load(contract_dir / "test_contracts.pkl")
+
         return train_contracts, val_contracts, test_contracts
 
     # Get contiguous training, validation, and test (start_date, end_date) pairs in YYYYMMDD format
@@ -605,7 +608,6 @@ def get_contract_datasets(
     test_dates = (test_start_date, end_date)
 
     # Create the training, validation, and test contract datasets
-    ctx = Console()
     ctx.log("------------CREATING TRAINING CONTRACTS------------") if verbose else None
     train_contracts = ContractDataset(
         root=root,

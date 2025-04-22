@@ -446,6 +446,8 @@ def get_forecasting_dataset(
 
     # If contract_dataset.contracts != initial_contracts, update the save directory
     if set(contract_dataset.contracts) != set(initial_contracts):
+        if verbose:
+            ctx.log("Removing old (invalid) contracts & saving new contracts")
         contract_dataset.save(clean_file=True)
 
     if download_only or validate_contracts:
