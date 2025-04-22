@@ -1390,7 +1390,7 @@ def load_all_data(
 
 if __name__ == "__main__":
     # Test: get_strikes, get_expirations, get_roots
-    clean_up = True
+    clean_up = False
     offline = False
 
     df1 = get_strikes(
