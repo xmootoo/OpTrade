@@ -53,7 +53,7 @@ contracts:
   root: "AAPL"
   start_date: "20230107"
   end_date: "20231228"
-  interval_min: 5
+  interval_min: 1
   right: "C"
   moneyness: "ATM"
   strike_band: 0.05
