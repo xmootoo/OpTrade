@@ -312,7 +312,7 @@ def find_optimal_exp(
     start_date: str,
     target_tte: int,
     tte_tolerance: Tuple[int, int],
-    clean_up: bool = True,
+    clean_up: bool = False,
     dev_mode: bool = False,
 ) -> Tuple[Optional[str], Optional[int]]:
     """
