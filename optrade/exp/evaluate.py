@@ -84,7 +84,7 @@ def get_metrics(
             i+=1
         if "r2" in metrics:
             results[i] = r2_score(target, output)
-            results_key.append("r^2")
+            results_key.append("r2")
             i+=1
 
     # Classification metrics

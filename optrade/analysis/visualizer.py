@@ -46,7 +46,7 @@ class Analyzer:
             period_interval (int): If period="daily", period_interval represents the number of minutes to group by.
             model: Model object (PyTorch or scikit-learn)
             dataset: ForecastingDataset or numpy array of time series data
-            metrics (List[str]): List of metrics to calculate ("mse", "mae", "rmse", "mape", "r^2")
+            metrics (List[str]): List of metrics to calculate ("mse", "mae", "rmse", "mape", "r2")
             batch_size (int): Batch size for DataLoader
             x_axis (str): Label for x-axis
             y_axis (str): Label for y-axis
@@ -265,14 +265,14 @@ class Analyzer:
                 * np.abs(preds - targets)
                 / (np.abs(preds) + np.abs(targets) + epsilon)
             )
-        if "r^2" in metrics:
+        if "r2" in metrics:
             ssr = ((preds - targets) ** 2).sum()
             sst = ((targets - targets.mean()) ** 2).sum()
-            metric_values["r^2"] = 1 - ssr / sst
+            metric_values["r2"] = 1 - ssr / sst
 
         assert (
             len(metric_values) > 0
-        ), f"Invalid metrics: {metrics}. Supported metrics: mse, mae, rmse, mape, r^2"
+        ), f"Invalid metrics: {metrics}. Supported metrics: mse, mae, rmse, mape, r2"
 
         return metric_values
 
@@ -675,7 +675,7 @@ if __name__ == "__main__":
         period_interval=5,
         model=model,
         dataset=torch_dataset,
-        metrics=["mse", "mae", "r^2", "mape"],
+        metrics=["mse", "mae", "r2", "mape"],
         batch_size=128,
         x_axis="Time (min)",
         y_axis="MSE & MAE",

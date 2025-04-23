@@ -220,7 +220,7 @@ model = exp.train(
 exp.test(
     model=model,
     criterion=criterion,
-    metrics=["loss"],                  # Metrics to compute
+    metrics=["mse"],                  # Metrics to compute
     device=device,                     # Computing device (CPU/GPU)
 )
 exp.save_logs() # Save experiment logs to disk

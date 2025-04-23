@@ -376,7 +376,7 @@ class Experiment:
         device=None,
         train_loader: Optional[DataLoader] = None,
         val_loader: Optional[DataLoader] = None,
-        metrics: List[str] = ["loss"],
+        metrics: List[str] = ["mse"],
         best_model_path: Optional[str] = None,
         early_stopping: bool = False,
         patience: Optional[int] = None,
@@ -523,8 +523,8 @@ class Experiment:
         val_loader: DataLoader,
         criterion: nn.Module,
         device,
-        best_model_metric: str = "loss",
-        metrics: List[str] = ["loss"],
+        best_model_metric: str = "mse",
+        metrics: List[str] = ["mse"],
         epoch: Optional[int] = None,
         best_model_path: Optional[str] = None,
         early_stopping: Optional[bool] = False,
@@ -569,10 +569,9 @@ class Experiment:
             self.early_stopping(val_metric, model)
         else:
             if val_metric < self.best_val_metric:
-                if best_model_metric == "loss":
-                    self.print_master(
-                        f"Validation loss decreased ({self.best_val_metric:.6f} --> {val_metric:.6f})."
-                    )
+                self.print_master(
+                    f"Validation {best_model_metric} decreased ({self.best_val_metric:.6f} --> {val_metric:.6f})."
+                )
                 path_dir = Path(best_model_path).parent.absolute()
                 if not path_dir.is_dir():
                     path_dir.mkdir(parents=True)
@@ -690,7 +689,7 @@ class Experiment:
         Mode = modes[mode]
 
         for metric in metrics:
-            self.print_master(f"Model {Mode} {metric}: {stats[metric]:.6f}")
+            self.print_master(f"{Mode} {metric}: {stats[metric]:.6f}")
             self.epoch_logger(self.logger, f"{mode}/{metric}", stats[metric])
 
     def epoch_logger(self, logger, key: str, value: str) -> None:
