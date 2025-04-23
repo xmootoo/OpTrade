@@ -204,7 +204,7 @@ def get_combined_dataset(
     tte_feats: list,
     datetime_feats: list,
     tte_tolerance: Tuple[int, int],
-    clean_up: bool = True,
+    clean_up: bool = False,
     offline: bool = False,
     intraday: bool = False,
     target_channels: list=[0],
