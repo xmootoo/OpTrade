@@ -57,10 +57,10 @@ def grid_search(job_name: str) -> None:
     # Generate all combinations of ablations
     ablation_combinations = generate_ablation_combinations(ablation_config)
 
-    # # Run each ablation
-    # for i, ablation in enumerate(ablation_combinations):
-    #     ctx.log(f"Running ablation {i}: {ablation}")
-    #     run_job(job_name=job_name, ablation=ablation, ablation_id=i)
+    # Run each ablation
+    for i, ablation in enumerate(ablation_combinations):
+        ctx.log(f"Running ablation {i}: {ablation}")
+        run_job(job_name=job_name, ablation=ablation, ablation_id=i)
 
 
 if __name__ == "__main__":
