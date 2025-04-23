@@ -4,15 +4,15 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 # Layers and models
-from optrade.pytorch.models.dlinear import Model as DLinear
-from optrade.pytorch.models.tsmixer import Model as TSMixer
+from optrade.models.pytorch.dlinear import Model as DLinear
+from optrade.models.pytorch.tsmixer import Model as TSMixer
 
 # Weight initialization
-from optrade.pytorch.utils.weight_init import xavier_init
+from optrade.models.utils.weight_init import xavier_init
 
 # Util Layers
-from optrade.pytorch.utils.revin import RevIN
-from optrade.pytorch.utils.patcher import Patcher
+from optrade.models.utils.revin import RevIN
+from optrade.models.utils.patcher import Patcher
 
 
 class Model(nn.Module):
