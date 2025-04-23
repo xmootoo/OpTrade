@@ -190,12 +190,12 @@ class Universe:
         if self.verbose:
             self.ctx.log(f"Universe roots set to: {self.roots}")
 
-    def get_fundamentals(self) -> None:
+    def get_market_metrics(self) -> None:
         """
-        Retrieves fundamental data for each stock in candidate_roots using yfinance.
+        Retrieves market metrics data for each stock in candidate_roots from various sources.
         Only includes metrics that are specified in the filter criteria.
         """
-        self.fundamentals = dict()
+        self.market_metrics = dict()
 
         # Assert that roots is an attribute of self and is not empty
         assert (
@@ -203,7 +203,7 @@ class Universe:
         ), "No roots available. Run set_candidate_roots() first."
 
         for root in self.roots:
-            fundamental_data = {}
+            market_metric_data = {}
             info = yf.Ticker(root).info
 
             # Only calculate volatility if the filter is set
@@ -216,7 +216,7 @@ class Universe:
                         clean_up=True,
                         offline=False,
                     )["close"].pct_change().std() * (252**0.5)
-                    fundamental_data["volatility"] = volatility
+                    market_metric_data["volatility"] = volatility
                 except:
                     volatility = None
 
@@ -233,26 +233,26 @@ class Universe:
                 and info.get("dividendYield") * 100,
             }
 
-            # Add each metric to fundamental_data only if it should be included
+            # Add each metric to market_metric_data only if it should be included
             for key, value in factor_map.items():
                 if (
                     value
                 ):  # This will be false if either the filter is None or the value is None/falsy
-                    fundamental_data[key] = value
+                    market_metric_data[key] = value
 
             # If any values are None (i.e. the stock doesn't have that metric), don't add it to the dictionary
-            if all(fundamental_data.values()):
-                self.fundamentals[root] = fundamental_data
+            if all(market_metric_data.values()):
+                self.market_metrics[root] = market_metric_data
                 if self.verbose:
-                    self.ctx.log(f"Fundamental data for {root}: {fundamental_data}")
+                    self.ctx.log(f"Market metric data for {root}: {market_metric_data}")
             else:
                 if self.verbose:
-                    # Find out which fundamental is missing
-                    missing_fundamentals = [
-                        key for key, value in fundamental_data.items() if value is None
+                    # Find out which metrics are missing
+                    missing_metrics = [
+                        key for key, value in market_metric_data.items() if value is None
                     ]
                     self.ctx.log(
-                        f"Missing fundamental data for {root}: {missing_fundamentals}"
+                        f"Missing market metric data for {root}: {missing_metrics}"
                     )
                 self.roots.remove(root)
 
@@ -287,9 +287,9 @@ class Universe:
             factors=self.factor_exposures, mode=self.factor_mode
         )
 
-        # Update the fundamentals with the factor categories
+        # Update the market metrics with factor categories
         for root in self.roots:
-            self.fundamentals[root].update(factor_categories[root])
+            self.market_metrics[root].update(factor_categories[root])
             if self.verbose:
                 table = Table(title=f"Factor exposures for {root}")
                 table.add_column("Factor")
@@ -301,9 +301,9 @@ class Universe:
     # Helper function to get percentiles for a given metric
     def get_percentiles(self, metric, bins=3):
         values = [
-            self.fundamentals[root].get(metric)
+            self.market_metrics[root].get(metric)
             for root in self.roots
-            if root in self.fundamentals and metric in self.fundamentals[root]
+            if root in self.market_metrics and metric in self.market_metrics[root]
         ]
         values = [v for v in values if v is not None]
 
@@ -333,10 +333,10 @@ class Universe:
 
         result = []
         for root in filtered_roots:
-            if root not in self.fundamentals or metric not in self.fundamentals[root]:
+            if root not in self.market_metrics or metric not in self.market_metrics[root]:
                 continue
 
-            value = self.fundamentals[root][metric]
+            value = self.market_metrics[root][metric]
             if level_value == "low" and value <= percentiles[0]:
                 result.append(root)
             elif level_value == "medium" and percentiles[0] < value <= percentiles[1]:
@@ -359,10 +359,10 @@ class Universe:
 
         result = []
         for root in filtered_roots:
-            if root not in self.fundamentals or metric not in self.fundamentals[root]:
+            if root not in self.market_metrics or metric not in self.market_metrics[root]:
                 continue
 
-            value = self.fundamentals[root][metric]
+            value = self.market_metrics[root][metric]
             if level_value == "very_low" and value <= percentiles[0]:
                 result.append(root)
             elif level_value == "low" and percentiles[0] < value <= percentiles[1]:
@@ -386,9 +386,9 @@ class Universe:
         result = []
         for root in filtered_roots:
             if (
-                root in self.fundamentals
-                and metric in self.fundamentals[root]
-                and str(self.fundamentals[root][metric]).lower()
+                root in self.market_metrics
+                and metric in self.market_metrics[root]
+                and str(self.market_metrics[root][metric]).lower()
                 == str(category_value).lower()
             ):
                 result.append(root)
@@ -402,8 +402,8 @@ class Universe:
         - For FiveFactorLevel: 'very_low' (0-20%), 'low' (20-40%), 'medium' (40-60%), 'high' (60-80%), 'very_high' (80-100%)
         """
 
-        if not self.fundamentals:
-            print("No fundamental data available. Run get_fundamentals() first.")
+        if not self.market_metrics:
+            print("No market metric data available. Run get_market_metrics() first.")
             return
 
         # Create a copy of roots to filter
@@ -458,7 +458,7 @@ class Universe:
 
                 result = []
                 for root in starting_roots:
-                    if self.fundamentals[root][metric] == desired_category:
+                    if self.market_metrics[root][metric] == desired_category:
                         result.append(root)
 
                 return result
@@ -719,7 +719,7 @@ if __name__ == "__main__":
         verbose=True,
     )
     universe.set_candidate_roots()  # Fetch index constituents
-    universe.get_fundamentals()  # Fetch fundamental data
+    universe.get_market_metrics()  # Fetch market metric data
 
     # Filter the universe for stocks with low debt-to-equity and high market cap
     universe.filter_universe()
