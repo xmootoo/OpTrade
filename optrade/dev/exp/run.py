@@ -63,7 +63,8 @@ def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
         offline=args.data.offline,
         save_dir=args.data.save_dir,
         verbose=args.data.verbose,
-        validate_contracts=args.data.validate_contracts,
+        validate_contracts=args.contracts.validate,
+        modify_contracts=args.contracts.modify,
         dev_mode=args.data.dev_mode,
         download_only=args.data.download_only,
     )
