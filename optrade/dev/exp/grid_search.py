@@ -10,7 +10,6 @@ from optrade.main import run_job
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-
 def load_ablation_config(file_path: Path) -> Dict[str, List[Any]]:
     with open(file_path, "r") as file:
         config = yaml.safe_load(file)
@@ -41,18 +40,18 @@ def grid_search(job_name: str) -> None:
     args = load_config(args_path)
 
     if args.exp.parent is not None:
-        parent_path = base_path / "parent" / args.exp.parent / "ablation.yaml"
-        parent_ablation_config = load_ablation_config(parent_path)
+        with ctx.status(f"Adjusting ablation config according to parent: {args.exp.parent}..."):
+            parent_path = base_path / "parent" / args.exp.parent / "ablation.yaml"
+            parent_ablation_config = load_ablation_config(parent_path)
 
-        original_ablation_config = ablation_config.copy()
+            original_ablation_config = ablation_config.copy()
 
-        # Merge parent ablation config with current ablation config
-        for key, value in parent_ablation_config.items():
-            ablation_config[key] = value
+            # Merge parent ablation config with current ablation config
+            for key, value in parent_ablation_config.items():
+                ablation_config[key] = value
 
-        print(f"Original ablation config: {original_ablation_config}")
-        print(f"Updated ablation config: {ablation_config}")
-        return
+    ctx.log(f"Original ablation config: {original_ablation_config}")
+    ctx.log(f"Updated ablation config: {ablation_config}")
 
     # Generate all combinations of ablations
     ablation_combinations = generate_ablation_combinations(ablation_config)
@@ -61,7 +60,6 @@ def grid_search(job_name: str) -> None:
     for i, ablation in enumerate(ablation_combinations):
         ctx.log(f"Running ablation {i}: {ablation}")
         run_job(job_name=job_name, ablation=ablation, ablation_id=i)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
