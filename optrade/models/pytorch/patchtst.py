@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from optrade.pytorch.utils.utils import Norm
-from optrade.pytorch.utils.utils import Reshape
-from optrade.pytorch.utils.revin import RevIN
-from optrade.pytorch.utils.patcher import Patcher
-from optrade.pytorch.utils.pos_enc import PositionalEncoding
-from optrade.pytorch.utils.weight_init import xavier_init
+from optrade.models.utils.utils import Norm
+from optrade.models.utils.utils import Reshape
+from optrade.models.utils.revin import RevIN
+from optrade.models.utils.patcher import Patcher
+from optrade.models.utils.pos_enc import PositionalEncoding
+from optrade.models.utils.weight_init import xavier_init
 
 from typing import Optional, List
 

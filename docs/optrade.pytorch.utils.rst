@@ -1,45 +1,45 @@
-optrade.pytorch.utils
+optrade.models.utils
 ===========================
 
 
 ----------
 
-optrade.pytorch.utils.patcher
+optrade.models.utils.patcher
 ----------------------------------
 
-.. automodule:: optrade.pytorch.utils.patcher
+.. automodule:: optrade.models.utils.patcher
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.pytorch.utils.pos\_enc
+optrade.models.utils.pos\_enc
 -----------------------------------
 
-.. automodule:: optrade.pytorch.utils.pos_enc
+.. automodule:: optrade.models.utils.pos_enc
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.pytorch.utils.revin
+optrade.models.utils.revin
 --------------------------------
 
-.. automodule:: optrade.pytorch.utils.revin
+.. automodule:: optrade.models.utils.revin
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.pytorch.utils.utils
+optrade.models.utils.utils
 --------------------------------
 
-.. automodule:: optrade.pytorch.utils.utils
+.. automodule:: optrade.models.utils.utils
    :members:
    :show-inheritance:
    :undoc-members:
 
-optrade.pytorch.utils.weight\_init
+optrade.models.utils.weight\_init
 ---------------------------------------
 
-.. automodule:: optrade.pytorch.utils.weight_init
+.. automodule:: optrade.models.utils.weight_init
    :members:
    :show-inheritance:
    :undoc-members:
@@ -47,7 +47,7 @@ optrade.pytorch.utils.weight\_init
 Module contents
 ---------------
 
-.. automodule:: optrade.pytorch.utils
+.. automodule:: optrade.models.utils
    :members:
    :show-inheritance:
    :undoc-members:

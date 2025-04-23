@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from optrade.pytorch.utils.weight_init import xavier_init
-from optrade.pytorch.utils.revin import RevIN
-from optrade.pytorch.utils.utils import Reshape
+from optrade.models.utils.weight_init import xavier_init
+from optrade.models.utils.revin import RevIN
+from optrade.models.utils.utils import Reshape
 
 from typing import Optional
 

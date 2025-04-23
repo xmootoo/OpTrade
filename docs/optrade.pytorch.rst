@@ -4,8 +4,8 @@ optrade.pytorch
 .. toctree::
    :maxdepth: 4
 
-   optrade.pytorch.models
-   optrade.pytorch.utils
+   optrade.models.pytorch
+   optrade.models.utils
 
 Module contents
 ---------------

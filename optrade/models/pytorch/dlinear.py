@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from optrade.pytorch.utils.revin import RevIN
+from optrade.models.utils.revin import RevIN
 
 from typing import Optional
 
