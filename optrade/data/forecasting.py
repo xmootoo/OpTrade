@@ -259,6 +259,7 @@ def get_forecasting_dataset(
     save_dir: Optional[str] = None,
     download_only: bool = False,
     validate_contracts: bool = False,
+    modify_contracts: bool = False,
     verbose: bool = False,
     warning: bool = True,
     dev_mode: bool = False,
@@ -285,6 +286,7 @@ def get_forecasting_dataset(
         save_dir: Save directory
         download_only: Whether to download data only (used mainly for Universe class)
         validate_contracts: Whether to validate contracts by requesting data from ThetaData API and adjustintg start and end dates if necessary.
+        modify_contracts: Whether to delete old contracts .pkl file and save the (new) validate contracts in the same path. Warning: This will overwrite the old contracts.
         verbose: Whether to print verbose output
         warning: Whether to print verbose DataValidationError statements as warnings or errors.
         dev_mode: Whether to run in development mode.
@@ -487,10 +489,10 @@ def get_forecasting_dataset(
 
     # Save contract changes if needed
     contracts_changed = set(validated_contracts) != set(initial_contracts)
-    if contracts_changed:
+    if contracts_changed and modify_contracts:
         if verbose:
             ctx.log(f"Contract changes detected: {len(removed_contracts)} removed, {len(updated_contracts)} updated/added")
-            ctx.log("Saving updated contract dataset")
+            ctx.log("Saving and overwriting ContractDataset .pkl file")
         contract_dataset.save(clean_file=True)
 
     if download_only or validate_contracts:
