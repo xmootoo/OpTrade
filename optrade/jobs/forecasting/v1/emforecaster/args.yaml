@@ -7,6 +7,7 @@ exp:
   seed: 54930
   mae: True
   task: "forecasting"
+  best_model_metric: "mse"
   neptune: False
   gpu_id: 0
 
