@@ -414,7 +414,7 @@ def transform_features(
         assert exp is not None, "Expiration date is required for TTE feature generation"
         df = tte_features(df=df, feats=tte_feats, exp=exp)
 
-    if "option_returns" or "log_option_returns" in core_feats:
+    if "option_returns" in core_featrs or "log_option_returns" in core_feats:
         # Calculate option price returns and add to dataframe
         prices = df["option_mid_price"].to_numpy()
         returns = np.zeros_like(prices)
