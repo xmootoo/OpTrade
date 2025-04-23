@@ -497,7 +497,7 @@ def get_contract_datasets(
     volatility_scalar: Optional[float] = 1.0,
     train_split: float = 0.7,
     val_split: float = 0.1,
-    clean_up: bool = True,
+    clean_up: bool = False,
     offline: bool = False,
     save_dir: Optional[str] = None,
     verbose: bool = False,
@@ -536,16 +536,17 @@ def get_contract_datasets(
 
     # Volatility-based selection of strikes (Optional)
     if volatility_scaled:
+        ctx.log(f"Using volatility-scaled strike selection with {volatility_type} type")
         hist_vol = get_train_historical_vol(
             root=root,
             start_date=start_date,
             end_date=end_date,
             interval_min=interval_min,
-            volatility_window=train_split,  # Use the ONLY training data to compute historical volatility (prevent data leakage)
+            volatility_window=train_split,  # Use the only training data to compute historical volatility
             volatility_type=volatility_type,
         )
     else:
-        hist_vol = None
+        hist_vol = 0.0
 
     contract_dir = set_contract_dir(
         SCRIPT_DIR=SCRIPT_DIR,
