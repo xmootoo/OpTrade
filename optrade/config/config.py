@@ -164,10 +164,6 @@ class Data(BaseModel):
         default=None, description="Directory to save the data."
     )
     verbose: bool = Field(default=False, description="Verbose print for data loading.")
-    validate_contracts: bool = Field(
-        default=False,
-        description="Whether to validate the contracts in the dataset.",
-    )
     dev_mode: bool = Field(
         default=False,
         description="Whether to use development mode (uses specific directory management for saving and loading data).",
@@ -261,6 +257,14 @@ class Contracts(BaseModel):
     stride: int = Field(
         default=5,
         description="Stride length used to select multiple contracts at different dates",
+    )
+    validate: bool = Field(
+        default=False,
+        description="Whether to validate the contracts in the dataset.",
+    )
+    modify: bool = Field(
+        default=False,
+        description="Whether to modify and overwite contracts .pkl files if any contracts are invalid.",
     )
 
 

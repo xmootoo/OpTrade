@@ -819,6 +819,7 @@ def get_forecasting_loaders(
     scaling: bool = False,
     intraday: bool = False,
     dtype: str = "float32",
+    modify_contracts: bool = False,
     warning: bool = True,
     dev_mode: bool = False,
 ) -> Union[
@@ -849,6 +850,7 @@ def get_forecasting_loaders(
         clean_up: Whether to clean up the data after use
         offline: Whether to load saved contracts from disk
         save_dir: Directory to save/load processed datasets
+        modify_contracts: Whether to modify contracts if they are invalid in get_forecasting_dataset function calls.
         verbose: Whether to print verbose output
         scaling: Whether to normalize the datasets
         intraday: Whether to use intraday data
@@ -877,6 +879,7 @@ def get_forecasting_loaders(
         intraday=intraday,
         target_channels=target_channels,
         dtype=dtype,
+        modify_contracts=modify_contracts,
         save_dir=save_dir,
         verbose=verbose,
         warning=warning,
@@ -898,6 +901,7 @@ def get_forecasting_loaders(
         intraday=intraday,
         target_channels=target_channels,
         dtype=dtype,
+        modify_contracts=modify_contracts,
         save_dir=save_dir,
         verbose=verbose,
         warning=warning,
@@ -918,6 +922,7 @@ def get_forecasting_loaders(
         intraday=intraday,
         target_channels=target_channels,
         dtype=dtype,
+        modify_contracts=modify_contracts,
         save_dir=save_dir,
         verbose=verbose,
         warning=warning,

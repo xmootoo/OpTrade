@@ -22,6 +22,7 @@ from optrade.data.forecasting import get_forecasting_dataset, get_forecasting_lo
 from optrade.utils.train import EarlyStopping
 from optrade.utils.misc import format_time_dynamic, generate_random_id
 from optrade.exp.evaluate import get_metrics
+from optrade.data.universe import Universe
 
 warnings.filterwarnings(
     "ignore", message="h5py not installed, hdf5 features will not be supported."
@@ -189,6 +190,7 @@ class Experiment:
         save_dir: Optional[str] = None,
         verbose: bool = False,
         validate_contracts: bool = True,
+        modify_contracts: bool = False,
         dev_mode: bool = False,
         download_only: bool = False,
     ) -> None:
@@ -212,6 +214,7 @@ class Experiment:
             volatility_scaled: Whether to scale strike selection by the volatility.
             volatility_scalar: The scalar to multiply the volatility.
             validate_contracts: Whether to validate contracts by requesting the data from ThetaData API.
+            modify_contracts: Whether to overwite contracts .pkl files if certain contracts are invalid.
             seq_len: The sequence length of the lookback widow.
             pred_len: The prediction length of the forecast window.
             scaling: Whether to apply normalization.
@@ -242,6 +245,7 @@ class Experiment:
         if download_only:
             self.print_master("Download only mode (no experiments)")
             offline = clean_up = validate_contracts = False
+            modify_contracts = True
 
         action = "Loading" if offline else "Generating"
         with self.ctx.status(f"{action} contract datasets"):
@@ -276,14 +280,26 @@ class Experiment:
         self.ctx.log(f"Validation contracts:{len(self.val_contract_dataset)}")
         self.ctx.log(f"Validation contracts:{len(self.test_contract_dataset)}")
 
+        # Warning: this will overwite existing contract .pkl files
+        if not modify_contracts:
+            self.ctx.log(
+                "Safe mode enabled (modify_contracts=False): contracts will not be modified."
+            )
+        else:
+            self.ctx.log(
+                "Warning (modify_contracts=True): contracts will be overwritten if invalid."
+            )
+
         if validate_contracts or download_only:
             action = "Validating contracts" if validate_contracts else "Downloading data"
-            with self.ctx.status(f"{action} with ThetaData API"):
+
+            with self.ctx.status(f"{action} with ThetaData API..."):
                 self.train_contract_dataset = get_forecasting_dataset(
                     contract_dataset=self.train_contract_dataset,
                     tte_tolerance=tte_tolerance,
                     validate_contracts=validate_contracts,
                     download_only=download_only,
+                    modify_contracts=modify_contracts,
                     verbose=verbose,
                     save_dir=save_dir,
                     dev_mode=dev_mode,
@@ -294,6 +310,7 @@ class Experiment:
                     tte_tolerance=tte_tolerance,
                     validate_contracts=validate_contracts,
                     download_only=download_only,
+                    modify_contracts=modify_contracts,
                     verbose=verbose,
                     save_dir=save_dir,
                     dev_mode=dev_mode,
@@ -303,6 +320,7 @@ class Experiment:
                     tte_tolerance=tte_tolerance,
                     validate_contracts=validate_contracts,
                     download_only=download_only,
+                    modify_contracts=modify_contracts,
                     verbose=verbose,
                     save_dir=save_dir,
                     dev_mode=dev_mode,
@@ -341,6 +359,7 @@ class Experiment:
                 save_dir=save_dir,
                 verbose=verbose,
                 scaling=scaling,
+                modify_contracts=modify_contracts,
                 intraday=False,
                 dtype=dtype,
                 dev_mode=dev_mode,
@@ -683,6 +702,12 @@ class Experiment:
             stats[metric] = total_metrics[i] / num_examples
 
         return stats
+
+    def universe_categorize(
+        self,
+        universe: Universe,
+    ) -> None:
+        pass
 
     def log_stats(self, stats: dict, metrics: List[str], mode: str):
         modes = {"val": "Validation", "test": "Test"}

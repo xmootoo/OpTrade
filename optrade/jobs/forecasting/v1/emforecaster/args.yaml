@@ -15,7 +15,6 @@ data:
   download_only: False
   offline: True
   clean_up: False
-  validate_contracts: False # (DO NOT turn this on if you have pre-downloaded data)
   dev_mode: True
   patch_dim: 8
   patch_stride: -1
@@ -49,6 +48,8 @@ data:
   # drop_last: False
 
 contracts:
+  validate: False # Use if not using pre-downloaded data
+  modify: False # DO NOT turn this on if you have pre-downloaded data (it may delete .pkl files erroneously)
   root: "AAPL"
   start_date: "20230107"
   end_date: "20231228"
