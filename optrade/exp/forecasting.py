@@ -272,6 +272,10 @@ class Experiment:
                 dev_mode=dev_mode,
             )
 
+        self.ctx.log(f"Train contracts: {len(self.train_contract_dataset)}")
+        self.ctx.log(f"Validation contracts:{len(self.val_contract_dataset)}")
+        self.ctx.log(f"Validation contracts:{len(self.test_contract_dataset)}")
+
         if validate_contracts or download_only:
             action = "Validating contracts" if validate_contracts else "Downloading data"
             with self.ctx.status(f"{action} with ThetaData API"):
@@ -303,6 +307,10 @@ class Experiment:
                     save_dir=save_dir,
                     dev_mode=dev_mode,
                 )
+
+            self.ctx.log(f"Train contracts (validated): {len(self.train_contract_dataset)}")
+            self.ctx.log(f"Validation contracts (validated):{len(self.val_contract_dataset)}")
+            self.ctx.log(f"Validation contracts (validated):{len(self.test_contract_dataset)}")
 
             if download_only:
                 return

@@ -50,7 +50,7 @@ data:
 contracts:
   root: "AAPL"
   start_date: "20230107"
-  end_date: "20230628"
+  end_date: "20231228"
   interval_min: 1
   right: "C"
   moneyness: "ATM"
