@@ -11,7 +11,7 @@ exp:
   gpu_id: 0
 
 data:
-  download_only: True
+  download_only: False
   offline: True
   clean_up: False
   validate_contracts: False # (DO NOT turn this on if you have pre-downloaded data)
@@ -64,7 +64,7 @@ contracts:
 feats:
   target_channels: ["option_returns"]
   scaling: True
-  core_feats: [
+  core: [
       "option_returns",
       "stock_returns",
       # "distance_to_strike",
@@ -90,13 +90,13 @@ feats:
     ]
 
   # TTE features
-  tte_feats: [
+  tte: [
       "sqrt",
       # "exp_decay"
     ]
 
   # Datetime features
-  datetime_feats: [
+  datetime: [
       "sin_minute_of_day",
       # "cos_minute_of_day",
       "sin_hour_of_week",
