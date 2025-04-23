@@ -21,8 +21,8 @@ data:
   patch_stride: -1
   window_stride: 1
   dtype: "float32"
-  seq_len: 32
-  pred_len: 4
+  seq_len: 30
+  pred_len: 6
   train_split: 0.33
   val_split: 0.33
   num_channels: 1
@@ -52,7 +52,7 @@ contracts:
   root: "AAPL"
   start_date: "20230107"
   end_date: "20231228"
-  interval_min: 1
+  interval_min: 5
   right: "C"
   moneyness: "ATM"
   strike_band: 0.05
