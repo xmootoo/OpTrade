@@ -12,4 +12,4 @@ dist/
 .read
 requirements.in
 docs/_build/
-optrade_venv/
+venv/
