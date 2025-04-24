@@ -51,8 +51,10 @@ class Universe:
         profitability_beta: Optional[str] = None,
         investment_beta: Optional[str] = None,
         momentum_beta: Optional[str] = None,
+        all_metrics: bool = False,
         save_dir: Optional[str] = None,
         verbose: bool = False,
+        dev_mode: bool = False,
     ) -> None:
         """A class for defining the universe of stocks and options for data retrieval and analysis.
 
@@ -98,8 +100,10 @@ class Universe:
                 Options: 'conservative', 'aggressive', 'neutral'. Based on 30th and 70th percentiles of beta from the candidate universe.
             momentum_beta: (str, optional): The momentum beta of the stock used in Carhart 4-Factor model.
                 Options: 'high', 'low', 'neutral'. Based on 30th and 70th percentiles of beta from the candidate universe.
+            all_metrics (bool): If True, computes all metrics to the candidate universe. Default is False.
             save_dir (str, optional): Directory to save the contract datasets and raw data.
             verbose (bool): Whether to print verbose output. Default is False.
+            dev_mode (bool): If True, enables development mode specific data directory management. Default is False.
         """
 
         # Date range for data retrieval
@@ -149,9 +153,33 @@ class Universe:
             self.factor_mode = None
 
         # Directory and logging
+        self.all_metrics = all_metrics
         self.save_dir = save_dir
         self.verbose = verbose
+        self.dev_mode = dev_mode
         self.ctx = Console()
+
+        # Set all metrics to not None
+        if all_metrics:
+            # Set all fundamental metrics to 'all' (or other appropriate default)
+            self.volatility = 'all' if self.volatility is None else self.volatility
+            self.pe_ratio = 'all' if self.pe_ratio is None else self.pe_ratio
+            self.debt_to_equity = 'all' if self.debt_to_equity is None else self.debt_to_equity
+            self.beta = 'all' if self.beta is None else self.beta
+            self.market_cap = 'all' if self.market_cap is None else self.market_cap
+            self.dividend_yield = 'all' if self.dividend_yield is None else self.dividend_yield
+            self.earnings_volatility = 'all' if self.earnings_volatility is None else self.earnings_volatility
+
+            # Set all Fama French factors to 'all' (or other appropriate default)
+            self.market_beta = 'all' if self.market_beta is None else self.market_beta
+            self.size_beta = 'all' if self.size_beta is None else self.size_beta
+            self.value_beta = 'all' if self.value_beta is None else self.value_beta
+            self.profitability_beta = 'all' if self.profitability_beta is None else self.profitability_beta
+            self.investment_beta = 'all' if self.investment_beta is None else self.investment_beta
+            self.momentum_beta = 'all' if self.momentum_beta is None else self.momentum_beta
+
+            # Factor mode should be set to the most comprehensive option
+            self.factor_mode = 'c4'  # Carhart 4-factor model includes all factor
 
     def set_candidate_roots(self) -> None:
         """
@@ -223,14 +251,11 @@ class Universe:
             # Add other metrics only if their corresponding filter is set
             factor_map = {
                 "pe_ratio": self.pe_ratio is not None and info.get("trailingPE"),
-                "debt_to_equity": self.debt_to_equity is not None
-                and info.get("debtToEquity"),
+                "debt_to_equity": self.debt_to_equity is not None and info.get("debtToEquity"),
                 "beta": self.beta is not None and info.get("beta"),
                 "market_cap": self.market_cap is not None and info.get("marketCap"),
-                "sector": self.sector is not None and info.get("sector").lower(),
-                "industry": self.industry is not None and info.get("industry").lower(),
-                "dividend_yield": self.dividend_yield is not None
-                and info.get("dividendYield") * 100,
+                "dividend_yield": self.dividend_yield is not None and
+                                 (info.get("dividendYield") * 100 if info.get("dividendYield") is not None else None),
             }
 
             # Add each metric to market_metric_data only if it should be included
@@ -395,7 +420,7 @@ class Universe:
 
         return result
 
-    def filter_universe(self) -> None:
+    def filter(self) -> None:
         """
         Filters the universe of stocks based on the specified criteria.
         - For ThreeFactorLevel: 'low' (0-33%), 'medium' (33-66%), 'high' (66-100%)
@@ -403,8 +428,13 @@ class Universe:
         """
 
         if not self.market_metrics:
-            print("No market metric data available. Run get_market_metrics() first.")
+            self.ctx.log("No market metric data available. Run get_market_metrics() first.")
             return
+
+        if self.all_metrics:
+            self.roots = self.candidate_roots
+            return
+
 
         # Create a copy of roots to filter
         starting_roots = self.roots.copy()
@@ -504,7 +534,6 @@ class Universe:
         volatility_type: Optional[str] = "period",
         volatility_scaled: bool = False,
         volatility_scalar: Optional[float] = None,
-        dev_mode: bool = False,
     ) -> None:
         """
         Downloads options contract datasets and market data for the filtered universe of stocks. To be used in conjunction with
@@ -563,7 +592,7 @@ class Universe:
                     offline=False,  # Set to False to download data
                     save_dir=self.save_dir,
                     verbose=self.verbose,
-                    dev_mode=dev_mode,
+                    dev_mode=self.dev_mode,
                 )
             )
 
@@ -572,25 +601,28 @@ class Universe:
                 contract_dataset=train_contract_dataset,
                 tte_tolerance=tte_tolerance,
                 download_only=True,
+                modify_contracts=True,
                 verbose=self.verbose,
                 save_dir=self.save_dir,
-                dev_mode=dev_mode,
+                dev_mode=self.dev_mode,
             )
             updated_val_contract_dataset = get_forecasting_dataset(
                 contract_dataset=val_contract_dataset,
                 tte_tolerance=tte_tolerance,
                 download_only=True,
+                modify_contracts=True,
                 verbose=self.verbose,
                 save_dir=self.save_dir,
-                dev_mode=dev_mode,
+                dev_mode=self.dev_mode,
             )
             updated_test_contract_dataset = get_forecasting_dataset(
                 contract_dataset=test_contract_dataset,
                 tte_tolerance=tte_tolerance,
                 download_only=True,
+                modify_contracts=True,
                 verbose=self.verbose,
                 save_dir=self.save_dir,
-                dev_mode=dev_mode,
+                dev_mode=self.dev_mode,
             )
 
             self.contract_paths[root] = {
@@ -621,7 +653,6 @@ class Universe:
         prefetch_factor: int = 2,
         pin_memory: bool = torch.cuda.is_available(),
         persistent_workers: bool = True,
-        dev_mode: bool = False,
     ) -> Union[
         Tuple[DataLoader, DataLoader, DataLoader],
         Tuple[DataLoader, DataLoader, DataLoader, StandardScaler],
@@ -699,7 +730,7 @@ class Universe:
             seq_len=seq_len,
             pred_len=pred_len,
             dtype=dtype,
-            dev_mode=dev_mode,
+            dev_mode=self.dev_mode,
         )
 
         return loaders
@@ -710,62 +741,94 @@ if __name__ == "__main__":
 
     # Create a Universe instance
     universe = Universe(
-        dow_jones=True,
+        # dow_jones=True,
+        candidate_roots=["BA"],
         # debt_to_equity="low",
-        momentum_beta="low",
+        # momentum_beta="low",
         # market_cap="high",
+        all_metrics=True,
         start_date="20210101",
         end_date="20211231",
+        dev_mode=True,
         verbose=True,
     )
-    universe.set_candidate_roots()  # Fetch index constituents
-    universe.get_market_metrics()  # Fetch market metric data
-
-    # Filter the universe for stocks with low debt-to-equity and high market cap
-    universe.filter_universe()
-
-    # Set parameters
-    contract_stride = 2
-    interval_min = 1
-    right = "C"
-    target_tte = 30
-    tte_tolerance = (20, 40)
-    moneyness = "ATM"
-    train_split = 0.5
-    val_split = 0.3
-    volatility_scaled = False
-
-    # Download contracts and raw data for the filtered universe
-    universe.roots = ["AMZN"]
-    root = universe.roots[0]
+    universe.set_candidate_roots()   # Fetch index constituents
+    universe.get_market_metrics()    # Fetch market metric data
+    universe.get_factor_exposures()  # Fetch Factor Model factors
     universe.download(
-        contract_stride=3,
-        interval_min=1,
+        contract_stride=2,
+        interval_min=15,
         right="C",
         target_tte=30,
-        tte_tolerance=(15, 45),
+        tte_tolerance=(20, 40),
         moneyness="ATM",
         train_split=0.5,
         val_split=0.3,
-        dev_mode=True,
-    )
+    ) # Download contracts and raw data
 
-    # Select a root for forecasting
-    loaders = universe.get_forecasting_loaders(
-        offline=True,
-        root=root,
-        tte_tolerance=tte_tolerance,
-        seq_len=30,  # 30-minute lookback window
-        pred_len=5,  # 5-minute forecast horizon
-        core_feats=["option_returns"],
-        target_channels=["option_returns"],
-        target_type="multistep",
-        keep_datetime=True,
-        dtype="float32",
-        scaling=False,
-        dev_mode=True,
-    )
+    # Display market metrics dictionary with rich
+    table = Table(title="Market Metrics")
+    table.add_column("Root")
+    table.add_column("Metrics")
+    for root, metrics in universe.market_metrics.items():
+        metrics_str = ", ".join([f"{k}: {v}" for k, v in metrics.items()])
+        table.add_row(root, metrics_str)
+    ctx.print(table)
 
-    print(f"Train loader: {len(loaders[0].dataset)} samples")
-    print(f"Validation loader: {len(loaders[1].dataset)} samples")
-    print(f"Test loader: {len(loaders[2].dataset)} samples")
+    # Save universe market_metrics to JSON file
+    import json
+    with open("universe_market_metrics.json", "w") as f:
+        json.dump(universe.market_metrics, f, indent=4)
+
+
+    # Uncomment the following lines to filter the universe based on specific criteria
+
+
+    # Filter the universe for stocks with low debt-to-equity and high market cap
+    # universe.filter()
+
+    # # Set parameters
+    # contract_stride = 2
+    # interval_min = 1
+    # right = "C"
+    # target_tte = 30
+    # tte_tolerance = (20, 40)
+    # moneyness = "ATM"
+    # train_split = 0.5
+    # val_split = 0.3
+    # volatility_scaled = False
+
+    # # Download contracts and raw data for the filtered universe
+    # universe.roots = ["AMZN"]
+    # root = universe.roots[0]
+    # universe.download(
+    #     contract_stride=3,
+    #     interval_min=1,
+    #     right="C",
+    #     target_tte=30,
+    #     tte_tolerance=(15, 45),
+    #     moneyness="ATM",
+    #     train_split=0.5,
+    #     val_split=0.3,
+    #     dev_mode=True,
+    # )
+
+    # # Select a root for forecasting
+    # loaders = universe.get_forecasting_loaders(
+    #     offline=True,
+    #     root=root,
+    #     tte_tolerance=tte_tolerance,
+    #     seq_len=30,  # 30-minute lookback window
+    #     pred_len=5,  # 5-minute forecast horizon
+    #     core_feats=["option_returns"],
+    #     target_channels=["option_returns"],
+    #     target_type="multistep",
+    #     keep_datetime=True,
+    #     dtype="float32",
+    #     scaling=False,
+    #     dev_mode=True,
+    # )
+
+    # print(f"Train loader: {len(loaders[0].dataset)} samples")
+    # print(f"Validation loader: {len(loaders[1].dataset)} samples")
+    # print(f"Test loader: {len(loaders[2].dataset)} samples")
