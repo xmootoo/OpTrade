@@ -1,5 +1,17 @@
 ablations:
+  # Data
   data.start_date: ["20240409"]
   data.end_date: ["20250409"]
-  data.contract_stride: [1]
-  data.interval_min: [5, 15, 30, "EOD"]
+  data.train_split: [0.7]
+  data.val_split: [0.15]
+
+  # Contracts
+  contracts.stride: [1]
+  contracts.interval_min: [5, 15, 30, "EOD"]
+  contracts.right: ["C"]
+  contracts.tte: [30]
+  contracts.tte_tolerance: [[15, 45]]
+  contracts.moneyness: ["ATM"]
+
+  # Features
+  features.target_type: ["multistep", "average"]
