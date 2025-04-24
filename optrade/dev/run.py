@@ -1,5 +1,4 @@
 from optrade.config.config import Global
-
 from optrade.exp.forecasting import Experiment
 from optrade.dev.utils.models import (
     get_model,
@@ -8,8 +7,10 @@ from optrade.dev.utils.models import (
     get_scheduler,
 )
 
-
 def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
+    """selection_mode (str): How to select stocks in the candidate_roots. Options: "label", "filter". If "label", all roots in
+        candidate_roots will be included in the universe, and each root will be categorized according to the selected market metrics.
+        Otherwise, if "filter", only the stocks that pass the filters according to the market metrics will be included in the universe."""
 
     exp = Experiment(
         log_dir=args.exp.log_dir,
