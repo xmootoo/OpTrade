@@ -1,1 +1,5 @@
+start_date: "20240424"
+end_date: "20250424"
 dow_jones: True
+all_metrics: True
+dev_mode: True

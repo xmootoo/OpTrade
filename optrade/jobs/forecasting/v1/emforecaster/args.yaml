@@ -62,7 +62,7 @@ contracts:
   tte_tolerance: [15, 45]
   stride: 3
 
-  # Features
+# Features
 feats:
   target_channels: ["option_returns"]
   scaling: True
