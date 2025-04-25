@@ -94,7 +94,7 @@ def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
         scheduler = None
 
     # Train the model
-    model = exp.train(
+    model = exp.train_torch(
         model=model,
         optimizer=optimizer,
         criterion=criterion,

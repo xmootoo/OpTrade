@@ -60,7 +60,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # Adam optimizer
 criterion = torch.nn.MSELoss()                             # Mean Squared Error loss
 
 # Step 4: Train the model
-model = exp.train(
+model = exp.train_torch(
     model=model,
     device=device,
     optimizer=optimizer,

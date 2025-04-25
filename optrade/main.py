@@ -12,7 +12,7 @@ from typing import Dict, Any
 from pathlib import Path
 
 
-from optrade.dev.exp.run import run_forecasting_experiment
+from optrade.dev.run import run_forecasting_experiment
 
 BASE_DIR = Path(__file__).parent.parent.absolute()
 
