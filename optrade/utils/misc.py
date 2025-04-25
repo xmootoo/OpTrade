@@ -77,7 +77,6 @@ def datetime_to_tensor(
 
     return torch.tensor(timestamps, dtype=torch.int64)
 
-
 def tensor_to_datetime(
     timestamp_tensor: torch.Tensor,
     unit: str = "s",
@@ -85,43 +84,38 @@ def tensor_to_datetime(
 ) -> np.ndarray:
     """
     Convert PyTorch tensor of timestamps back to numpy datetime64 array.
-
     Args:
         timestamp_tensor: PyTorch tensor of integer timestamps
         unit: time unit used in conversion ('s' for seconds, 'ms' for milliseconds,
               'us' for microseconds, 'ns' for nanoseconds)
         batch_mode: If True, handles tensor as batched (2D) data
-
     Returns:
         numpy array of datetime64 values
     """
     # Convert tensor to numpy array
     timestamp_array = timestamp_tensor.cpu().numpy()
 
+    # Create datetime64 array with explicit time unit
+    result_dtype = f'datetime64[{unit}]'
+
     # NumPy requires a specific string format for conversion from timestamps
     epoch = np.datetime64("1970-01-01T00:00:00", unit)
 
     if batch_mode:
         # Handle batched data (2D array)
-        result = []
-        for batch in timestamp_array:
-            batch_result = []
-            for ts in batch:
+        result = np.empty(timestamp_array.shape, dtype=result_dtype)
+        for i, batch in enumerate(timestamp_array):
+            for j, ts in enumerate(batch):
                 # Add the timestamp to the epoch
-                dt = epoch + np.timedelta64(ts, unit)
-                batch_result.append(dt)
-            result.append(batch_result)
-        out = np.array(result)
+                result[i, j] = epoch + np.timedelta64(int(ts), unit)
     else:
         # Handle non-batched data (1D array)
-        result = []
-        for ts in timestamp_array:
+        result = np.empty(timestamp_array.shape, dtype=result_dtype)
+        for i, ts in enumerate(timestamp_array):
             # Add the timestamp to the epoch
-            dt = epoch + np.timedelta64(ts, unit)
-            result.append(dt)
-        out = np.array(result)
+            result[i] = epoch + np.timedelta64(int(ts), unit)
 
-    return out
+    return result
 
 
 # Test: datetime conversion functions
