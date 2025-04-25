@@ -24,7 +24,7 @@ class DataValidationError(Exception):
         self.message = message
         self.error_code = error_code
         self.real_start_date = real_start_date
-        self.end_date = real_end_date
+        self.real_end_date = real_end_date
 
         error_dict = {
             INCOMPATIBLE_START_DATE: "Option data queried before contract start date",
