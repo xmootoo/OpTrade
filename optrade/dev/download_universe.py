@@ -7,9 +7,23 @@ from rich.console import Console
 
 # Custom modules
 from optrade.data.universe import Universe
-from optrade.dev.exp.grid_search import generate_ablation_combinations
+from optrade.dev.grid_search import generate_ablation_combinations
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+UNIVERSE_DOWNLOAD_PARAMETERS = [
+    "contracts.stride",
+    "contracts.interval_min",
+    "contracts.right",
+    "contracts.target_tte",
+    "contracts.tte_tolerance",
+    "contracts.moneyness",
+    "data.train_split",
+    "data.val_split",
+    "contracts.strike_band",
+    "contracts.volatility_type",
+    "contracts.volatility_scaled",
+    "contracts.volatility_scalar",
+]
 
 def generate_parameter_combinations(
     params_dict: Dict[str, List[Any]],
@@ -49,7 +63,7 @@ def filter_ablation_config(
     Returns:
         Dictionary with filtered and grouped ablation parameters
     """
-    ctx = Console()
+    # ctx = Console()
     filtered_config = ablation_config.copy()
     keys_to_delete = []
 
@@ -60,7 +74,7 @@ def filter_ablation_config(
 
     # Delete keys outside the loop to avoid modification during iteration
     for key in keys_to_delete:
-        ctx.log(f"Removing {key} from filtered config")
+        # ctx.log(f"Removing {key} from filtered config")
         del filtered_config[key]
 
     return filtered_config
@@ -81,7 +95,7 @@ def run_universe(parent_id: str, download: bool = False, filter: bool = False) -
     ctx = Console()
 
     # Set up paths
-    parent_path = SCRIPT_DIR.parents[1] / "jobs" / "parent" / parent_id
+    parent_path = SCRIPT_DIR.parents[0] / "jobs" / "parent" / parent_id # <- Might have to change due to refactor
     universe_path = parent_path / "universe.yaml"
 
     # Load universe configuration
@@ -125,6 +139,8 @@ def run_universe(parent_id: str, download: bool = False, filter: bool = False) -
     ctx.log("Getting factor exposures...")
     universe.get_factor_exposures()
 
+    ctx.log(f"Roots: {universe.roots}")
+
     # Filter the universe
     if filter:
         universe.filter()
@@ -145,7 +161,7 @@ def run_universe(parent_id: str, download: bool = False, filter: bool = False) -
         ctx.log(f"Keys: {list(ablation_full_config.keys())}")
 
         # Filter only by "contracts" and "data", as they are the only ones needed for downloading
-        filtered_ablation_config = filter_ablation_config(ablation_full_config, ["contracts", "data"])
+        filtered_ablation_config = filter_ablation_config(ablation_full_config, UNIVERSE_DOWNLOAD_PARAMETERS)
         ablation_combinations = generate_ablation_combinations(filtered_ablation_config)
 
 
