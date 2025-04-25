@@ -386,7 +386,35 @@ class Experiment:
             path=path,
         )
 
-    def train(
+    def train_sklearn(
+        self,
+        model: BaseEstimator,
+        num_epochs: int,
+        criterion: Optional[str] = "mse",
+        device=None,
+        train_data: Optional[np.ndarray] = None,
+        val_data: Optional[np.ndarray] = None,
+        metrics: List[str] = ["mse"],
+        best_model_path: Optional[str] = None,
+        early_stopping: bool = False,
+        patience: Optional[int] = None,
+        target_type: str = "multistep",
+    ):
+
+        if train_data is None:
+            assert hasattr(
+                self, "train_loader"
+            ), "A train_loader must be given or initialized using init_loaders() method."
+            train_loader = self.train_loader
+
+        if val_data is None:
+            assert hasattr(
+                self, "val_loader"
+            ), "A val_loader must be given or initialized using init_loaders() method."
+            val_loader = self.val_loader
+
+
+    def train_torch(
         self,
         model: Union[nn.Module, BaseEstimator],
         optimizer: optim.Optimizer,
@@ -703,11 +731,35 @@ class Experiment:
 
         return stats
 
-    def universe_categorize(
+    def log_universe(
         self,
-        universe: Universe,
+        market_metrics,
+        root: str,
+        parent: str,
     ) -> None:
+        """
+        Logs the universe to the logger.
+
+        Args:
+            root: The root directory containing the data.
+            universe: The Universe object.
+            parent: The parent experiment ID.
+
+        Returns:
+            None
+        """
         pass
+
+        # Find the parent experiment file
+        # market_metrics =
+
+        # if self.logging == "neptune":
+        #     self.logger["universe"].upload(universe)
+        # elif self.logging == "offline":
+        #     with open(self.log_file, "w") as f:
+        #         json.dump(universe, f, indent=2)
+        # else:
+        #     raise ValueError(f"Invalid logging method: {self.logging}.")
 
     def log_stats(self, stats: dict, metrics: List[str], mode: str):
         modes = {"val": "Validation", "test": "Test"}
