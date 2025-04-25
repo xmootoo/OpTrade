@@ -1,0 +1,6 @@
+candidate_roots: ["GS"]
+start_date: "20240424"
+end_date: "20250424"
+all_metrics: True
+dev_mode: True
+verbose: True

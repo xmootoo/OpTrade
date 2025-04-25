@@ -1,0 +1,14 @@
+{
+    "GS": {
+        "volatility": 0.339394040253867,
+        "pe_ratio": 12.667363,
+        "debt_to_equity": 535.484,
+        "beta": 1.323,
+        "market_cap": 169601220608,
+        "dividend_yield": 220.00000000000003,
+        "market_beta": "high",
+        "value_beta": "neutral",
+        "momentum_beta": "neutral",
+        "size_beta": "neutral"
+    }
+}

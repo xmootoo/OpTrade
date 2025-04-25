@@ -1,0 +1,68 @@
+ablations:
+  # Experiment
+
+  # Data
+  data.root: ["GS"] # Dow Jones
+  data.start_date: ["20240424"]
+  data.end_date: ["20250424"]
+  data.train_split: [0.7]
+  data.val_split: [0.15]
+  data.seq_len: [10]
+  data.pred_len: [5]
+  data.dtype: ["float32"]
+
+  # Contracts
+  contracts.stride: [1]
+  contracts.interval_min: [5]
+  contracts.right: ["C"]
+  contracts.target_tte: [30]
+  contracts.tte_tolerance: [[15, 45]]
+  contracts.moneyness: ["ATM"]
+  contracts.volatility_scaled: [False]
+  contracts.modify: [False]
+  contracts.validate: [False]
+
+  # Features
+  feats.target_type: ["multistep", "average"]
+  feats.core: [
+      "option_returns",
+      "stock_returns",
+      # "distance_to_strike",
+      "moneyness",
+      "option_lob_imbalance",
+      "option_quote_spread",
+      "stock_lob_imbalance",
+      "stock_quote_spread",
+      # "option_mid_price",
+      # "option_bid_size",
+      # "option_bid",
+      # "option_ask_size",
+      # "option_close",
+      "option_volume",
+      # "option_count",
+      # "stock_mid_price",
+      # "stock_bid_size",
+      # "stock_bid",
+      # "stock_ask_size",
+      # "stock_ask",
+      "stock_volume",
+      # "stock_count",
+    ]
+  feats.tte: [
+      "sqrt",
+      # "exp_decay"
+    ]
+
+  feats.datetime: [
+      "sin_minute_of_day",
+      # "cos_minute_of_day",
+      "sin_hour_of_week",
+      # "cos_hour_of_week",
+    ]
+  feats.target_channels: [["option_returns"]]
+  feats.scaling: [True]
+
+  # Training
+
+  # Evaluation
+  eval.metrics: [["mse", "mae", "rmse", "r2", "mape"]]
