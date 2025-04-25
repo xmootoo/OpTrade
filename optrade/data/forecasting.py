@@ -58,8 +58,9 @@ class ForecastingDataset(Dataset):
         else:
             data_numeric = data.to_numpy()
 
-        self.dtype = eval("torch." + dtype)
-        self.data = torch.tensor(data_numeric, dtype=self.dtype)
+        self.torch_dtype = eval("torch." + dtype)
+        self.np_dtype = eval("np." + dtype)
+        self.data = torch.tensor(data_numeric, dtype=self.torch_dtype)
         self.seq_len = seq_len
         self.pred_len = pred_len
         self.target_type = target_type
@@ -145,6 +146,58 @@ class ForecastingDataset(Dataset):
             )
         else:
             return input_tensor, target_tensor
+
+    def to_numpy(
+            self
+        ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+            ]:
+            """Converts the dataset into a set of NumPy arrays for scikit-learn model training.
+            Returns:
+                Tuple[np.ndarray, np.ndarray]: A tuple containing:
+                    - inputs: NumPy array of shape (num_samples, seq_len, num_features).
+                    - targets: NumPy array of shape (num_samples, pred_len, num_target_features).
+                If datetime is available:
+                    - input_datetimes: NumPy array of shape (num_samples, seq_len).
+                    - target_datetimes: NumPy array of shape (num_samples, pred_len).
+            """
+            if self.target_type == "multistep":
+                num_target_features = self.data.shape[1]
+                target_dtype = self.np_dtype
+            elif self.target_type == "average":
+                num_target_features = 1
+                target_dtype = self.np_dtype
+            elif self.target_type == "average_direction":
+                num_target_features = 1
+                target_dtype = np.float32
+            else:
+                raise ValueError(
+                    "Invalid target_type. Options: 'multistep', 'average', or 'average_direction'."
+                )
+            inputs = np.empty((len(self), self.seq_len, self.data.shape[1]), dtype=self.np_dtype)
+            targets = np.empty((len(self), self.pred_len, num_target_features), dtype=target_dtype)
+
+            if self.has_datetime:
+                # Specify the unit here to match what tensor_to_datetime uses
+                unit = 's'  # seconds
+                # Create the arrays with explicit time unit
+                input_datetimes = np.empty((len(self), self.seq_len), dtype=f'datetime64[{unit}]')
+                target_datetimes = np.empty((len(self), self.pred_len), dtype=f'datetime64[{unit}]')
+
+            for i in range(len(self)):
+                item = self.__getitem__(i)
+                input_tensor, target_tensor = item[0], item[1]
+                inputs[i] = input_tensor.numpy().T
+                targets[i] = target_tensor.numpy().T
+
+                if self.has_datetime:
+                    input_datetime_tensor, target_datetime_tensor = item[2], item[3]
+                    input_datetimes[i] = tensor_to_datetime(input_datetime_tensor, batch_mode=False)
+                    target_datetimes[i] = tensor_to_datetime(target_datetime_tensor, batch_mode=False)
+
+            if self.has_datetime:
+                return inputs, targets, input_datetimes, target_datetimes
+            else:
+                return inputs, targets
 
     def get_item(self, idx: int) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
@@ -384,12 +437,12 @@ def get_forecasting_dataset(
                         if verbose:
                             ctx.log(f"Updating contract with new start date: {new_start_date} and expiration: {new_exp}")
 
-                        # Create a new contract with updated dates
+                        # Create a new contract and modify parameters
                         contract = deepcopy(original_contract)
                         contract.start_date = new_start_date
                         contract.exp = new_exp
 
-                        # Update strike based on new_start_date
+                        # Update strike based on new parameters
                         contract.strike = find_optimal_strike(
                             root=contract.root,
                             start_date=new_start_date,
@@ -404,7 +457,7 @@ def get_forecasting_dataset(
                             clean_up=True,
                         )
 
-                        move_to_next_contract = False  # Will retry this contract
+                        move_to_next_contract = False  # Retry this contract
                     else:
                         if verbose:
                             ctx.log(f"Contract timespan ({time_span.days} days) is too short. Moving to next contract.")
