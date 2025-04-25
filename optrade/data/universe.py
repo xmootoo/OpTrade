@@ -741,8 +741,8 @@ if __name__ == "__main__":
 
     # Create a Universe instance
     universe = Universe(
-        # dow_jones=True,
-        candidate_roots=["BA"],
+        dow_jones=True,
+        # candidate_roots=["BA"],
         # debt_to_equity="low",
         # momentum_beta="low",
         # market_cap="high",
