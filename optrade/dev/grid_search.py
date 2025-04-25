@@ -26,7 +26,7 @@ def generate_ablation_combinations(
 
 def grid_search(job_name: str) -> None:
     # Adjust the base_path to use the absolute path
-    base_path = SCRIPT_DIR.parents[1] / "jobs"
+    base_path = SCRIPT_DIR.parents[0] / "jobs" # <- Might have to change due to refactor
     ablation_path = base_path / job_name / "ablation.yaml"
 
     # Rich
