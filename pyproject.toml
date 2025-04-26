@@ -50,6 +50,8 @@ torch = "^2.6.0"
 pandas-datareader = "^0.10.0"
 statsmodels = "^0.14.4"
 mambapy = "^1.2.0"
+sktime = "^0.37.0"
+darts = "^0.35.0"
 
 [tool.poetry.group.dev]
 optional = true
