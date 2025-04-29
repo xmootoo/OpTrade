@@ -242,13 +242,12 @@ def normalize_concat_dataset(
     """
     for dataset in concat_dataset.datasets:
         data = dataset.data.numpy()
-        dtype = dataset.dtype
 
         # Normalize data
         normalized_data = scaler.transform(data)
 
         # Replace data with normalized version
-        dataset.data = torch.tensor(normalized_data, dtype=dtype)
+        dataset.data = torch.tensor(normalized_data, dtype=dataset.torch_dtype)
 
 
 def normalize_datasets(

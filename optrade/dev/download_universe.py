@@ -25,32 +25,6 @@ UNIVERSE_DOWNLOAD_PARAMETERS = [
     "contracts.volatility_scalar",
 ]
 
-def generate_parameter_combinations(
-    params_dict: Dict[str, List[Any]],
-    base_params: Optional[Dict[str, Any]] = None
-) -> List[Dict[str, Any]]:
-    """
-    Generate all combinations of parameters from a dictionary of parameter lists
-
-    Args:
-        params_dict: Dictionary with parameter names and their possible values
-        base_params: Base parameters to include in all combinations
-
-    Returns:
-        List of parameter dictionaries, each representing one combination
-    """
-    if not params_dict:
-        return [base_params or {}]
-
-    keys, values = zip(*params_dict.items())
-    combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
-    if base_params:
-        return [{**base_params, **combo} for combo in combinations]
-
-    return combinations
-
-
 def filter_ablation_config(
     ablation_config: Dict[str, List[Any]],
     prefixes: List[str]
