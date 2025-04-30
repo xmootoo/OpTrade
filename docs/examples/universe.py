@@ -13,7 +13,7 @@ universe = Universe(
 )
 
 # Step 2: Fetch constituents from Wikipedia
-universe.set_candidate_roots()
+universe.set_roots()
 
 # Step 3: Get market data via yfinance & compute Fama-French exposures
 universe.get_market_metrics()
