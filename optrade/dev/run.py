@@ -1,3 +1,5 @@
+import yaml
+from pathlib import Path
 from optrade.config.config import Global
 from optrade.exp.forecasting import Experiment
 from optrade.dev.utils.models import (
@@ -6,8 +8,10 @@ from optrade.dev.utils.models import (
     get_criterion,
     get_scheduler,
 )
+from optrade.models.classical._sklearn import get_sklearn_model
+from optrade.dev.utils.ablations import load_ablation_config
 
-def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
+def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) -> None:
     """selection_mode (str): How to select stocks in the candidate_roots. Options: "label", "filter". If "label", all roots in
         candidate_roots will be included in the universe, and each root will be categorized according to the selected market metrics.
         Otherwise, if "filter", only the stocks that pass the filters according to the market metrics will be included in the universe."""
@@ -73,45 +77,80 @@ def run_forecasting_experiment(args: Global, ablation_id: int) -> None:
     if args.data.download_only:
         return
 
-    # Select Model, Optimizer, and Loss function
-    input_channels = (
-        args.feats.core + args.feats.tte + args.feats.datetime
-    )
-    target_channel_idx = [
-        input_channels.index(channel) for channel in args.feats.target_channels
-    ]
-    model = get_model(
-        args=args, input_channels=input_channels, target_channels_idx=target_channel_idx
-    )
-    optimizer = get_optim(args=args, model=model)
-    criterion = get_criterion(args=args)
+    #<--------Scikit-Learn------->
+    if args.exp.sklearn:
+        model_id = args.exp.model_id.replace("sklearn_", "")
+        model_args = eval(f"args.{args.exp.model_id}")
 
-    if args.train.scheduler is not None:
-        scheduler = get_scheduler(
-            args=args, optimizer=optimizer, num_batches=len(exp.train_loader)
+        # Get model
+        model = get_sklearn_model(
+            model_id=model_id,
+            target_type=args.feats.target_type,
+            model_args=model_args.dict(),
         )
+
+        # Get param_dict
+        ablation_path = job_dir / "ablation.yaml"
+        ablation_config = load_ablation_config(ablation_path)
+
+        with open(ablation_path, "r") as file:
+            ablation_config = yaml.safe_load(file)
+        param_dict = ablation_config.get("params", {})
+
+        exp.train_sklearn(
+            model=model,
+            param_dict=param_dict,
+            tuning_method=args._sklearn.tuning_method,
+            cv=args._sklearn.cv,
+            verbose=args._sklearn.verbose,
+            n_jobs=args._sklearn.n_jobs,
+            n_iter=args._sklearn.n_iter,
+            to_numpy=True,
+            target_type= args.feats.target_type,
+        )
+
+        # TODO: Implement flattening of last two dimensions as optional input for train_sklearn when calling convert_to_numpy
+        exp.test_sklearn(metrics=args.eval.metrics, target_type=args.feats.target_type)
+
+    #<--------PyTorch------->
     else:
-        scheduler = None
+        # Select Model, Optimizer, and Loss function
+        input_channels = (
+            args.feats.core + args.feats.tte + args.feats.datetime
+        )
+        target_channel_idx = [
+            input_channels.index(channel) for channel in args.feats.target_channels
+        ]
+        model = get_model(
+            args=args, input_channels=input_channels, target_channels_idx=target_channel_idx
+        )
+        optimizer = get_optim(args=args, model=model)
+        criterion = get_criterion(args=args)
 
-    # Train the model
-    model = exp.train_torch(
-        model=model,
-        optimizer=optimizer,
-        criterion=criterion,
-        scheduler=scheduler,
-        num_epochs=args.train.epochs,
-        early_stopping=args.train.early_stopping,
-        patience=args.train.early_stopping_patience,
-        metrics=args.eval.metrics,
-    )
+        if args.train.scheduler is not None:
+            scheduler = get_scheduler(
+                args=args, optimizer=optimizer, num_batches=len(exp.train_loader)
+            )
+        else:
+            scheduler = None
+        model = exp.train_torch(
+            model=model,
+            optimizer=optimizer,
+            criterion=criterion,
+            scheduler=scheduler,
+            num_epochs=args.train.epochs,
+            early_stopping=args.train.early_stopping,
+            patience=args.train.early_stopping_patience,
+            metrics=args.eval.metrics,
+        )
 
-    # Step 5: Evaluate model on test set
-    exp.test(
-        model=model,
-        criterion=criterion,
-        metrics=args.eval.metrics,  # Metrics to compute
-        target_type=args.feats.target_type,
-    )
+        # Step 5: Evaluate model on test set
+        exp.test_torch(
+            model=model,
+            criterion=criterion,
+            metrics=args.eval.metrics,  # Metrics to compute
+            target_type=args.feats.target_type,
+        )
 
     # Step 6: Save model and logs
     exp.save_logs()  # Save experiment logs to disk or neptune
