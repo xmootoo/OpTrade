@@ -89,6 +89,10 @@ class Experiment(BaseModel):
     ablation_id: int = Field(
         default=1, description="Ablation ID for the base experiment"
     )
+    sklearn: bool = Field(
+        default=False,
+        description="Whether to use sklearn for modeling, otherwise, uses PyTorch",
+    )
 
 
 class Data(BaseModel):
@@ -145,7 +149,6 @@ class Data(BaseModel):
     shuffle_test: bool = Field(
         default=False, description="Whether to shuffle the test set"
     )
-
 
     # Download Parameters
     clean_up: bool = Field(
@@ -266,7 +269,6 @@ class Contracts(BaseModel):
         default=False,
         description="Whether to modify and overwite contracts .pkl files if any contracts are invalid.",
     )
-
 
 
 class Conformal(BaseModel):
@@ -467,64 +469,6 @@ class TSMixer(BaseModel):
     )
 
 
-class TimesNet(BaseModel):
-    num_enc_layers: int = Field(
-        default=2, description="Number of encoder layers for the TimesNet model."
-    )
-    d_model: int = Field(
-        default=16, description="Model dimension for the TimesNet model."
-    )
-    d_ff: int = Field(
-        default=128, description="FeedForward dimension for the TimesNet model."
-    )
-    num_kernels: int = Field(
-        default=6, description="Number of kernels for the TimesNet model."
-    )
-    c_out: int = Field(
-        default=1, description="Output channels for the TimesNet model for forecasting."
-    )
-    top_k: int = Field(
-        default=3,
-        description="Top k amplitudes used for the periodic slicing block in TimesNet.",
-    )
-    dropout: float = Field(
-        default=0.3, description="Dropout rate for the TimesNet model."
-    )
-
-
-class ModernTCN(BaseModel):
-    num_enc_layers: List[int] = Field(
-        default=[2],
-        description="Choose from {1, 2, 3} and can make it a list (in str format a,b,c,...) for multistaging with 5 possible stages [a,b,c,d,e] with each element from {1, 2, 3}. For example [1, 1] or [2, 2, 3].",
-    )
-    d_model: List[int] = Field(
-        default=[16],
-        description="The model dimension (i.e. Conv1D channel dimension) for each stage. Choose from {32, 64, 128, 256, 512}. Make a list (in str format a,b,c,...)  for multistaging, length equal to number of stages.",
-    )
-    ffn_ratio: int = Field(
-        default=1,
-        description="The expansion factor for the feed-forward networks in each block, d_ffn = d_model*ffn_ratio. Choose from {1, 2, 4, 8}",
-    )
-    dropout: float = Field(
-        default=0.0, description="Dropout rate for the ModernTCN model."
-    )
-    class_dropout: float = Field(
-        default=0.0, description="Dropout rate for the classification head."
-    )
-    large_size: List[int] = Field(
-        default=[9],
-        description="Size of the large kernel. Choose from {13, 31, 51, 71}. Make a list (in str format a,b,c,...)  for multistaging, length equal to number of stages.",
-    )
-    small_size: List[int] = Field(
-        default=[5],
-        description="Size of the small kernel Set to 5 for all experiments. Make a list (in str format a,b,c,...) for multistaging, length equal to number of stages.",
-    )
-    dw_dims: List[int] = Field(
-        default=[256],
-        description="Depthwise dimension for each stage. Set to 256 for all stages. Make a list (in str format a,b,c,...) for multistaging, length equal to number of stages.",
-    )
-
-
 class EMForecaster(BaseModel):
     patch_dim: int = Field(default=16, description="Patch dimension or patch length.")
     patch_stride: int = Field(
@@ -597,6 +541,189 @@ class RecurrentModel(BaseModel):
     )
 
 
+class Sklearn(BaseModel):
+    tuning_method: str = Field(
+        default="grid", description="Tuning method for sklearn models. Options: 'grid', 'random'."
+    )
+    cv: int = Field(
+        default=5, description="Number of cross-validation folds for sklearn models."
+    )
+    verbose: int = Field(
+        default=0, description="Verbosity level for sklearn models. 0 = silent, 1 = some output, 2 = more output."
+    )
+    n_jobs: int = Field(
+        default=-1, description="Number of jobs to run in parallel for sklearn models. -1 = all processors."
+    )
+    n_iter: int = Field(
+        default=10, description="Number of iterations for random search in sklearn models."
+    )
+
+class SklearnRidge(BaseModel):
+    """Configuration for sklearn.linear_model.Ridge."""
+
+    alpha: float = Field(
+        default=1.0, description="Regularization strength; must be a positive float."
+    )
+    fit_intercept: bool = Field(
+        default=True, description="Whether to calculate the intercept for this model."
+    )
+    copy_X: bool = Field(
+        default=True,
+        description="If True, X will be copied; else, it may be overwritten.",
+    )
+    tol: float = Field(default=0.001, description="Solver termination tolerance.")
+    max_iter: Optional[int] = Field(
+        default=None, description="Maximum number of iterations for the solver."
+    )
+    solver: str = Field(
+        default="auto", description="Solver to use in the computational routines."
+    )
+    positive: bool = Field(
+        default=False, description="When True, constrains coefficients to be positive."
+    )
+    random_state: Optional[int] = Field(
+        default=1995, description="Random number seed for 'sag' and 'saga' solvers."
+    )
+
+
+class SklearnLasso(BaseModel):
+    """Configuration for sklearn.linear_model.Lasso."""
+
+    alpha: float = Field(
+        default=1.0, description="Constant that multiplies the L1 term."
+    )
+    fit_intercept: bool = Field(
+        default=True, description="Whether to calculate the intercept for this model."
+    )
+    max_iter: int = Field(
+        default=1000, description="Maximum number of iterations for optimization."
+    )
+    tol: float = Field(default=0.0001, description="Tolerance for the optimization.")
+    selection: str = Field(
+        default="cyclic",
+        description="If 'random', a random coefficient is updated each iteration.",
+    )
+
+
+class SklearnRandomForest(BaseModel):
+    """Configuration for sklearn.ensemble.RandomForestRegressor/Classifier."""
+
+    n_estimators: int = Field(default=100, description="Number of trees in the forest.")
+    criterion: str = Field(
+        default="squared_error",
+        description="Function to measure the quality of a split.",
+    )
+    max_depth: Optional[int] = Field(
+        default=None, description="Maximum depth of each tree."
+    )
+    min_samples_split: int = Field(
+        default=2,
+        description="Minimum number of samples required to split an internal node.",
+    )
+    min_samples_leaf: int = Field(
+        default=1,
+        description="Minimum number of samples required to be at a leaf node.",
+    )
+    max_features: str = Field(
+        default="auto",
+        description="Number of features to consider when looking for the best split.",
+    )
+    bootstrap: bool = Field(
+        default=True,
+        description="Whether bootstrap samples are used when building trees.",
+    )
+    n_jobs: Optional[int] = Field(
+        default=None, description="Number of jobs to run in parallel."
+    )
+    random_state: int = Field(
+        default=1995, description="Controls randomness of the estimator."
+    )
+
+
+class SklearnGradientBoosting(BaseModel):
+    """Configuration for sklearn.ensemble.GradientBoostingRegressor/Classifier."""
+
+    n_estimators: int = Field(
+        default=100, description="Number of boosting stages to perform."
+    )
+    learning_rate: float = Field(
+        default=0.1, description="Learning rate shrinks contribution of each tree."
+    )
+    max_depth: int = Field(
+        default=3, description="Maximum depth of the individual regression estimators."
+    )
+    min_samples_split: int = Field(
+        default=2,
+        description="Minimum number of samples required to split an internal node.",
+    )
+    min_samples_leaf: int = Field(
+        default=1,
+        description="Minimum number of samples required to be at a leaf node.",
+    )
+    subsample: float = Field(
+        default=1.0,
+        description="Fraction of samples to be used for fitting the individual base learners.",
+    )
+    max_features: Optional[str] = Field(
+        default=None,
+        description="Number of features to consider when looking for the best split.",
+    )
+    random_state: int = Field(
+        default=1995, description="Controls randomness of the estimator."
+    )
+
+
+class SklearnXGBoost(BaseModel):
+    """Configuration for xgboost.XGBRegressor/XGBClassifier."""
+
+    n_estimators: int = Field(
+        default=100, description="Number of gradient boosted trees."
+    )
+    learning_rate: float = Field(default=0.1, description="Boosting learning rate.")
+    max_depth: int = Field(
+        default=6, description="Maximum tree depth for base learners."
+    )
+    subsample: float = Field(
+        default=1.0, description="Subsample ratio of the training instance."
+    )
+    colsample_bytree: float = Field(
+        default=1.0,
+        description="Subsample ratio of columns when constructing each tree.",
+    )
+    gamma: float = Field(
+        default=0.0,
+        description="Minimum loss reduction required to make a further partition.",
+    )
+    reg_alpha: float = Field(
+        default=0.0, description="L1 regularization term on weights."
+    )
+    reg_lambda: float = Field(
+        default=1.0, description="L2 regularization term on weights."
+    )
+    random_state: int = Field(default=1995, description="Random number seed.")
+
+
+class SklearnCatBoost(BaseModel):
+    """Configuration for catboost.CatBoostRegressor/CatBoostClassifier."""
+
+    iterations: int = Field(
+        default=1000, description="The maximum number of trees that can be built."
+    )
+    learning_rate: float = Field(default=0.03, description="The learning rate.")
+    depth: int = Field(default=6, description="Depth of the tree.")
+    l2_leaf_reg: float = Field(
+        default=3.0, description="L2 regularization coefficient."
+    )
+    border_count: int = Field(
+        default=254, description="The number of splits for numerical features."
+    )
+    bagging_temperature: float = Field(
+        default=1.0, description="Controls intensity of Bayesian bagging."
+    )
+    random_strength: float = Field(default=1.0, description="The randomness strength.")
+    random_state: int = Field(default=1995, description="Random number seed.")
+
+
 class Global(BaseModel):
     exp: Experiment = Experiment()
     data: Data = Data()
@@ -605,14 +732,23 @@ class Global(BaseModel):
     train: Train = Train()
     eval: Evaluation = Evaluation()
     scheduler: Scheduler = Scheduler()
+
+    # PyTorch models
     patchtst: PatchTST = PatchTST()
     dlinear: DLinear = DLinear()
     tsmixer: TSMixer = TSMixer()
-    timesnet: TimesNet = TimesNet()
-    moderntcn: ModernTCN = ModernTCN()
     conf: Conformal = Conformal()
     emf: EMForecaster = EMForecaster()
     rnn: RecurrentModel = RecurrentModel()
+
+    # Sklearn models
+    _sklearn: Sklearn = Sklearn()
+    sklearn_ridge: SklearnRidge = SklearnRidge()
+    sklearn_lasso: SklearnLasso = SklearnLasso()
+    sklearn_rf: SklearnRandomForest = SklearnRandomForest()
+    sklearn_gb: SklearnGradientBoosting = SklearnGradientBoosting()
+    sklearn_xgb: SklearnXGBoost = SklearnXGBoost()
+    sklearn_cb: SklearnCatBoost = SklearnCatBoost()
 
 
 def load_config(file_path: Path) -> Global:
