@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict, Any, Tuple, Union
+from typing import List, Optional, Dict, Tuple, Union
+
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -25,7 +26,6 @@ from optrade.data.forecasting import (
     get_forecasting_dataset,
     get_forecasting_loaders,
 )
-
 
 class Universe:
     def __init__(
@@ -162,26 +162,38 @@ class Universe:
         # Set all metrics to not None
         if all_metrics:
             # Set all fundamental metrics to 'all' (or other appropriate default)
-            self.volatility = 'all' if self.volatility is None else self.volatility
-            self.pe_ratio = 'all' if self.pe_ratio is None else self.pe_ratio
-            self.debt_to_equity = 'all' if self.debt_to_equity is None else self.debt_to_equity
-            self.beta = 'all' if self.beta is None else self.beta
-            self.market_cap = 'all' if self.market_cap is None else self.market_cap
-            self.dividend_yield = 'all' if self.dividend_yield is None else self.dividend_yield
-            self.earnings_volatility = 'all' if self.earnings_volatility is None else self.earnings_volatility
+            self.volatility = "all" if self.volatility is None else self.volatility
+            self.pe_ratio = "all" if self.pe_ratio is None else self.pe_ratio
+            self.debt_to_equity = (
+                "all" if self.debt_to_equity is None else self.debt_to_equity
+            )
+            self.beta = "all" if self.beta is None else self.beta
+            self.market_cap = "all" if self.market_cap is None else self.market_cap
+            self.dividend_yield = (
+                "all" if self.dividend_yield is None else self.dividend_yield
+            )
+            self.earnings_volatility = (
+                "all" if self.earnings_volatility is None else self.earnings_volatility
+            )
 
             # Set all Fama French factors to 'all' (or other appropriate default)
-            self.market_beta = 'all' if self.market_beta is None else self.market_beta
-            self.size_beta = 'all' if self.size_beta is None else self.size_beta
-            self.value_beta = 'all' if self.value_beta is None else self.value_beta
-            self.profitability_beta = 'all' if self.profitability_beta is None else self.profitability_beta
-            self.investment_beta = 'all' if self.investment_beta is None else self.investment_beta
-            self.momentum_beta = 'all' if self.momentum_beta is None else self.momentum_beta
+            self.market_beta = "all" if self.market_beta is None else self.market_beta
+            self.size_beta = "all" if self.size_beta is None else self.size_beta
+            self.value_beta = "all" if self.value_beta is None else self.value_beta
+            self.profitability_beta = (
+                "all" if self.profitability_beta is None else self.profitability_beta
+            )
+            self.investment_beta = (
+                "all" if self.investment_beta is None else self.investment_beta
+            )
+            self.momentum_beta = (
+                "all" if self.momentum_beta is None else self.momentum_beta
+            )
 
             # Factor mode should be set to the most comprehensive option
-            self.factor_mode = 'c4'  # Carhart 4-factor model includes all factor
+            self.factor_mode = "c4"  # Carhart 4-factor model includes all factor
 
-    def set_candidate_roots(self) -> None:
+    def set_roots(self) -> None:
         """
         Fetches constituents of a specified index using public data on Wikipedia and updates candidate_roots.
         """
@@ -218,7 +230,7 @@ class Universe:
         if self.verbose:
             self.ctx.log(f"Universe roots set to: {self.roots}")
 
-    def get_market_metrics(self) -> None:
+    def get_market_metrics(self, remove_roots: bool = False) -> None:
         """
         Retrieves market metrics data for each stock in candidate_roots from various sources.
         Only includes metrics that are specified in the filter criteria.
@@ -228,7 +240,7 @@ class Universe:
         # Assert that roots is an attribute of self and is not empty
         assert (
             hasattr(self, "roots") and self.roots
-        ), "No roots available. Run set_candidate_roots() first."
+        ), "No roots available. Run set_roots() first."
 
         for root in self.roots:
             market_metric_data = {}
@@ -251,11 +263,12 @@ class Universe:
             # Add other metrics only if their corresponding filter is set
             factor_map = {
                 "pe_ratio": self.pe_ratio is not None and info.get("trailingPE"),
-                "debt_to_equity": self.debt_to_equity is not None and info.get("debtToEquity"),
+                "debt_to_equity": self.debt_to_equity is not None
+                and info.get("debtToEquity"),
                 "beta": self.beta is not None and info.get("beta"),
                 "market_cap": self.market_cap is not None and info.get("marketCap"),
-                "dividend_yield": self.dividend_yield is not None and
-                                 (info.get("dividendYield") * 100 if info.get("dividendYield") is not None else None),
+                "dividend_yield": self.dividend_yield is not None
+                and info.get("dividendYield"),
             }
 
             # Add each metric to market_metric_data only if it should be included
@@ -274,19 +287,22 @@ class Universe:
                 if self.verbose:
                     # Find out which metrics are missing
                     missing_metrics = [
-                        key for key, value in market_metric_data.items() if value is None
+                        key
+                        for key, value in market_metric_data.items()
+                        if value is None
                     ]
                     self.ctx.log(
                         f"Missing market metric data for {root}: {missing_metrics}"
                     )
-                self.roots.remove(root)
+                if remove_roots:
+                    self.roots.remove(root)
 
-    def get_factor_exposures(self) -> None:
+    def get_factor_exposures(self, remove_roots: bool = False) -> None:
 
         # Assert that roots is an attribute of self and is not empty
         assert (
             hasattr(self, "roots") and self.roots
-        ), "No roots available. Run set_candidate_roots() first."
+        ), "No roots available. Run set_roots() first."
 
         assert (
             hasattr(self, "factor_mode") and self.factor_mode
@@ -306,7 +322,8 @@ class Universe:
             except:
                 if self.verbose:
                     self.ctx.log(f"Could not fetch Fama-French factors for {root}.")
-                self.roots.remove(root)
+                if remove_roots:
+                    self.roots.remove(root)
 
         factor_categories = factor_categorization(
             factors=self.factor_exposures, mode=self.factor_mode
@@ -314,7 +331,13 @@ class Universe:
 
         # Update the market metrics with factor categories
         for root in self.roots:
-            self.market_metrics[root].update(factor_categories[root])
+
+            # Check if the root exists in market_metrics and factor_exposures
+            if root in self.market_metrics and root in self.factor_exposures:
+                self.market_metrics[root].update(factor_categories[root])
+            else:
+                continue
+
             if self.verbose:
                 table = Table(title=f"Factor exposures for {root}")
                 table.add_column("Factor")
@@ -358,7 +381,10 @@ class Universe:
 
         result = []
         for root in filtered_roots:
-            if root not in self.market_metrics or metric not in self.market_metrics[root]:
+            if (
+                root not in self.market_metrics
+                or metric not in self.market_metrics[root]
+            ):
                 continue
 
             value = self.market_metrics[root][metric]
@@ -384,7 +410,10 @@ class Universe:
 
         result = []
         for root in filtered_roots:
-            if root not in self.market_metrics or metric not in self.market_metrics[root]:
+            if (
+                root not in self.market_metrics
+                or metric not in self.market_metrics[root]
+            ):
                 continue
 
             value = self.market_metrics[root][metric]
@@ -428,13 +457,14 @@ class Universe:
         """
 
         if not self.market_metrics:
-            self.ctx.log("No market metric data available. Run get_market_metrics() first.")
+            self.ctx.log(
+                "No market metric data available. Run get_market_metrics() first."
+            )
             return
 
         if self.all_metrics:
             self.roots = self.candidate_roots
             return
-
 
         # Create a copy of roots to filter
         starting_roots = self.roots.copy()
@@ -563,7 +593,7 @@ class Universe:
         # Assert that roots is an attribute of self and is not empty
         assert (
             hasattr(self, "roots") and self.roots
-        ), "No roots available. Run set_candidate_roots() first."
+        ), "No roots available. Run set_roots() first."
 
         # Download all data for the filtered universe
         for root in self.roots:
@@ -742,19 +772,19 @@ if __name__ == "__main__":
     # Create a Universe instance
     universe = Universe(
         dow_jones=True,
-        # candidate_roots=["BA"],
-        # debt_to_equity="low",
-        # momentum_beta="low",
-        # market_cap="high",
-        all_metrics=True,
+        debt_to_equity="low",
+        momentum_beta="low",
+        market_cap="high",
+        # all_metrics=True,
         start_date="20210101",
         end_date="20211231",
         dev_mode=True,
         verbose=True,
     )
-    universe.set_candidate_roots()   # Fetch index constituents
-    universe.get_market_metrics()    # Fetch market metric data
+    universe.set_roots()  # Fetch index constituents
+    universe.get_market_metrics()  # Fetch market metric data
     universe.get_factor_exposures()  # Fetch Factor Model factors
+    universe.filter()  # Filter the universe based on the specified criteria
     universe.download(
         contract_stride=2,
         interval_min=15,
@@ -764,7 +794,7 @@ if __name__ == "__main__":
         moneyness="ATM",
         train_split=0.5,
         val_split=0.3,
-    ) # Download contracts and raw data
+    )  # Download contracts and raw data
 
     # Display market metrics dictionary with rich
     table = Table(title="Market Metrics")
@@ -777,12 +807,11 @@ if __name__ == "__main__":
 
     # Save universe market_metrics to JSON file
     import json
+
     with open("universe_market_metrics.json", "w") as f:
         json.dump(universe.market_metrics, f, indent=4)
 
-
     # Uncomment the following lines to filter the universe based on specific criteria
-
 
     # Filter the universe for stocks with low debt-to-equity and high market cap
     # universe.filter()
