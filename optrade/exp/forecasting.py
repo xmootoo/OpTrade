@@ -3,16 +3,18 @@ import warnings
 import random
 import time
 import neptune
+import joblib
 from typing import Optional, List, Tuple, Union
 from pathlib import Path
 from rich.console import Console
 from sklearn.base import BaseEstimator
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 # Torch
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import torch.optim as optim
 from torch.optim.lr_scheduler import _LRScheduler
 
@@ -386,33 +388,177 @@ class Experiment:
             path=path,
         )
 
-    def train_sklearn(
+    def get_sklearn_data(
         self,
-        model: BaseEstimator,
-        num_epochs: int,
-        criterion: Optional[str] = "mse",
-        device=None,
-        train_data: Optional[np.ndarray] = None,
-        val_data: Optional[np.ndarray] = None,
-        metrics: List[str] = ["mse"],
-        best_model_path: Optional[str] = None,
-        early_stopping: bool = False,
-        patience: Optional[int] = None,
-        target_type: str = "multistep",
-    ):
+        train_loader: Optional[DataLoader] = None,
+        val_loader: Optional[DataLoader] = None,
+        test_loader: Optional[DataLoader] = None,
+        has_datetime: bool = False,
+    ) -> None:
 
-        if train_data is None:
+        if train_loader is None:
             assert hasattr(
                 self, "train_loader"
             ), "A train_loader must be given or initialized using init_loaders() method."
             train_loader = self.train_loader
-
-        if val_data is None:
+        if val_loader is None:
             assert hasattr(
                 self, "val_loader"
             ), "A val_loader must be given or initialized using init_loaders() method."
             val_loader = self.val_loader
+        if test_loader is None:
+            assert hasattr(
+                self, "test_loader"
+            ), "A test_loader must be given or initialized using init_loaders() method."
+            test_loader = self.test_loader
 
+        # Iterate through the ConcatDataset list of datasets
+        train_x = []; train_y = []; train_dtx = []; train_dty = []
+        for dataset in train_loader.dataset.datasets:
+            numpy_dataset = dataset.to_numpy()
+            train_x.append(numpy_dataset[0]); train_y.append(numpy_dataset[1])
+            if has_datetime:
+                train_dtx.append(numpy_dataset[2]); train_dty.append(numpy_dataset[3])
+
+        val_x = []; val_y = []; val_dtx = []; val_dty = []
+        for dataset in val_loader.dataset.datasets:
+            numpy_dataset = dataset.to_numpy()
+            val_x.append(numpy_dataset[0]); val_y.append(numpy_dataset[1])
+            if has_datetime:
+                val_dtx.append(numpy_dataset[2]); val_dty.append(numpy_dataset[3])
+
+        test_x = []; test_y = []; test_dtx = []; test_dty = []
+        for dataset in test_loader.dataset.datasets:
+            numpy_dataset = dataset.to_numpy()
+            test_x.append(numpy_dataset[0]); test_y.append(numpy_dataset[1])
+            if has_datetime:
+                test_dtx.append(numpy_dataset[2]); test_dty.append(numpy_dataset[3])
+
+        # Concatenate the numpy arrays
+        train_x = np.concatenate(train_x + val_x, axis=0)
+        train_y = np.concatenate(train_y + val_y, axis=0)
+        test_x = np.concatenate(test_x, axis=0)
+        test_y = np.concatenate(test_y, axis=0)
+
+        self.sklearn_data = {
+            "train_x": train_x,
+            "train_y": train_y,
+            "test_x": test_x,
+            "test_y": test_y,
+        }
+
+        if has_datetime:
+            train_dtx = np.concatenate(train_dtx + val_dtx, axis=0)
+            train_dty = np.concatenate(train_dty + val_dty, axis=0)
+            test_dtx = np.concatenate(test_dtx, axis=0)
+            test_dty = np.concatenate(test_dty, axis=0)
+
+            self.sklearn_dt_data = {
+                "train_dtx": train_dtx,
+                "train_dty": train_dty,
+                "test_dtx": test_dtx,
+                "test_dty": test_dty,
+            }
+
+        return
+
+    def train_sklearn(
+        self,
+        model: BaseEstimator,
+        param_dict: dict,
+        tuning_method: str = "grid",
+        cv: int = 5,
+        verbose: int = 1,
+        n_jobs: int = -1,
+        n_iter: int = 100,
+        to_numpy: bool = False,
+        train_data: Optional[Union[np.ndarray, DataLoader]] = None,
+        val_data: Optional[Union[np.ndarray, DataLoader]] = None,
+        target_type: str = "multistep",
+        best_model_path: Optional[str] = None,
+        early_stopping: bool = False,
+        patience: Optional[int] = None,
+    ) -> None:
+
+        # Convert PyTorch DataLoader objects to single NumPy arrays for scikit-learn training
+        if to_numpy:
+            has_datetime = self.train_loader.dataset.datasets[0].has_datetime # Check if datetime is on for the first ForecastingDataset
+            self.get_sklearn_data(
+                train_loader=self.train_loader,
+                val_loader=self.val_loader,
+                test_loader=self.test_loader,
+                has_datetime=has_datetime,
+            )
+
+        if target_type in ["multistep", "average"]:
+            scoring = "neg_root_mean_squared_error"
+        elif target_type == "average_direction":
+            scoring = "accuracy"
+        else:
+            raise ValueError(f"Invalid target type: {target_type}")
+
+        if tuning_method == "grid":
+            clf = GridSearchCV(
+                estimator=model,
+                param_grid=param_dict,
+                scoring=scoring,
+                n_jobs=n_jobs,
+                cv=cv,
+                verbose=verbose,
+            )
+        elif tuning_method == "random":
+            clf = RandomizedSearchCV(
+                estimator=model,
+                param_distributions=param_dict,
+                scoring=scoring,
+                n_jobs=n_jobs,
+                cv=cv,
+                verbose=verbose,
+                n_iter=n_iter,
+            )
+        else:
+            raise ValueError(f"Invalid tuning method: {tuning_method}")
+
+        search = clf.fit(X=self.sklearn_data["train_x"], y=self.sklearn_data["train_y"])
+
+        # Save model
+        best_model = search.best_estimator_
+        if best_model_path is None:
+            self.best_model_path = self.log_dir / "model.pkl"
+        else:
+            self.best_model_path = best_model_path
+        joblib.dump(best_model, self.best_model_path)
+        self.print_master(f"Best model saved to {self.best_model_path}")
+
+        # Log best model parameters
+        self.logger["best_model/params"] = search.best_params_
+        self.logger["best_model/score"] = search.best_score_
+
+    def test_sklearn(
+        self,
+        metrics: List[str],
+        target_type: str = "multistep",
+        best_model: Optional[BaseEstimator] = None,
+    ) -> None:
+
+        if best_model is None:
+            best_model = joblib.load(self.best_model_path)
+
+        # Evaluate best model on the test set
+        test_preds = best_model.predict(X=self.sklearn_data["test_x"])
+        metric_keys, test_metrics = get_metrics(
+            target=self.sklearn_data["test_y"],
+            output=test_preds,
+            metrics=metrics,
+            target_type=target_type,
+        )
+
+        # Return metrics in dictionary format
+        test_stats = dict()
+        for i, metric in enumerate(metric_keys):
+            test_stats[metric] = test_metrics[i]
+
+        self.log_stats(stats=test_stats, metrics=metrics, mode="test")
 
     def train_torch(
         self,
@@ -533,7 +679,7 @@ class Experiment:
 
             # <--------------- Validation --------------->
             if val_loader:
-                self.validate(
+                self.validate_torch(
                     model=model,
                     val_loader=val_loader,
                     criterion=criterion,
@@ -564,9 +710,9 @@ class Experiment:
 
         return model
 
-    def validate(
+    def validate_torch(
         self,
-        model: Union[nn.Module, BaseEstimator],
+        model:nn.Module, BaseEstimator,
         val_loader: DataLoader,
         criterion: nn.Module,
         device,
@@ -594,7 +740,7 @@ class Experiment:
             None
 
         """
-        stats = self.evaluate(
+        stats = self.evaluate_torch(
             model=model,
             loader=val_loader,
             criterion=criterion,
@@ -628,7 +774,7 @@ class Experiment:
 
         self.print_master("Validation complete")
 
-    def test(
+    def test_torch(
         self,
         model: Union[nn.Module, BaseEstimator],
         criterion: nn.Module,
@@ -665,7 +811,7 @@ class Experiment:
         model.load_state_dict(model_weights)
 
         # Test set evaluation
-        stats = self.evaluate(
+        stats = self.evaluate_torch(
             model=model,
             loader=test_loader,
             criterion=criterion,
@@ -712,7 +858,6 @@ class Experiment:
                 x = batch[0].to(device)
                 y = batch[1].to(device)
                 output = model(x)
-                loss = criterion(output, y)
 
                 # Compute metrics
                 num_batch_examples = batch[0].shape[0]
