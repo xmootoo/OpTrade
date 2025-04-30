@@ -7,22 +7,9 @@ import argparse
 
 from optrade.config.config import load_config
 from optrade.main import run_job
+from optrade.dev.utils.ablations import load_ablation_config, generate_ablation_combinations
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-
-def load_ablation_config(file_path: Path) -> Dict[str, List[Any]]:
-    with open(file_path, "r") as file:
-        config = yaml.safe_load(file)
-    ablation_config = config.get("ablations", {})
-    return ablation_config
-
-
-def generate_ablation_combinations(
-    ablation_config: Dict[str, List[Any]],
-) -> List[Dict[str, Any]]:
-    keys, values = zip(*ablation_config.items())
-    return [dict(zip(keys, v)) for v in itertools.product(*values)]
-
 
 def grid_search(job_name: str) -> None:
     # Adjust the base_path to use the absolute path
