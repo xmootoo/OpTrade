@@ -2,15 +2,12 @@ import json
 import argparse
 import sys
 from datetime import datetime
-from optrade.config.config import load_config
-import torch
+from optrade.config.config import load_config, Global
 from rich.console import Console
 from rich.pretty import pprint
 import warnings
-from pydantic import BaseModel
 from typing import Dict, Any
 from pathlib import Path
-
 
 from optrade.dev.run import run_forecasting_experiment
 
@@ -22,8 +19,8 @@ warnings.filterwarnings(
 
 
 def update_global_config(
-    ablation_config: Dict[str, Any], global_config: BaseModel, ablation_id: int
-) -> BaseModel:
+    ablation_config: Dict[str, Any], global_config: Global, ablation_id: int
+) -> Global:
     """
     Updates the global config for ablation studies and hyperparameter tuning. For example,
     if the ablation_config is {'global_config.sl.lr': 0.01}, then the global_config.sl.lr will be
@@ -60,7 +57,7 @@ def update_global_config(
     return global_config
 
 
-def run_job(job_name="test", ablation=None, ablation_id=1):
+def run_job(job_name: str="test", ablation=None, ablation_id=1) -> None:
 
     # Rich console
     console = Console()
@@ -81,7 +78,8 @@ def run_job(job_name="test", ablation=None, ablation_id=1):
 
     # Print args
     pprint(args, expand_all=True)
-    run_forecasting_experiment(args, ablation_id)
+    job_dir = BASE_DIR / "optrade" / "jobs" / job_name
+    run_forecasting_experiment(args, ablation_id, job_dir)
 
 
 if __name__ == "__main__":
