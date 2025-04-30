@@ -206,7 +206,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # Adam optimizer
 criterion = torch.nn.MSELoss()                             # Mean Squared Error loss
 
 # Step 4: Train the model
-model = exp.train(
+model = exp.train_torch(
     model=model,
     device=device,
     optimizer=optimizer,
@@ -245,14 +245,14 @@ universe = Universe(
 )
 
 # Step 2: Fetch constituents from Wikipedia
-universe.set_candidate_roots()
+universe.set_roots()
 
-# Step 3: Get fundamental data via yfinance & compute Fama-French exposures
-universe.get_fundamentals()
+# Step 3: Get market metric data via yfinance & compute Fama-French exposures
+universe.get_market_metrics()
 print(f"Universe: {universe.roots}")
 
 # Step 4: Apply filters (low debt, high market cap, aggressive investment beta)
-universe.filter_universe()
+universe.filter()
 print(f"Filtered universe: {universe.roots}")
 
 # Step 5: Download options data for filtered universe
