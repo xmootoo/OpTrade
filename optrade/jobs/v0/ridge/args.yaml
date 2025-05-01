@@ -1,0 +1,117 @@
+exp:
+  parent: "v0"
+  project_name: "optrade1/Version-0"
+  model_id: "sklearn_ridge"
+  seed_list: [54930]
+  seed: 54930
+  task: "forecasting"
+  neptune: False
+
+sklearn:
+  tuning_method: "grid"
+  n_splits: 5
+  n_jobs: -1
+  verbose: 3
+
+data:
+  download_only: False
+  offline: True
+  clean_up: False
+  dev_mode: True
+  dtype: "float32"
+  seq_len: 30
+  pred_len: 6
+  train_split: 0.33
+  val_split: 0.33
+  scale: True
+  target_type: "multistep"
+  verbose: True
+
+contracts:
+  validate: False # Use if not using pre-downloaded data
+  modify: False # DO NOT turn this on if you have pre-downloaded data (it may delete .pkl files erroneously)
+  root: "AAPL"
+  start_date: "20230107"
+  end_date: "20231228"
+  interval_min: 1
+  right: "C"
+  moneyness: "ATM"
+  strike_band: 0.05
+  volatility_scaled: False
+  target_tte: 30
+  tte_tolerance: [15, 45]
+  stride: 3
+
+# Features
+# feats:
+#   target_channels: ["option_returns"]
+#   scaling: True
+#   core_feats: [
+#       "option_returns",
+#       "stock_returns", # primary signal
+#       "option_quote_spread",
+#       "stock_quote_spread",
+#       "option_lob_imbalance",
+#       "stock_lob_imbalance",
+#       "moneyness",
+#       "distance_to_strike",
+#       "option_volume",
+#       "stock_volume",
+#       "option_count",
+#       "stock_count",
+#     ]
+
+#   tte_feats: ["inverse_sqrt", "exp_decay"]
+
+#   datetime_feats:
+#     [
+#       "sin_minute_of_day",
+#       "cos_minute_of_day",
+#       "sin_hour_of_week",
+#       "cos_hour_of_week",
+#     ]
+feats:
+  target_channels: ["option_returns"]
+  scaling: True
+  core: [
+      "option_returns",
+      "stock_returns",
+      # "distance_to_strike",
+      "moneyness",
+      # "option_lob_imbalance",
+      # "option_quote_spread",
+      "stock_lob_imbalance",
+      "stock_quote_spread",
+      # "option_mid_price",
+      # "option_bid_size",
+      # "option_bid",
+      # "option_ask_size",
+      # "option_close",
+      "option_volume",
+      # "option_count",
+      # "stock_mid_price",
+      # "stock_bid_size",
+      # "stock_bid",
+      # "stock_ask_size",
+      # "stock_ask",
+      "stock_volume",
+      # "stock_count",
+    ]
+
+  # TTE features
+  tte: [
+      "sqrt",
+      # "exp_decay"
+    ]
+
+  # Datetime features
+  datetime: [
+      "sin_minute_of_day",
+      # "cos_minute_of_day",
+      "sin_hour_of_week",
+      # "cos_hour_of_week",
+    ]
+
+eval:
+  metrics: ["mse", "mae", "rmse", "r2", "mape"]
+  best_model_metric: "mse"
