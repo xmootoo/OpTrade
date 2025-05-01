@@ -38,9 +38,6 @@ class Experiment(BaseModel):
         description="List of random seeds to run a single experiment on.",
     )
     seed: int = Field(default=2024, description="Random seed")
-    learning_type: str = Field(
-        default="sl", description="Type of learning: 'sl', 'ssl'"
-    )
     log_dir: Path = Field(
         default=SCRIPT_DIR.parent, description="Directory to save the 'logs' folder."
     )
@@ -62,18 +59,8 @@ class Experiment(BaseModel):
         default=datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
         description="Neptune run ID",
     )
-    acc: bool = Field(
-        default=False, description="Evaluate accuracy or not for classification tasks"
-    )
     thresh: float = Field(
         default=0.5, description="The threshold for binary classification"
-    )
-    mae: bool = Field(
-        default=False, description="Evaluate mean absolute error or not for forecasting"
-    )
-    best_model_metric: str = Field(
-        default="mse",
-        description="Metric to use for model saving and early stopping. Options: 'loss', 'acc', 'ch_acc'",
     )
     mps: bool = Field(
         default=False,
@@ -91,7 +78,7 @@ class Experiment(BaseModel):
     )
     sklearn: bool = Field(
         default=False,
-        description="Whether to use sklearn for modeling, otherwise, uses PyTorch",
+        description="Whether to use sklearn for modeling, otherwise, defaults to PyTorch",
     )
 
 
@@ -370,6 +357,10 @@ class Evaluation(BaseModel):
         default=["mse"],
         description="Metrics to use for evaluation. Options (regression): 'mse', 'rmse', 'mae', 'mape', 'r2'. Options (classification): 'accuracy', 'f1', 'precision', 'recall', 'auc'.",
     )
+    best_model_metric: str = Field(
+        default="mse",
+        description="Metric to use for model saving and early stopping. Options: 'loss', 'acc', 'ch_acc'",
+    )
 
 
 class Scheduler(BaseModel):
@@ -540,13 +531,12 @@ class RecurrentModel(BaseModel):
         default=8, description="Patch stride for generating patches.}"
     )
 
-
-class Sklearn(BaseModel):
+class SklearnConfig(BaseModel):
     tuning_method: str = Field(
         default="grid", description="Tuning method for sklearn models. Options: 'grid', 'random'."
     )
-    cv: int = Field(
-        default=5, description="Number of cross-validation folds for sklearn models."
+    n_splits: int = Field(
+        default=5, description="Number of cross-validation splits for sklearn models (this will be fed into TimeSeriesSplit for temporal separation)."
     )
     verbose: int = Field(
         default=0, description="Verbosity level for sklearn models. 0 = silent, 1 = some output, 2 = more output."
@@ -555,7 +545,7 @@ class Sklearn(BaseModel):
         default=-1, description="Number of jobs to run in parallel for sklearn models. -1 = all processors."
     )
     n_iter: int = Field(
-        default=10, description="Number of iterations for random search in sklearn models."
+        default=10, description="Number of iterations for RandomizedSearchCV in hyperparameter tuning sklearn models."
     )
 
 class SklearnRidge(BaseModel):
@@ -742,7 +732,7 @@ class Global(BaseModel):
     rnn: RecurrentModel = RecurrentModel()
 
     # Sklearn models
-    _sklearn: Sklearn = Sklearn()
+    sklearn: SklearnConfig = SklearnConfig()
     sklearn_ridge: SklearnRidge = SklearnRidge()
     sklearn_lasso: SklearnLasso = SklearnLasso()
     sklearn_rf: SklearnRandomForest = SklearnRandomForest()
