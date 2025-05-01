@@ -7,10 +7,12 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
+from datetime import datetime, timedelta
+import pandas_market_calendars as mcal
 
 
 # Datasets
-from optrade.data.thetadata import find_optimal_strike
+from optrade.data.thetadata import find_optimal_strike, get_expirations
 from optrade.data.contracts import Contract, ContractDataset
 from optrade.utils.error_handlers import (
     DataValidationError,
@@ -61,7 +63,11 @@ class ForecastingDataset(Dataset):
             data_numeric = data.to_numpy()
 
         # Check for NaNs using the original DataFrame (with column names)
-        columns = data.drop(columns=["datetime"]).columns if self.has_datetime else data.columns
+        columns = (
+            data.drop(columns=["datetime"]).columns
+            if self.has_datetime
+            else data.columns
+        )
         nan_counts = data[columns].isna().sum()
 
         if nan_counts.any():
@@ -73,7 +79,9 @@ class ForecastingDataset(Dataset):
                 "or unstable features like LOB imbalance or spread when interval_min is too low.\n"
                 "Consider dropping these features or resampling to a longer interval by increasing interval_min parmaeter."
             )
-            raise DataValidationError(message=message, error_code=NAN_FEATURES, verbose=True, warning=False)
+            raise DataValidationError(
+                message=message, error_code=NAN_FEATURES, verbose=True, warning=False
+            )
 
         self.torch_dtype = eval("torch." + dtype)
         self.np_dtype = eval("np." + dtype)
@@ -164,57 +172,69 @@ class ForecastingDataset(Dataset):
         else:
             return input_tensor, target_tensor
 
-    def to_numpy(
-            self
-        ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
-            ]:
-            """Converts the dataset into a set of NumPy arrays for scikit-learn model training.
-            Returns:
-                Tuple[np.ndarray, np.ndarray]: A tuple containing:
-                    - inputs: NumPy array of shape (num_samples, seq_len, num_features).
-                    - targets: NumPy array of shape (num_samples, pred_len, num_target_features).
-                If datetime is available:
-                    - input_datetimes: NumPy array of shape (num_samples, seq_len).
-                    - target_datetimes: NumPy array of shape (num_samples, pred_len).
-            """
-            if self.target_type == "multistep":
-                num_target_features = self.data.shape[1]
-                target_dtype = self.np_dtype
-            elif self.target_type == "average":
-                num_target_features = 1
-                target_dtype = self.np_dtype
-            elif self.target_type == "average_direction":
-                num_target_features = 1
-                target_dtype = np.float32
-            else:
-                raise ValueError(
-                    "Invalid target_type. Options: 'multistep', 'average', or 'average_direction'."
+    def to_numpy(self) -> Union[
+        Tuple[np.ndarray, np.ndarray],
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    ]:
+        """Converts the dataset into a set of NumPy arrays for scikit-learn model training.
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: A tuple containing:
+                - inputs: NumPy array of shape (num_samples, seq_len, num_features).
+                - targets: NumPy array of shape (num_samples, pred_len, num_target_features).
+            If datetime is available:
+                - input_datetimes: NumPy array of shape (num_samples, seq_len).
+                - target_datetimes: NumPy array of shape (num_samples, pred_len).
+        """
+        if self.target_type == "multistep":
+            num_target_features = self.data.shape[1]
+            target_dtype = self.np_dtype
+        elif self.target_type == "average":
+            num_target_features = 1
+            target_dtype = self.np_dtype
+        elif self.target_type == "average_direction":
+            num_target_features = 1
+            target_dtype = np.float32
+        else:
+            raise ValueError(
+                "Invalid target_type. Options: 'multistep', 'average', or 'average_direction'."
+            )
+        inputs = np.empty(
+            (len(self), self.seq_len, self.data.shape[1]), dtype=self.np_dtype
+        )
+        targets = np.empty(
+            (len(self), self.pred_len, num_target_features), dtype=target_dtype
+        )
+
+        if self.has_datetime:
+            # Specify the unit here to match what tensor_to_datetime uses
+            unit = "s"  # seconds
+            # Create the arrays with explicit time unit
+            input_datetimes = np.empty(
+                (len(self), self.seq_len), dtype=f"datetime64[{unit}]"
+            )
+            target_datetimes = np.empty(
+                (len(self), self.pred_len), dtype=f"datetime64[{unit}]"
+            )
+
+        for i in range(len(self)):
+            item = self.__getitem__(i)
+            input_tensor, target_tensor = item[0], item[1]
+            inputs[i] = input_tensor.numpy().T
+            targets[i] = target_tensor.numpy().T
+
+            if self.has_datetime:
+                input_datetime_tensor, target_datetime_tensor = item[2], item[3]
+                input_datetimes[i] = tensor_to_datetime(
+                    input_datetime_tensor, batch_mode=False
                 )
-            inputs = np.empty((len(self), self.seq_len, self.data.shape[1]), dtype=self.np_dtype)
-            targets = np.empty((len(self), self.pred_len, num_target_features), dtype=target_dtype)
+                target_datetimes[i] = tensor_to_datetime(
+                    target_datetime_tensor, batch_mode=False
+                )
 
-            if self.has_datetime:
-                # Specify the unit here to match what tensor_to_datetime uses
-                unit = 's'  # seconds
-                # Create the arrays with explicit time unit
-                input_datetimes = np.empty((len(self), self.seq_len), dtype=f'datetime64[{unit}]')
-                target_datetimes = np.empty((len(self), self.pred_len), dtype=f'datetime64[{unit}]')
-
-            for i in range(len(self)):
-                item = self.__getitem__(i)
-                input_tensor, target_tensor = item[0], item[1]
-                inputs[i] = input_tensor.numpy().T
-                targets[i] = target_tensor.numpy().T
-
-                if self.has_datetime:
-                    input_datetime_tensor, target_datetime_tensor = item[2], item[3]
-                    input_datetimes[i] = tensor_to_datetime(input_datetime_tensor, batch_mode=False)
-                    target_datetimes[i] = tensor_to_datetime(target_datetime_tensor, batch_mode=False)
-
-            if self.has_datetime:
-                return inputs, targets, input_datetimes, target_datetimes
-            else:
-                return inputs, targets
+        if self.has_datetime:
+            return inputs, targets, input_datetimes, target_datetimes
+        else:
+            return inputs, targets
 
     def get_item(self, idx: int) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
@@ -368,7 +388,9 @@ def get_forecasting_dataset(
     ctx = Console()
     dataset_list = []
     validated_contracts = []  # Track which contracts are actually valid
-    updated_contracts = []    # Track contracts that were updated (not in initial list)
+    updated_contracts = []  # Track contracts that were updated (not in initial list)
+    expirations_exist = False
+    tried_contracts = set()
 
     # First, validate that download_only and validate_contracts aren't both True
     if download_only and validate_contracts:
@@ -390,7 +412,11 @@ def get_forecasting_dataset(
     initial_contracts = deepcopy(contract_dataset.contracts)
 
     # Iterate through each contract in the ContractDataset
-    for contract in initial_contracts:  # Use initial_contracts instead to avoid modifying during iteration
+    for (
+        contract
+    ) in (
+        initial_contracts
+    ):  # Use initial_contracts instead to avoid modifying during iteration
         # Flag to track if we should try the next contract
         move_to_next_contract = False
         original_contract = deepcopy(contract)  # Keep original for comparison
@@ -440,54 +466,54 @@ def get_forecasting_dataset(
             except DataValidationError as e:
                 # Handle date-related errors that might be recoverable
                 if e.error_code in [INCOMPATIBLE_START_DATE, INCOMPATIBLE_END_DATE]:
-                    new_start_date = e.real_start_date
-                    new_exp = e.real_end_date if e.error_code == INCOMPATIBLE_END_DATE else contract.exp
+                    candidate_start_date = e.real_start_date
+                    candidate_exp = (
+                        e.real_end_date
+                        if e.error_code == INCOMPATIBLE_END_DATE
+                        else contract.exp
+                    )
 
-                    # Check if the timespan is within tolerance
-                    start_date_dt = pd.to_datetime(new_start_date, format="%Y%m%d")
-                    exp_date_dt = pd.to_datetime(new_exp, format="%Y%m%d")
-                    time_span = exp_date_dt - start_date_dt
+                    move_to_next_contract, new_contract = calibrate_new_contract(
+                        contract_dataset=contract_dataset,
+                        original_contract=original_contract,
+                        candidate_start_date=candidate_start_date,
+                        candidate_exp=candidate_exp,
+                        tte_tolerance=tte_tolerance,
+                        expirations_exist=expirations_exist,
+                        save_dir=save_dir,
+                        verbose=verbose,
+                        dev_mode=dev_mode,
+                    )
+                    expirations_exist = True
 
-                    if time_span >= pd.Timedelta(days=tte_tolerance[0]):
-                        # Update the contract if it meets the tolerance
-                        if verbose:
-                            ctx.log(f"Updating contract with new start date: {new_start_date} and expiration: {new_exp}")
 
-                        # Create a new contract and modify parameters
-                        contract = deepcopy(original_contract)
-                        contract.start_date = new_start_date
-                        contract.exp = new_exp
+                    # If calibration suggests retrying with a new contract...
+                    if not move_to_next_contract and new_contract is not None:
+                        contract_key = (new_contract.start_date, new_contract.exp)
 
-                        # Update strike based on new parameters
-                        contract.strike = find_optimal_strike(
-                            root=contract.root,
-                            start_date=new_start_date,
-                            exp=new_exp,
-                            right=contract_dataset.right,
-                            interval_min=contract_dataset.interval_min,
-                            moneyness=contract_dataset.moneyness,
-                            strike_band=contract_dataset.strike_band,
-                            volatility_scaled=contract_dataset.volatility_scaled,
-                            volatility_scalar=contract_dataset.volatility_scalar,
-                            hist_vol=contract_dataset.hist_vol,
-                            clean_up=True,
-                        )
+                        if contract_key in tried_contracts:
+                            if verbose:
+                                ctx.log(f"Previously tried contract {contract_key} failed. Skipping.")
+                            move_to_next_contract = True  # Skip this contract
+                            continue
 
-                        move_to_next_contract = False  # Retry this contract
-                    else:
-                        if verbose:
-                            ctx.log(f"Contract timespan ({time_span.days} days) is too short. Moving to next contract.")
-                        move_to_next_contract = True
+                        tried_contracts.add(contract_key)
+                        contract = new_contract  # Try the calibrated contract
+
                 elif e.error_code == NAN_FEATURES:
-                    raise e # Raise the error to be handled outside
+                    raise e  # Raise the error to be handled outside
                 else:
                     if verbose:
-                        ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
+                        ctx.log(
+                            f"DataValidationError for {contract}: {e}. Moving to next contract."
+                        )
                     move_to_next_contract = True
 
             except Exception as e:
                 if verbose:
-                    ctx.log(f"Unknown error for {contract}: {e}. Moving to next contract.")
+                    ctx.log(
+                        f"Unknown error for {contract}: {e}. Moving to next contract."
+                    )
                 move_to_next_contract = True
 
     # Find removed contracts (in initial but not in validated)
@@ -517,7 +543,7 @@ def get_forecasting_dataset(
                     contract.exp,
                     str(contract.strike),
                     contract.right,
-                    style="red"
+                    style="red",
                 )
             ctx.print(removed_table)
 
@@ -535,10 +561,12 @@ def get_forecasting_dataset(
                 # Check if this is a modified version of an original contract
                 is_update = False
                 for orig in initial_contracts:
-                    if (contract.root == orig.root and
-                        contract.strike == orig.strike and
-                        contract.interval_min == orig.interval_min and
-                        contract.right == orig.right):
+                    if (
+                        contract.root == orig.root
+                        and contract.strike == orig.strike
+                        and contract.interval_min == orig.interval_min
+                        and contract.right == orig.right
+                    ):
                         is_update = True
                         break
 
@@ -551,7 +579,7 @@ def get_forecasting_dataset(
                     str(contract.strike),
                     contract.right,
                     status,
-                    style="green"
+                    style="green",
                 )
             ctx.print(updated_table)
 
@@ -562,7 +590,9 @@ def get_forecasting_dataset(
     contracts_changed = set(validated_contracts) != set(initial_contracts)
     if contracts_changed and modify_contracts:
         if verbose:
-            ctx.log(f"Contract changes detected: {len(removed_contracts)} removed, {len(updated_contracts)} updated/added")
+            ctx.log(
+                f"Contract changes detected: {len(removed_contracts)} removed, {len(updated_contracts)} updated/added"
+            )
             ctx.log("Saving and overwriting ContractDataset .pkl file")
         contract_dataset.save(clean_file=True)
 
@@ -570,8 +600,139 @@ def get_forecasting_dataset(
         return contract_dataset
     else:
         if len(dataset_list) == 0:
-            raise ValueError("No valid contracts found. All contracts were invalid or contained errors.")
+            raise ValueError(
+                "No valid contracts found. All contracts were invalid or contained errors."
+            )
         return ConcatDataset(dataset_list), contract_dataset
+
+
+def calibrate_new_contract(
+    contract_dataset: ContractDataset,
+    original_contract: Contract,
+    candidate_start_date: str,
+    candidate_exp: str,
+    tte_tolerance: Tuple[int, int],
+    expirations_exist: bool = False,
+    save_dir: Optional[str] = None,
+    verbose: bool = False,
+    dev_mode: bool = False,
+) -> Tuple[bool, Optional[Contract]]:
+
+    # Rich console
+    ctx = Console()
+
+    # <------Calibrate New Expiration------>
+    if verbose:
+        ctx.log(
+            f"Calibrating new expiration date '{candidate_exp}' for original contract..."
+        )
+
+    # Query list of expirations to find closests expiration to real_end_date
+    expirations_offline = (
+        True if expirations_exist else False
+    )  # Do not query API if expirations.csv exists
+    expirations = get_expirations(
+        root=original_contract.root,
+        save_dir=save_dir,
+        clean_up=False,
+        offline=expirations_offline,
+        dev_mode=dev_mode,
+    )
+    expirations["date"] = pd.to_datetime(
+        expirations["date"].astype(str), format="%Y%m%d"
+    )  # Ensure dates are in datetime format
+    candidate_exp = pd.to_datetime(
+        candidate_exp, format="%Y%m%d"
+    )  # Ensure candidate expiration is in datetime format
+    closest_date = (expirations["date"] - candidate_exp).abs().idxmin()
+    new_exp = expirations.loc[closest_date, "date"].strftime("%Y%m%d")
+
+    if verbose:
+        ctx.log(f"Closest expiration date found: {new_exp}")
+
+    # <------Calibrate New Start Date------>
+    if verbose:
+        ctx.log(
+            f"Calibrating new start date '{candidate_start_date}' for original contract..."
+        )
+    # Validate that the new start date doesn't fall on a weekend or market holiday, otherwise move forward in time to next valid date
+    new_start_date = get_valid_start_date(candidate_start_date)
+
+    if verbose:
+        ctx.log(f"New start date found: {new_start_date}")
+
+    # <------TTE Tolerance Check------>
+    # Check if the timespan from new_start_date to new_exp is within time-to-expiration tolerance
+    start_date_dt = pd.to_datetime(new_start_date, format="%Y%m%d")
+    exp_date_dt = pd.to_datetime(new_exp, format="%Y%m%d")
+    time_span = exp_date_dt - start_date_dt
+
+    if time_span >= pd.Timedelta(days=tte_tolerance[0]):
+        # Update the contract if it meets the tolerance
+        if verbose:
+            ctx.log(
+                f"TTE Tolerance = {time_span} check passed: updating contract with new start date: {new_start_date} and expiration: {new_exp}"
+            )
+
+        # Create a new contract and modify parameters
+        contract = deepcopy(original_contract)
+        contract.start_date = new_start_date
+        contract.exp = new_exp
+
+        # Update strike based on new parameters
+        contract.strike = find_optimal_strike(
+            root=contract.root,
+            start_date=new_start_date,
+            exp=new_exp,
+            right=contract_dataset.right,
+            interval_min=contract_dataset.interval_min,
+            moneyness=contract_dataset.moneyness,
+            strike_band=contract_dataset.strike_band,
+            volatility_scaled=contract_dataset.volatility_scaled,
+            volatility_scalar=contract_dataset.volatility_scalar,
+            hist_vol=contract_dataset.hist_vol,
+            clean_up=True,
+        )
+
+        return False, contract
+    else:
+        if verbose:
+            ctx.log(
+                f"Contract timespan ({time_span.days} days) is too short. Moving to next contract."
+            )
+        return True, None
+
+
+def get_valid_start_date(candidate_start_date: str) -> str:
+    """
+    Return the next valid NYSE trading day given a candidate date in YYYYMMDD format.
+
+    This function checks whether the provided date falls on a weekend or a NYSE holiday.
+    If so, it advances the date forward to the next valid trading day.
+
+    Args:
+        candidate_start_date (str): The date to validate, in 'YYYYMMDD' format.
+
+    Returns:
+        str: The next valid NYSE trading day in 'YYYYMMDD' format.
+
+    Raises:
+        ValueError: If no valid trading day is found within the search buffer.
+    """
+    nyse = mcal.get_calendar("NYSE")
+    date_obj = datetime.strptime(candidate_start_date, "%Y%m%d")
+
+    # Get 10 future trading days (timezone-aware, but we’ll just use .date())
+    trading_days = nyse.valid_days(
+        start_date=candidate_start_date,
+        end_date=(date_obj + timedelta(days=10)).strftime("%Y-%m-%d")
+    )
+
+    for d in trading_days:
+        if d.date() >= date_obj.date():
+            return d.strftime("%Y%m%d")
+
+    raise ValueError(f"No valid trading day found after {candidate_start_date}")
 
 
 def get_forecasting_loaders(
