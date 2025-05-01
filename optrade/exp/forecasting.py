@@ -595,7 +595,7 @@ class Experiment:
 
         # Evaluate best model on the test set
         if all(v is None for v in [test_x, test_y]):
-            text_x = self.sklearn_data["test_x"]
+            test_x = self.sklearn_data["test_x"]
             test_y = self.sklearn_data["test_y"]
 
         test_preds = best_model.predict(X=test_x)
