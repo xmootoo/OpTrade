@@ -7,8 +7,10 @@ import joblib
 from typing import Optional, List, Tuple, Union
 from pathlib import Path
 from rich.console import Console
+from rich.table import Table
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.model_selection import TimeSeriesSplit
 
 # Torch
 import numpy as np
@@ -247,36 +249,40 @@ class Experiment:
         if download_only:
             self.print_master("Download only mode (no experiments)")
             offline = clean_up = validate_contracts = False
-            modify_contracts = True
+
+            if not modify_contracts:
+                self.print_master(
+                    "modify_contracts is set to False. You must disable it to activately modify contracts .pkl files."
+                )
 
         action = "Loading" if offline else "Generating"
-        with self.ctx.status(f"{action} contract datasets"):
-            (
-                self.train_contract_dataset,
-                self.val_contract_dataset,
-                self.test_contract_dataset,
-            ) = get_contract_datasets(
-                root=root,
-                start_date=start_date,
-                end_date=end_date,
-                contract_stride=contract_stride,
-                interval_min=interval_min,
-                right=right,
-                target_tte=target_tte,
-                tte_tolerance=tte_tolerance,
-                moneyness=moneyness,
-                strike_band=strike_band,
-                volatility_type=volatility_type,
-                volatility_scaled=volatility_scaled,
-                volatility_scalar=volatility_scalar,
-                train_split=train_split,
-                val_split=val_split,
-                clean_up=clean_up,
-                offline=offline,
-                save_dir=save_dir,
-                verbose=verbose,
-                dev_mode=dev_mode,
-            )
+        self.ctx.log(f"{action} contract datasets")
+        (
+            self.train_contract_dataset,
+            self.val_contract_dataset,
+            self.test_contract_dataset,
+        ) = get_contract_datasets(
+            root=root,
+            start_date=start_date,
+            end_date=end_date,
+            contract_stride=contract_stride,
+            interval_min=interval_min,
+            right=right,
+            target_tte=target_tte,
+            tte_tolerance=tte_tolerance,
+            moneyness=moneyness,
+            strike_band=strike_band,
+            volatility_type=volatility_type,
+            volatility_scaled=volatility_scaled,
+            volatility_scalar=volatility_scalar,
+            train_split=train_split,
+            val_split=val_split,
+            clean_up=clean_up,
+            offline=offline,
+            save_dir=save_dir,
+            verbose=verbose,
+            dev_mode=dev_mode,
+        )
 
         self.ctx.log(f"Train contracts: {len(self.train_contract_dataset)}")
         self.ctx.log(f"Validation contracts:{len(self.val_contract_dataset)}")
@@ -294,46 +300,45 @@ class Experiment:
 
         if validate_contracts or download_only:
             action = "Validating contracts" if validate_contracts else "Downloading data"
+            self.ctx.log(f"{action} with ThetaData API...")
+            self.train_contract_dataset = get_forecasting_dataset(
+                contract_dataset=self.train_contract_dataset,
+                tte_tolerance=tte_tolerance,
+                validate_contracts=validate_contracts,
+                download_only=download_only,
+                modify_contracts=modify_contracts,
+                verbose=verbose,
+                save_dir=save_dir,
+                dev_mode=dev_mode,
+            )
 
-            with self.ctx.status(f"{action} with ThetaData API..."):
-                self.train_contract_dataset = get_forecasting_dataset(
-                    contract_dataset=self.train_contract_dataset,
-                    tte_tolerance=tte_tolerance,
-                    validate_contracts=validate_contracts,
-                    download_only=download_only,
-                    modify_contracts=modify_contracts,
-                    verbose=verbose,
-                    save_dir=save_dir,
-                    dev_mode=dev_mode,
-                )
+            self.val_contract_dataset = get_forecasting_dataset(
+                contract_dataset=self.val_contract_dataset,
+                tte_tolerance=tte_tolerance,
+                validate_contracts=validate_contracts,
+                download_only=download_only,
+                modify_contracts=modify_contracts,
+                verbose=verbose,
+                save_dir=save_dir,
+                dev_mode=dev_mode,
+            )
+            self.test_contract_dataset = get_forecasting_dataset(
+                contract_dataset=self.test_contract_dataset,
+                tte_tolerance=tte_tolerance,
+                validate_contracts=validate_contracts,
+                download_only=download_only,
+                modify_contracts=modify_contracts,
+                verbose=verbose,
+                save_dir=save_dir,
+                dev_mode=dev_mode,
+            )
 
-                self.val_contract_dataset = get_forecasting_dataset(
-                    contract_dataset=self.val_contract_dataset,
-                    tte_tolerance=tte_tolerance,
-                    validate_contracts=validate_contracts,
-                    download_only=download_only,
-                    modify_contracts=modify_contracts,
-                    verbose=verbose,
-                    save_dir=save_dir,
-                    dev_mode=dev_mode,
-                )
-                self.test_contract_dataset = get_forecasting_dataset(
-                    contract_dataset=self.test_contract_dataset,
-                    tte_tolerance=tte_tolerance,
-                    validate_contracts=validate_contracts,
-                    download_only=download_only,
-                    modify_contracts=modify_contracts,
-                    verbose=verbose,
-                    save_dir=save_dir,
-                    dev_mode=dev_mode,
-                )
+        self.ctx.log(f"Train contracts (validated): {len(self.train_contract_dataset)}")
+        self.ctx.log(f"Validation contracts (validated):{len(self.val_contract_dataset)}")
+        self.ctx.log(f"Validation contracts (validated):{len(self.test_contract_dataset)}")
 
-            self.ctx.log(f"Train contracts (validated): {len(self.train_contract_dataset)}")
-            self.ctx.log(f"Validation contracts (validated):{len(self.val_contract_dataset)}")
-            self.ctx.log(f"Validation contracts (validated):{len(self.test_contract_dataset)}")
-
-            if download_only:
-                return
+        if download_only:
+            return
 
         self.train_loader, self.val_loader, self.test_loader, self.scaler = (
             get_forecasting_loaders(
@@ -440,6 +445,16 @@ class Experiment:
         test_x = np.concatenate(test_x, axis=0)
         test_y = np.concatenate(test_y, axis=0)
 
+        # Flatten the last two dimensions of the input: (num_windows, seq_len, num_features) -> (num_windows, seq_len * num_features)
+        if train_x.ndim == 3:
+            train_x = train_x.reshape(train_x.shape[0], -1)
+            test_x = test_x.reshape(test_x.shape[0], -1)
+
+        # For multi-feature targets, flatten the last two dimensions: (num_windows, pred_len, num_target_features) -> (num_windows, pred_len * num_target_features)
+        if train_y.ndim == 3:
+            train_y = train_y.reshape(train_y.shape[0], -1)
+            test_y = test_y.reshape(test_y.shape[0], -1)
+
         self.sklearn_data = {
             "train_x": train_x,
             "train_y": train_y,
@@ -467,28 +482,50 @@ class Experiment:
         model: BaseEstimator,
         param_dict: dict,
         tuning_method: str = "grid",
-        cv: int = 5,
+        n_splits: int = 5,
         verbose: int = 1,
         n_jobs: int = -1,
         n_iter: int = 100,
-        to_numpy: bool = False,
-        train_data: Optional[Union[np.ndarray, DataLoader]] = None,
-        val_data: Optional[Union[np.ndarray, DataLoader]] = None,
+        train_x: Optional[np.ndarray] = None,
+        train_y: Optional[np.ndarray] = None,
         target_type: str = "multistep",
         best_model_path: Optional[str] = None,
         early_stopping: bool = False,
         patience: Optional[int] = None,
     ) -> None:
 
+        # Temporally split the data into train and validation sets
+        cv = TimeSeriesSplit(n_splits=n_splits)
+
         # Convert PyTorch DataLoader objects to single NumPy arrays for scikit-learn training
-        if to_numpy:
-            has_datetime = self.train_loader.dataset.datasets[0].has_datetime # Check if datetime is on for the first ForecastingDataset
-            self.get_sklearn_data(
-                train_loader=self.train_loader,
-                val_loader=self.val_loader,
-                test_loader=self.test_loader,
-                has_datetime=has_datetime,
-            )
+        if all(v is None for v in [train_x, train_y]):
+
+            with self.ctx.status("Converting PyTorch DataLoader to NumPy arrays..."):
+                has_datetime = self.train_loader.dataset.datasets[0].has_datetime # Check if datetime is on for the first ForecastingDataset
+                self.get_sklearn_data(
+                    train_loader=self.train_loader,
+                    val_loader=self.val_loader,
+                    test_loader=self.test_loader,
+                    has_datetime=has_datetime,
+                )
+                train_x = self.sklearn_data["train_x"]
+                train_y = self.sklearn_data["train_y"]
+
+            self.ctx.log(f"train_x shape: {train_x.shape}")
+            self.ctx.log(f"train_y shape: {train_y.shape}")
+
+            # Check if NaNs in train_x or train_y
+            if np.isnan(train_x).any():
+                # Compute how many NaNs there are
+                num_nans = np.isnan(train_x).sum()
+                self.ctx.log(f"train_x contains {num_nans} NaN values.")
+
+            if np.isnan(train_y).any():
+                num_nans = np.isnan(train_y).sum()
+                self.ctx.log(f"train_y contains {num_nans} NaN values.")
+
+            if np.isnan(train_x).any() or np.isnan(train_y).any():
+                raise ValueError("train_x or train_y contains NaN values.")
 
         if target_type in ["multistep", "average"]:
             scoring = "neg_root_mean_squared_error"
@@ -519,7 +556,17 @@ class Experiment:
         else:
             raise ValueError(f"Invalid tuning method: {tuning_method}")
 
-        search = clf.fit(X=self.sklearn_data["train_x"], y=self.sklearn_data["train_y"])
+
+        # Print out model param_dict with Rich table
+        table = Table(title="Hyperparameter Grid")
+        table.add_column("Parameter", style="bold cyan")
+        table.add_column("Values", style="magenta")
+        for k, v in param_dict.items():
+            table.add_row(str(k), str(v))
+        self.ctx.log(table)
+
+        with self.ctx.status("Fitting sklearn model..."):
+            search = clf.fit(X=train_x, y=train_y)
 
         # Save model
         best_model = search.best_estimator_
@@ -538,6 +585,8 @@ class Experiment:
         self,
         metrics: List[str],
         target_type: str = "multistep",
+        test_x: Optional[np.ndarray] = None,
+        test_y: Optional[np.ndarray] = None,
         best_model: Optional[BaseEstimator] = None,
     ) -> None:
 
@@ -545,9 +594,13 @@ class Experiment:
             best_model = joblib.load(self.best_model_path)
 
         # Evaluate best model on the test set
-        test_preds = best_model.predict(X=self.sklearn_data["test_x"])
+        if all(v is None for v in [test_x, test_y]):
+            text_x = self.sklearn_data["test_x"]
+            test_y = self.sklearn_data["test_y"]
+
+        test_preds = best_model.predict(X=test_x)
         metric_keys, test_metrics = get_metrics(
-            target=self.sklearn_data["test_y"],
+            target=test_y,
             output=test_preds,
             metrics=metrics,
             target_type=target_type,
@@ -570,6 +623,7 @@ class Experiment:
         train_loader: Optional[DataLoader] = None,
         val_loader: Optional[DataLoader] = None,
         metrics: List[str] = ["mse"],
+        best_model_metric: str = "mse",
         best_model_path: Optional[str] = None,
         early_stopping: bool = False,
         patience: Optional[int] = None,
@@ -685,6 +739,7 @@ class Experiment:
                     criterion=criterion,
                     metrics=metrics,
                     epoch=epoch,
+                    best_model_metric=best_model_metric,
                     best_model_path=self.best_model_path,
                     early_stopping=early_stopping,
                     device=device,
@@ -712,7 +767,7 @@ class Experiment:
 
     def validate_torch(
         self,
-        model:nn.Module, BaseEstimator,
+        model: nn.Module,
         val_loader: DataLoader,
         criterion: nn.Module,
         device,
@@ -845,7 +900,6 @@ class Experiment:
         """
         self.print_master("Evaluating...")
         stats = dict()
-        mae_loss = nn.L1Loss()
         num_examples = len(loader.dataset)  # Total number of examples across all ranks
 
         model.eval()
