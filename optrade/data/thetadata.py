@@ -52,16 +52,17 @@ def get_roots(
     # Set up directory structure
     working_dir = SCRIPT_DIR if dev_mode else Path.cwd()
     if save_dir is None:
-        save_dir = working_dir / "roots"
+        save_dir = working_dir / "historical_data" / "roots"
     else:
-        save_dir = Path(save_dir) / "roots"
+        save_dir = Path(save_dir) / "historical_data" / "roots"
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
         temp_dir = working_dir / "temp" / "roots"
         save_dir = temp_dir
 
-    save_dir = Path(save_dir) / sec
+    sec_path = "all_" + sec
+    save_dir = Path(save_dir) / sec_path
     save_dir.mkdir(parents=True, exist_ok=True)
     file_path = save_dir / "roots.csv"
 
@@ -139,9 +140,9 @@ def get_expirations(
     # Set up directory structure
     working_dir = SCRIPT_DIR if dev_mode else Path.cwd()
     if save_dir is None:
-        save_dir = working_dir / "roots"
+        save_dir = working_dir / "historical_data" / "roots" / "expirations"
     else:
-        save_dir = Path(save_dir) / "roots"
+        save_dir = Path(save_dir) / "historical_data" / "roots" / "expirations"
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
@@ -236,9 +237,9 @@ def get_strikes(
     # Set up directory structure
     working_dir = SCRIPT_DIR if dev_mode else Path.cwd()
     if save_dir is None:
-        save_dir = working_dir / "roots"
+        save_dir = working_dir / "historical_data" / "roots" / "strikes"
     else:
-        save_dir = Path(save_dir) / "roots"
+        save_dir = Path(save_dir) / "historical_data" / "roots" / "strikes"
 
     # If clean_up is True, save the CSVs in a temp folder, which will be deleted later
     if clean_up and not offline:
@@ -1390,6 +1391,8 @@ def load_all_data(
 
 if __name__ == "__main__":
     # Test: get_strikes, get_expirations, get_roots
+    from rich.console import Console
+    console = Console()
     clean_up = False
     offline = False
 
@@ -1397,13 +1400,13 @@ if __name__ == "__main__":
         exp="20240419", root="MSFT", clean_up=clean_up, offline=offline, dev_mode=True
     )
     df2 = get_expirations(
-        root="MSFT", clean_up=clean_up, offline=offline, dev_mode=True
+        root="AAPL", clean_up=clean_up, offline=offline, dev_mode=True
     )
     df3 = get_roots(clean_up=clean_up, offline=offline, dev_mode=True)
 
-    print(df1.head())
-    print(df2.head())
-    print(df3.head())
+    console.log(df1)
+    console.log(df2)
+    console.log(df3)
 
     # Test: find_optimal_exp
     try:
@@ -1418,8 +1421,10 @@ if __name__ == "__main__":
     # Test: find_optimal_strike
     optimal_strike = find_optimal_strike(
         root="AAPL",
-        start_date="20241107",
-        exp="20241206",
+        # start_date="20241107",
+        # exp="20241206",
+        start_date="20230113",
+        exp="20230209",
         right="C",
         interval_min=1,
         moneyness="ITM",
@@ -1431,6 +1436,10 @@ if __name__ == "__main__":
         offline=False,
         dev_mode=True,
     )
+
+    # 20230113 and expiration: 20230209
+
+
 
     from rich.console import Console
 
