@@ -634,12 +634,18 @@ if __name__ == "__main__":
     ]
     tte_feats = ["sqrt", "exp_decay"]  # Time-to-expiration features
     datetime_feats = ["minute_of_day", "hour_of_week"]
+    vol_feats = ["rolling_volatility", "vol_ratio"]
+    rolling_volatility_range = [20, 60] # Rolling 20min, and 60min past volatility values
 
     data = transform_features(
         df=df,
         core_feats=core_feats,
         tte_feats=tte_feats,  # Time-to-expiration features
         datetime_feats=datetime_feats,  # Time features
+        vol_feats=vol_feats,
+        rolling_volatility_range=rolling_volatility_range,
+        root = contract.root,
+        right=contract.right,
         strike=contract.strike,
         exp=contract.exp,
         keep_datetime=True,

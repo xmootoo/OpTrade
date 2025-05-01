@@ -34,10 +34,11 @@ pip install optrade
 ### Example (Single Contract)
 ```py
 # Step 1: Find and initialize the optimal contract
-from optrade.data import Contract
+from optrade.data.contracts import Contract
 
 contract = Contract.find_optimal(
     root="AAPL",
+    right="C",              # Call option
     start_date="20230103",  # First trading day of 2023
     target_tte=30,          # Desired expiration: 30 days
     tte_tolerance=(20, 40), # Min 20, max 40 days expiration
@@ -62,8 +63,12 @@ data = transform_features(
     ],
     tte_feats=["sqrt", "exp_decay"],  # Time-to-expiration features
     datetime_feats=["minute_of_day", "hour_of_week"],  # Time features
+    vol_feats=["rolling_volatility", "vol_ratio"], # Rolling volatility window and short-to-long volatility ratio
+    rolling_volatility_range=[20, 60], # 20min and 60min rolling volatility windows
     strike=contract.strike,
     exp=contract.exp,
+    root=contract.root,
+    right=contract.right,
 )
 
 # Step 4: Create dataset for time series forecasting

@@ -28,8 +28,12 @@ data = transform_features(
     ],
     tte_feats=["sqrt", "exp_decay"],  # Time-to-expiration features
     datetime_feats=["minute_of_day", "hour_of_week"],  # Time features
+    vol_feats=["rolling_volatility", "vol_ratio"], # Rolling volatility window and short-to-long volatility ratio
+    rolling_volatility_range=[20, 60], # 20min and 60min rolling volatility windows
     strike=contract.strike,
     exp=contract.exp,
+    root=contract.root,
+    right=contract.right,
 )
 
 # Step 4: Create dataset for time series forecasting
