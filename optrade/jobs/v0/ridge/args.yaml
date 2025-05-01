@@ -14,33 +14,33 @@ sklearn:
   verbose: 3
 
 data:
-  download_only: False
+  download_only: True
   offline: True
   clean_up: False
   dev_mode: True
   dtype: "float32"
-  seq_len: 30
-  pred_len: 6
-  train_split: 0.33
-  val_split: 0.33
+  seq_len: 12
+  pred_len: 3
+  train_split: 0.45
+  val_split: 0.30
   scale: True
   target_type: "multistep"
   verbose: True
 
 contracts:
   validate: False # Use if not using pre-downloaded data
-  modify: False # DO NOT turn this on if you have pre-downloaded data (it may delete .pkl files erroneously)
+  modify: True # DO NOT turn this on if you have pre-downloaded data (it may delete .pkl files erroneously)
   root: "AAPL"
   start_date: "20230107"
   end_date: "20231228"
-  interval_min: 1
+  interval_min: 15
   right: "C"
   moneyness: "ATM"
   strike_band: 0.05
   volatility_scaled: False
   target_tte: 30
   tte_tolerance: [15, 45]
-  stride: 3
+  stride: 1
 
 # Features
 # feats:
