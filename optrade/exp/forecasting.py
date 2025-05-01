@@ -599,7 +599,7 @@ class Experiment:
             test_y = self.sklearn_data["test_y"]
 
         test_preds = best_model.predict(X=test_x)
-        metric_keys, test_metrics = get_metrics(
+        test_metrics, metric_keys = get_metrics(
             target=test_y,
             output=test_preds,
             metrics=metrics,
