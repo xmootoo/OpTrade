@@ -1,4 +1,5 @@
 import pandas as pd
+import pandas_market_calendars as mcal
 import numpy as np
 import warnings
 from rich.console import Console
@@ -143,3 +144,127 @@ def get_train_historical_vol(
 
     # Calculate historical volatility
     return get_historical_vol(stock_data, volatility_type)
+
+
+def get_previous_trading_day(date: pd.Timestamp, n_days: int = 1) -> pd.Timestamp:
+    """
+    Returns the timestamp of the n-th previous NYSE trading day before `date`.
+    """
+    nyse = mcal.get_calendar("NYSE")
+    schedule = nyse.valid_days(
+        start_date=(date - pd.Timedelta(days=10)).strftime("%Y-%m-%d"),
+        end_date=date.strftime("%Y-%m-%d")
+    )
+    return pd.Timestamp(schedule[-(n_days + 1)])  # -1 = 1 day back
+
+
+def compute_rolling_volatility(
+    reference_df: pd.DataFrame,
+    root: str,
+    interval_min: int = 20,
+    return_type: str = "log",
+    time_col: str = "datetime",
+    dev_mode: bool = False,
+) -> pd.Series:
+    """
+    Computes realized volatility over a lookback window ending at each timestamp in reference_df[time_col].
+
+    Args:
+        reference_df: DataFrame containing timestamps (e.g., 15-min intervals for prediction)
+        root: Stock symbol (e.g., "AAPL")
+        interval_min: Length of lookback window in minutes
+        return_type: "log" or "simple" returns
+        time_col: Name of datetime column in reference_df
+        dev_mode: Pass through to load_stock_data for data loading control
+
+    Returns:
+        pd.Series of realized volatility values, aligned with reference_df index
+    """
+    from optrade.data.thetadata import load_stock_data  # Local import to ensure availability
+
+    reference_df = reference_df.copy()
+    reference_df[time_col] = pd.to_datetime(reference_df[time_col])
+    reference_times = reference_df[time_col]
+
+    # Determine data range needed for computing volatility
+    start_dt = start_dt = get_previous_trading_day(reference_times.min(), n_days=1)
+    end_dt = reference_times.max()
+    start_date_str = start_dt.strftime("%Y%m%d")
+    end_date_str = end_dt.strftime("%Y%m%d")
+
+    # Load high-frequency stock data (1-minute)
+    stock_data = load_stock_data(
+        root=root,
+        start_date=start_date_str,
+        end_date=end_date_str,
+        interval_min=1,
+        dev_mode=dev_mode,
+    )
+    print(stock_data.head())
+
+    stock_data["datetime"] = pd.to_datetime(stock_data["datetime"])
+    stock_data["mid_price"] = (stock_data["bid"] + stock_data["ask"]) / 2
+    stock_data.set_index("datetime", inplace=True)
+
+    out_vols = []
+
+
+    for t in reference_times:
+        end_idx = stock_data.index.searchsorted(t)
+        start_idx = end_idx - interval_min
+
+        if start_idx < 0:
+            out_vols.append(np.nan)
+            continue
+
+        price_window = stock_data.iloc[start_idx:end_idx]["mid_price"]
+
+        if len(price_window) < 2:
+            out_vols.append(np.nan)
+            continue
+
+        returns = (
+            np.log(price_window).diff().dropna()
+            if return_type == "log"
+            else price_window.pct_change().dropna()
+        )
+
+        out_vols.append(np.std(returns))
+
+    return pd.Series(out_vols, index=reference_df.index, name=f"realized_vol_{interval_min}min")
+
+
+if __name__ == "__main__":
+    # Example usage
+    root = "AAPL"
+    start_date = "20230101"
+    end_date = "20230131"
+    interval_min = 20
+
+    reference_df = load_stock_data(
+        root=root,
+        start_date=start_date,
+        end_date=end_date,
+        interval_min=interval_min,
+        dev_mode=True
+    )
+
+    vol_df = compute_rolling_volatility(
+        root=root,
+        reference_df=reference_df,
+        time_col="datetime",
+        interval_min=20,
+        return_type="log",
+    )
+
+    print(vol_df.head())
+    print(vol_df.tail())
+
+    # Check if NaNs in vol_df
+    if vol_df.isna().any():
+        print("NaN values found in vol_df")
+    else:
+        print("No NaN values in vol_df")
+
+    print(reference_df.head())
+    print(reference_df.tail())
