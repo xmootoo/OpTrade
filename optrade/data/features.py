@@ -624,17 +624,20 @@ def transform_features(
         else []
     )
 
-    vol_index = vol_feats.copy()
-    if "rolling_volatility" in vol_feats:
-        vol_index.remove("rolling_volatility")
-        for interval_min in rolling_volatility_range:
-            vol_index += [f"rolling_volatility_{interval_min}min"]
+    if vol_feats is not None:
+        vol_index = vol_feats.copy()
+        if "rolling_volatility" in vol_feats and rolling_volatility_range is not None:
+            vol_index.remove("rolling_volatility")
+            for interval_min in rolling_volatility_range:
+                vol_index += [f"rolling_volatility_{interval_min}min"]
 
-    if "vol_ratio" in vol_feats:
-        vol_index.remove("vol_ratio")
-        short_window = min(rolling_volatility_range)
-        long_window = max(rolling_volatility_range)
-        vol_index += [f"vol_ratio_{short_window}min_to_{long_window}min"]
+        if "vol_ratio" in vol_feats and rolling_volatility_range is not None:
+            vol_index.remove("vol_ratio")
+            short_window = min(rolling_volatility_range)
+            long_window = max(rolling_volatility_range)
+            vol_index += [f"vol_ratio_{short_window}min_to_{long_window}min"]
+    else:
+        vol_index = []
 
 
     selected_feats = core_feats + tte_index + datetime_index + vol_index
