@@ -146,17 +146,34 @@ def get_train_historical_vol(
     return get_historical_vol(stock_data, volatility_type)
 
 
+
 def get_previous_trading_day(date: pd.Timestamp, n_days: int = 1) -> pd.Timestamp:
     """
     Returns the timestamp of the n-th previous NYSE trading day before `date`.
+
+    Args:
+        date: A pd.Timestamp
+        n_days: How many trading days to go back
+
+    Returns:
+        pd.Timestamp of the previous trading day
     """
     nyse = mcal.get_calendar("NYSE")
-    schedule = nyse.valid_days(
-        start_date=(date - pd.Timedelta(days=10)).strftime("%Y-%m-%d"),
-        end_date=date.strftime("%Y-%m-%d")
-    )
-    return pd.Timestamp(schedule[-(n_days + 1)])  # -1 = 1 day back
 
+    # Start with a wide enough window to guarantee coverage
+    window_days = n_days + 15  # pad in case of holidays
+    start = date - pd.Timedelta(days=window_days)
+    end = date
+
+    schedule = nyse.valid_days(
+        start_date=start.strftime("%Y-%m-%d"),
+        end_date=end.strftime("%Y-%m-%d")
+    )
+
+    if len(schedule) < n_days + 1:
+        raise ValueError(f"Not enough trading days available to go back {n_days} from {date}")
+
+    return pd.Timestamp(schedule[-(n_days + 1)])
 
 def get_rolling_volatility(
     reference_df: pd.DataFrame,
@@ -167,18 +184,8 @@ def get_rolling_volatility(
     dev_mode: bool = False,
 ) -> pd.Series:
     """
-    Computes realized volatility over a lookback window ending at each timestamp in reference_df[time_col].
-
-    Args:
-        reference_df: DataFrame containing timestamps (e.g., 15-min intervals for prediction)
-        root: Stock symbol (e.g., "AAPL")
-        interval_min: Length of lookback window in minutes
-        return_type: "log" or "simple" returns
-        time_col: Name of datetime column in reference_df
-        dev_mode: Pass through to load_stock_data for data loading control
-
-    Returns:
-        pd.Series of realized volatility values, aligned with reference_df index
+    Computes realized volatility over a lookback window ending at each timestamp in reference_df[time_col],
+    with diagnostics for missing data.
     """
     from optrade.data.thetadata import load_stock_data
 
@@ -186,13 +193,12 @@ def get_rolling_volatility(
     reference_df[time_col] = pd.to_datetime(reference_df[time_col])
     reference_times = reference_df[time_col]
 
-    # Determine data range needed for computing volatility
-    start_dt = start_dt = get_previous_trading_day(reference_times.min(), n_days=1)
+    # Get stock data covering enough history
+    start_dt = get_previous_trading_day(reference_times.min(), n_days=10)
     end_dt = reference_times.max()
     start_date_str = start_dt.strftime("%Y%m%d")
     end_date_str = end_dt.strftime("%Y%m%d")
 
-    # Load high-frequency stock data (1-minute)
     stock_data = load_stock_data(
         root=root,
         start_date=start_date_str,
@@ -206,19 +212,28 @@ def get_rolling_volatility(
     stock_data.set_index("datetime", inplace=True)
 
     out_vols = []
-
+    skipped_timestamps = []
+    short_windows = []
+    misaligned_timestamps = []
 
     for t in reference_times:
         end_idx = stock_data.index.searchsorted(t)
-        start_idx = end_idx - interval_min
 
+        start_idx = end_idx - interval_min
         if start_idx < 0:
+            skipped_timestamps.append(t)
+            out_vols.append(np.nan)
+            continue
+
+        if end_idx > len(stock_data):
+            misaligned_timestamps.append(t)
             out_vols.append(np.nan)
             continue
 
         price_window = stock_data.iloc[start_idx:end_idx]["mid_price"]
 
         if len(price_window) < 2:
+            short_windows.append(t)
             out_vols.append(np.nan)
             continue
 
@@ -230,7 +245,100 @@ def get_rolling_volatility(
 
         out_vols.append(np.std(returns))
 
-    return pd.Series(out_vols, index=reference_df.index, name=f"realized_vol_{interval_min}min")
+    rolling_vol = pd.Series(out_vols, index=reference_df.index, name=f"realized_vol_{interval_min}min")
+    rolling_vol = rolling_vol.interpolate(method="linear", limit_direction="both")
+
+    # === Diagnostics
+    total_nans = rolling_vol.isna().sum()
+    if total_nans > 0:
+        print(f"[VOL WARNING] {total_nans} NaNs in rolling_vol_{interval_min}min")
+
+    if skipped_timestamps:
+        print(f"[VOL DIAG] Skipped {len(skipped_timestamps)} timestamps due to insufficient lookback")
+    if short_windows:
+        print(f"[VOL DIAG] {len(short_windows)} windows had <2 prices")
+    if misaligned_timestamps:
+        print(f"[VOL DIAG] {len(misaligned_timestamps)} timestamps were outside stock_data index")
+
+    return rolling_vol
+
+
+
+# def get_rolling_volatility(
+#     reference_df: pd.DataFrame,
+#     root: str,
+#     interval_min: int = 20,
+#     return_type: str = "log",
+#     time_col: str = "datetime",
+#     dev_mode: bool = False,
+# ) -> pd.Series:
+#     """
+#     Computes realized volatility over a lookback window ending at each timestamp in reference_df[time_col].
+
+#     Args:
+#         reference_df: DataFrame containing timestamps (e.g., 15-min intervals for prediction)
+#         root: Stock symbol (e.g., "AAPL")
+#         interval_min: Length of lookback window in minutes
+#         return_type: "log" or "simple" returns
+#         time_col: Name of datetime column in reference_df
+#         dev_mode: Pass through to load_stock_data for data loading control
+
+#     Returns:
+#         pd.Series of realized volatility values, aligned with reference_df index
+#     """
+#     from optrade.data.thetadata import load_stock_data
+
+#     reference_df = reference_df.copy()
+#     reference_df[time_col] = pd.to_datetime(reference_df[time_col])
+#     reference_times = reference_df[time_col]
+
+#     # Determine data range needed for computing volatility
+#     start_dt = get_previous_trading_day(reference_times.min(), n_days=10)
+#     end_dt = reference_times.max()
+#     start_date_str = start_dt.strftime("%Y%m%d")
+#     end_date_str = end_dt.strftime("%Y%m%d")
+
+#     # Load high-frequency stock data (1-minute)
+#     stock_data = load_stock_data(
+#         root=root,
+#         start_date=start_date_str,
+#         end_date=end_date_str,
+#         interval_min=1,
+#         dev_mode=dev_mode,
+#     )
+
+#     stock_data["datetime"] = pd.to_datetime(stock_data["datetime"])
+#     stock_data["mid_price"] = (stock_data["bid"] + stock_data["ask"]) / 2
+#     stock_data.set_index("datetime", inplace=True)
+
+#     out_vols = []
+
+
+#     for t in reference_times:
+#         end_idx = stock_data.index.searchsorted(t)
+#         start_idx = end_idx - interval_min
+
+#         if start_idx < 0:
+#             out_vols.append(np.nan)
+#             continue
+
+#         price_window = stock_data.iloc[start_idx:end_idx]["mid_price"]
+
+#         if len(price_window) < 2:
+#             out_vols.append(np.nan)
+#             continue
+
+#         returns = (
+#             np.log(price_window).diff().dropna()
+#             if return_type == "log"
+#             else price_window.pct_change().dropna()
+#         )
+
+#         out_vols.append(np.std(returns))
+
+#     rolling_vol = pd.Series(out_vols, index=reference_df.index, name=f"realized_vol_{interval_min}min")
+
+#     return rolling_vol
 
 
 if __name__ == "__main__":
@@ -252,7 +360,7 @@ if __name__ == "__main__":
         root=root,
         reference_df=reference_df,
         time_col="datetime",
-        interval_min=20,
+        interval_min=600,
         return_type="log",
     )
 
