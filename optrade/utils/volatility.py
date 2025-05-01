@@ -158,7 +158,7 @@ def get_previous_trading_day(date: pd.Timestamp, n_days: int = 1) -> pd.Timestam
     return pd.Timestamp(schedule[-(n_days + 1)])  # -1 = 1 day back
 
 
-def compute_rolling_volatility(
+def get_rolling_volatility(
     reference_df: pd.DataFrame,
     root: str,
     interval_min: int = 20,
@@ -180,7 +180,7 @@ def compute_rolling_volatility(
     Returns:
         pd.Series of realized volatility values, aligned with reference_df index
     """
-    from optrade.data.thetadata import load_stock_data  # Local import to ensure availability
+    from optrade.data.thetadata import load_stock_data
 
     reference_df = reference_df.copy()
     reference_df[time_col] = pd.to_datetime(reference_df[time_col])
@@ -200,7 +200,6 @@ def compute_rolling_volatility(
         interval_min=1,
         dev_mode=dev_mode,
     )
-    print(stock_data.head())
 
     stock_data["datetime"] = pd.to_datetime(stock_data["datetime"])
     stock_data["mid_price"] = (stock_data["bid"] + stock_data["ask"]) / 2
@@ -249,7 +248,7 @@ if __name__ == "__main__":
         dev_mode=True
     )
 
-    vol_df = compute_rolling_volatility(
+    vol_df = get_rolling_volatility(
         root=root,
         reference_df=reference_df,
         time_col="datetime",
