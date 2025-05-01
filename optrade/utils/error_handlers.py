@@ -5,6 +5,7 @@ from rich.console import Console
 MISSING_DATES = 1001
 INCOMPATIBLE_START_DATE = 1002
 INCOMPATIBLE_END_DATE = 1003
+NAN_FEATURES = 1004
 MARKET_HOLIDAY = 1004
 WEEKEND = 1005
 UNKNOWN_ERROR = 9999
@@ -33,6 +34,7 @@ class DataValidationError(Exception):
             MARKET_HOLIDAY: "Market holiday",
             WEEKEND: "Weekend",
             UNKNOWN_ERROR: "Unknown error",
+            NAN_FEATURES: "Certain features contain NaN values",
         }
 
         error_str = error_dict[error_code]
