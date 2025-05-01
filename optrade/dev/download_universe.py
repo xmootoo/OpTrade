@@ -1,13 +1,12 @@
 from pathlib import Path
 import json
 import yaml
-from typing import Dict, List, Any, Optional
-import itertools
+from typing import Dict, List, Any
 from rich.console import Console
 
 # Custom modules
 from optrade.data.universe import Universe
-from optrade.dev.grid_search import generate_ablation_combinations
+from optrade.dev.utils.ablations import generate_ablation_combinations
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 UNIVERSE_DOWNLOAD_PARAMETERS = [
@@ -25,9 +24,9 @@ UNIVERSE_DOWNLOAD_PARAMETERS = [
     "contracts.volatility_scalar",
 ]
 
+
 def filter_ablation_config(
-    ablation_config: Dict[str, List[Any]],
-    prefixes: List[str]
+    ablation_config: Dict[str, List[Any]], prefixes: List[str]
 ) -> Dict[str, List[Any]]:
     """
     Filter ablation configuration by prefixes and group them
@@ -69,7 +68,9 @@ def run_universe(parent_id: str, download: bool = False, filter: bool = False) -
     ctx = Console()
 
     # Set up paths
-    parent_path = SCRIPT_DIR.parents[0] / "jobs" / "parent" / parent_id # <- Might have to change due to refactor
+    parent_path = (
+        SCRIPT_DIR.parents[0] / "jobs" / "parent" / parent_id
+    )
     universe_path = parent_path / "universe.yaml"
 
     # Load universe configuration
@@ -107,12 +108,11 @@ def run_universe(parent_id: str, download: bool = False, filter: bool = False) -
 
     # Set up universe
     ctx.log("Setting candidate roots...")
-    universe.set_candidate_roots()
+    universe.set_roots()
     ctx.log("Getting market metrics...")
     universe.get_market_metrics()
     ctx.log("Getting factor exposures...")
     universe.get_factor_exposures()
-
     ctx.log(f"Roots: {universe.roots}")
 
     # Filter the universe
@@ -135,9 +135,10 @@ def run_universe(parent_id: str, download: bool = False, filter: bool = False) -
         ctx.log(f"Keys: {list(ablation_full_config.keys())}")
 
         # Filter only by "contracts" and "data", as they are the only ones needed for downloading
-        filtered_ablation_config = filter_ablation_config(ablation_full_config, UNIVERSE_DOWNLOAD_PARAMETERS)
+        filtered_ablation_config = filter_ablation_config(
+            ablation_full_config, UNIVERSE_DOWNLOAD_PARAMETERS
+        )
         ablation_combinations = generate_ablation_combinations(filtered_ablation_config)
-
 
         for i, ablation in enumerate(ablation_combinations):
             ctx.log(f"Downloading data combination {i+1}/{len(ablation_combinations)}")
