@@ -1,0 +1,18 @@
+ablations:
+  data.root: ["SPY"]
+  data.train_split: [0.45]
+  data.val_split: [0.30]
+  data.seq_len: [15, 30]
+  data.pred_len: [5, 10]
+  data.dtype: ["float32"]
+
+  # Contracts
+  contracts.stride: [1]
+  contracts.interval_min: [15]
+  contracts.right: ["C"]
+  contracts.target_tte: [30]
+  contracts.tte_tolerance: [[15, 45]]
+  contracts.moneyness: ["ATM"]
+  contracts.volatility_scaled: [False]
+  contracts.modify: [False]
+  contracts.validate: [False]
