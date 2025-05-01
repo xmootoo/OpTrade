@@ -286,7 +286,7 @@ class Experiment:
 
         self.ctx.log(f"Train contracts: {len(self.train_contract_dataset)}")
         self.ctx.log(f"Validation contracts:{len(self.val_contract_dataset)}")
-        self.ctx.log(f"Validation contracts:{len(self.test_contract_dataset)}")
+        self.ctx.log(f"Test contracts:{len(self.test_contract_dataset)}")
 
         # Warning: this will overwite existing contract .pkl files
         if not modify_contracts:
