@@ -406,6 +406,11 @@ def transform_features(
         datetime_feats: List of datetime features to generate.
         strike: Strike price of the option, required for moneyness and distance_to_strike calculations.
         exp: Expiration date string in YYYYMMDD format, required for TTE feature generation.
+        vol_feats: List of volatility features to generate.
+        root: Stock symbol (e.g., "AAPL"), required for volatility feature generation.
+        right: Option type ("C" for call, "P" for put), required for volatility feature generation.
+        rolling_volatility_range: List of intervals in minutes for rolling volatility features.
+        keep_datetime: If True, keep the datetime column in the output DataFrame. Otherwise, drop it.
 
     Returns:
         DataFrame containing only the requested features.
@@ -607,9 +612,6 @@ def transform_features(
         # Interpolate missing values linearly over time
         df["option_quote_spread"] = spread.astype(float).interpolate(method="linear", limit_direction="both")
 
-    # if "volatility" in core_feats:
-
-
     # Select features
     tte_index = (
         ["tte_" + tte_feats[i] for i in range(len(tte_feats))]
@@ -622,7 +624,7 @@ def transform_features(
         else []
     )
 
-    vol_index = vol_feats
+    vol_index = vol_feats.copy()
     if "rolling_volatility" in vol_feats:
         vol_index.remove("rolling_volatility")
         for interval_min in rolling_volatility_range:
@@ -636,7 +638,6 @@ def transform_features(
 
 
     selected_feats = core_feats + tte_index + datetime_index + vol_index
-
 
     if keep_datetime:
         selected_feats += ["datetime"]
