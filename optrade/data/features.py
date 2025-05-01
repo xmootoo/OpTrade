@@ -621,7 +621,22 @@ def transform_features(
         if datetime_feats is not None
         else []
     )
-    selected_feats = core_feats + tte_index + datetime_index
+
+    vol_index = vol_feats
+    if "rolling_volatility" in vol_feats:
+        vol_index.remove("rolling_volatility")
+        for interval_min in rolling_volatility_range:
+            vol_index += [f"rolling_volatility_{interval_min}min"]
+
+    if "vol_ratio" in vol_feats:
+        vol_index.remove("vol_ratio")
+        short_window = min(rolling_volatility_range)
+        long_window = max(rolling_volatility_range)
+        vol_index += [f"vol_ratio_{short_window}min_to_{long_window}min"]
+
+
+    selected_feats = core_feats + tte_index + datetime_index + vol_index
+
 
     if keep_datetime:
         selected_feats += ["datetime"]
@@ -735,12 +750,14 @@ if __name__ == "__main__":
         ],
         tte_feats=["sqrt", "exp_decay"],
         datetime_feats=["sin_minute_of_day", "cos_minute_of_day"],
+        vol_feats=["rolling_volatility", "vol_ratio"],
         strike=contract.strike,
         exp=contract.exp,
         root=root,
         right=right,
         rolling_volatility_range=[20, 60],
-        vol_feats=["rolling_volatility", "vol_ratio"],
     )
 
-    ctx.log(df.head())
+    # for each column in df print the head out
+    for col in df.columns:
+        ctx.log(f"{col}: {df[col].head()}")
