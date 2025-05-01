@@ -4,6 +4,9 @@ from typing import Optional, List
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
+from optrade.utils.volatility import get_historical_vol, get_rolling_volatility
+from py_vollib.black_scholes.implied_volatility import implied_volatility
+from py_vollib.black_scholes.greeks.analytical import delta, gamma, vega, theta, rho
 
 
 def dt_features(
@@ -281,11 +284,110 @@ def tte_features(
     return result_df
 
 
+def get_volatility_features(
+    df: pd.DataFrame,
+    feats: List[str],
+    root: str,
+    right: str,
+    risk_free_rate: float = 0.045,
+    rolling_volatility_range: Optional[List[int]] = None,
+) -> pd.DataFrame:
+    """
+    Computes volatility features from stock and option data.
+
+    Args:
+        df: DataFrame with required columns
+        feats: List of feature names to compute
+        r: Risk-free rate
+        short_window: Lookback for short-term realized vol
+        long_window: Lookback for long-term realized vol
+        return_type: 'log' or 'simple' returns
+
+    Returns:
+        DataFrame with new volatility features
+    """
+    df = df.copy()
+
+    # Stock-level volatility
+    if "rolling_volatility" in feats or "vol_ratio" in feats:
+        assert rolling_volatility_range is not None, "rolling_volatility_range is required for rolling_volatility or vol_ratio features"
+
+        for interval_min in rolling_volatility_range:
+            rolling_vol = get_rolling_volatility(reference_df=df, root=root, interval_min=interval_min)
+            df[f"rolling_volatility_{interval_min}min"] = rolling_vol
+
+        if "vol_ratio" in feats:
+            # Calculate the ratio of short-term to long-term volatility
+            short_window = min(rolling_volatility_range)
+            long_window = max(rolling_volatility_range)
+            df[f"vol_ratio_{short_window}min_to_{long_window}min"] = (
+                df[f"rolling_volatility_{short_window}min"]
+                / df[f"rolling_volatility_{long_window}min"]
+            )
+
+    # Implied volatility and the Greeks
+    compute_iv = "implied_volatility" in feats
+    compute_greeks = any(f in feats for f in ["delta", "gamma", "vega", "theta", "rho"])
+
+    if compute_iv or compute_greeks:
+        ivs = []
+        deltas, gammas, vegas, thetas, rhos = [], [], [], [], []
+
+        for idx, row in df.iterrows():
+            try:
+                S = row["stock_mid_price"]
+                K = row["strike"]
+                t = row["tte_minutes"] / (365 * 24 * 60)
+                price = row["option_mid_price"]
+                flag = "c" if right == "C" else "p"
+
+                iv = implied_volatility(price, S, K, t, risk_free_rate, flag)
+                ivs.append(iv)
+
+                if "delta" in feats:
+                    deltas.append(delta(flag, S, K, t, risk_free_rate, iv))
+                if "gamma" in feats:
+                    gammas.append(gamma(flag, S, K, t, risk_free_rate, iv))
+                if "vega" in feats:
+                    vegas.append(vega(flag, S, K, t, risk_free_rate, iv))
+                if "theta" in feats:
+                    thetas.append(theta(flag, S, K, t, risk_free_rate, iv))
+                if "rho" in feats:
+                    rhos.append(rho(flag, S, K, t, risk_free_rate, iv))
+
+            except Exception:
+                ivs.append(np.nan)
+                if "delta" in feats: deltas.append(np.nan)
+                if "gamma" in feats: gammas.append(np.nan)
+                if "vega" in feats: vegas.append(np.nan)
+                if "theta" in feats: thetas.append(np.nan)
+                if "rho" in feats: rhos.append(np.nan)
+
+        if "implied_volatility" in feats:
+            df["implied_volatility"] = ivs
+        if "delta" in feats:
+            df["delta"] = deltas
+        if "gamma" in feats:
+            df["gamma"] = gammas
+        if "vega" in feats:
+            df["vega"] = vegas
+        if "theta" in feats:
+            df["theta"] = thetas
+        if "rho" in feats:
+            df["rho"] = rhos
+
+    return df
+
+
 def transform_features(
     df: pd.DataFrame,
     core_feats: List[str],
     tte_feats: Optional[List[str]] = None,
     datetime_feats: Optional[List[str]] = None,
+    vol_feats: Optional[List[str]] = None,
+    rolling_volatility_range: Optional[List[int]] = None,
+    root: Optional[str] = None,
+    right: Optional[str] = None,
     strike: Optional[float] = None,
     exp: Optional[str] = None,
     keep_datetime: bool = False,
@@ -356,6 +458,10 @@ def transform_features(
         - sin_hour_of_week: Sine of hour of the week
         - cos_hour_of_week: Cosine of hour of the week
 
+    Volatility feature options:
+        - rolling_volatility: Rolling volatility over specified interval in minutes, set by rolling_volatility_range parameter.
+        - vol_ratio: Ratio of short-term to long-term volatility
+
     Examples:
         Basic usage::
 
@@ -414,6 +520,17 @@ def transform_features(
         assert exp is not None, "Expiration date is required for TTE feature generation"
         df = tte_features(df=df, feats=tte_feats, exp=exp)
 
+    if vol_feats is not None:
+        assert root is not None, "Root is required for volatility feature generation"
+        assert right is not None, "Right is required for volatility feature generation"
+        df = get_volatility_features(
+            df=df,
+            feats=vol_feats,
+            root=root,
+            right=right,
+            rolling_volatility_range=rolling_volatility_range,
+        )
+
     if "option_returns" in core_feats or "log_option_returns" in core_feats:
         # Calculate option price returns and add to dataframe
         prices = df["option_mid_price"].to_numpy()
@@ -461,10 +578,12 @@ def transform_features(
         )
 
     if "option_lob_imbalance" in core_feats:
-        # Calculate limit order book (LOB) imbalance and add to dataframe
-        df["option_lob_imbalance"] = (df["option_ask_size"] - df["option_bid_size"]) / (
-            df["option_bid_size"] + df["option_ask_size"]
-        )
+        bid_size = df["option_bid_size"]
+        ask_size = df["option_ask_size"]
+        denom = bid_size + ask_size
+        imbalance = (ask_size - bid_size) / denom.replace(0, 1)  # prevent div by zero
+        # Set imbalance to 0 if both sizes are zero
+        df["option_lob_imbalance"] = imbalance.where(denom != 0, 0.0)
 
     if "stock_quote_spread" in core_feats:
         # Calculate stock quote spread normalized by mid-price
@@ -473,10 +592,23 @@ def transform_features(
         )
 
     if "option_quote_spread" in core_feats:
-        # Calculate option quote spread normalized by mid-price
-        df["option_quote_spread"] = (df["option_ask"] - df["option_bid"]) / (
-            (df["option_ask"] + df["option_bid"]) / 2
-        )
+        bid = df["option_bid"]
+        ask = df["option_ask"]
+
+        # Compute (ask - bid) / (ask + bid)
+        denom = ask + bid
+        spread = (ask - bid) / denom.replace(0, pd.NA)
+
+        # Mark invalid spreads where quotes are zero or inverted
+        invalid_mask = (ask <= 0) | (bid <= 0) | (ask <= bid)
+        spread[invalid_mask] = pd.NA
+
+        # WARNING: Should only be used for sparse NaNs at this time...
+        # Interpolate missing values linearly over time
+        df["option_quote_spread"] = spread.astype(float).interpolate(method="linear", limit_direction="both")
+
+    # if "volatility" in core_feats:
+
 
     # Select features
     tte_index = (
@@ -495,3 +627,120 @@ def transform_features(
         selected_feats += ["datetime"]
 
     return df[selected_feats]
+
+
+if __name__ == "__main__":
+    # # Test: get_volatility_features
+    # from rich.console import Console
+    # from optrade.data.contracts import Contract
+
+    # ctx = Console()
+
+    # root = "AAPL"
+    # start_date = "20230103"
+    # right = "C"
+    # target_tte = 30
+    # tte_tolerance = (15, 40)
+    # moneyness = "ATM"
+    # interval_min = 20
+
+    # contract = Contract.find_optimal(
+    #     root=root,
+    #     start_date=start_date,
+    #     target_tte=target_tte,
+    #     right=right,
+    #     tte_tolerance=tte_tolerance,
+    #     moneyness=moneyness,
+    #     interval_min=interval_min,
+    # )
+    # df = contract.load_data(
+    #     dev_mode=True,
+    #     offline=True,
+    # )
+
+    # vol_feats = [
+    #     "vol_ratio",
+    #     "rolling_volatility",
+    # ]
+    # rolling_volatility_range = [20, 60]
+
+    # df = get_volatility_features(
+    #     df=df,
+    #     feats=vol_feats,
+    #     root=root,
+    #     right=right,
+    #     rolling_volatility_range=rolling_volatility_range,
+    # )
+
+    # ctx.log(df.head())
+
+    # # Filter df for only the vol_features
+    # short_window = rolling_volatility_range[0]
+    # long_window = rolling_volatility_range[1]
+    # vol_features = [
+    #     "rolling_volatility_20min",
+    #     "rolling_volatility_60min",
+    #    f"vol_ratio_{short_window}min_to_{long_window}min"
+    # ]
+    # df_filtered = df[vol_features]
+    # ctx.log(df_filtered.head())
+
+    # Test: transform_features
+    from rich.console import Console
+    from optrade.data.contracts import Contract
+
+    ctx = Console()
+
+    root = "AAPL"
+    start_date = "20230103"
+    right = "C"
+    target_tte = 30
+    tte_tolerance = (15, 40)
+    moneyness = "ATM"
+    interval_min = 20
+
+    contract = Contract.find_optimal(
+        root=root,
+        start_date=start_date,
+        target_tte=target_tte,
+        right=right,
+        tte_tolerance=tte_tolerance,
+        moneyness=moneyness,
+        interval_min=interval_min,
+    )
+    df = contract.load_data(
+        dev_mode=True,
+        offline=True,
+    )
+
+    ctx.log(df.head())
+
+    df = transform_features(
+        df=df,
+        core_feats=[
+            "option_mid_price",
+            "option_bid_size",
+            "option_bid",
+            "option_ask_size",
+            "option_close",
+            "option_volume",
+            "option_count",
+            "stock_mid_price",
+            "stock_bid_size",
+            "stock_bid",
+            "stock_ask_size",
+            "stock_ask",
+            "stock_volume",
+            "stock_count",
+        ],
+        tte_feats=["sqrt", "exp_decay"],
+        datetime_feats=["sin_minute_of_day", "cos_minute_of_day"],
+        strike=contract.strike,
+        exp=contract.exp,
+        root=root,
+        right=right,
+        rolling_volatility_range=[20, 60],
+        vol_feats=["rolling_volatility", "vol_ratio"],
+    )
+
+    ctx.log(df.head())
