@@ -175,6 +175,8 @@ class Experiment:
         core_feats: List[str] = ["option_returns"],
         tte_feats: Optional[List[str]] = None,
         datetime_feats: Optional[List[str]] = None,
+        vol_feats: Optional[List[str]] = None,
+        rolling_volatility_range: Optional[List[int]] = None,
         keep_datetime: bool = False,
         target_channels: Optional[List[str]] = None,
         target_type: str = "multistep",
@@ -335,7 +337,7 @@ class Experiment:
 
         self.ctx.log(f"Train contracts (validated): {len(self.train_contract_dataset)}")
         self.ctx.log(f"Validation contracts (validated):{len(self.val_contract_dataset)}")
-        self.ctx.log(f"Validation contracts (validated):{len(self.test_contract_dataset)}")
+        self.ctx.log(f"Test contracts (validated):{len(self.test_contract_dataset)}")
 
         if download_only:
             return
@@ -351,6 +353,8 @@ class Experiment:
                 core_feats=core_feats,
                 tte_feats=tte_feats,
                 datetime_feats=datetime_feats,
+                vol_feats=vol_feats,
+                rolling_volatility_range=rolling_volatility_range,
                 keep_datetime=keep_datetime,
                 target_channels=target_channels,
                 target_type=target_type,
@@ -573,8 +577,13 @@ class Experiment:
         if best_model_path is None:
             self.best_model_path = self.log_dir / "model.pkl"
         else:
-            self.best_model_path = best_model_path
-        joblib.dump(best_model, self.best_model_path)
+            self.best_model_path = Path(best_model_path)
+
+        # Create directory if it doesn't exist
+        self.best_model_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(best_model, self.best_model_path) # Save the best model
+
+        # TODO: Add model.upload() for neptune logging
         self.print_master(f"Best model saved to {self.best_model_path}")
 
         # Log best model parameters
@@ -605,13 +614,23 @@ class Experiment:
             metrics=metrics,
             target_type=target_type,
         )
+        train_preds = best_model.predict(X=self.sklearn_data["train_x"])
+        train_metrics, _ = get_metrics(
+            target=self.sklearn_data["train_y"],
+            output=train_preds,
+            metrics=metrics,
+            target_type=target_type,
+        )
 
         # Return metrics in dictionary format
         test_stats = dict()
+        train_stats = dict()
         for i, metric in enumerate(metric_keys):
             test_stats[metric] = test_metrics[i]
+            train_stats[metric] = train_metrics[i]
 
         self.log_stats(stats=test_stats, metrics=metrics, mode="test")
+        self.log_stats(stats=train_stats, metrics=metrics, mode="train")
 
     def train_torch(
         self,
@@ -961,7 +980,7 @@ class Experiment:
         #     raise ValueError(f"Invalid logging method: {self.logging}.")
 
     def log_stats(self, stats: dict, metrics: List[str], mode: str):
-        modes = {"val": "Validation", "test": "Test"}
+        modes = {"val": "Validation", "test": "Test", "train": "Train"}
         Mode = modes[mode]
 
         for metric in metrics:

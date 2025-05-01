@@ -53,6 +53,8 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
         core_feats=args.feats.core,
         tte_feats=args.feats.tte,
         datetime_feats=args.feats.datetime,
+        vol_feats=args.feats.vol,
+        rolling_volatility_range=args.feats.rolling_volatility_range,
         keep_datetime=args.feats.keep_datetime,
         target_channels=args.feats.target_channels,
         target_type=args.feats.target_type,

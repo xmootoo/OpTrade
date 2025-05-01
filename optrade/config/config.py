@@ -181,6 +181,14 @@ class Features(BaseModel):
         default=["sin_minute_of_day"],
         description="Datetime features to use for the time series.",
     )
+    vol: List[str] = Field(
+        default=["rolling_volatility"],
+        description="Volatility features to use for the time series.",
+    )
+    rolling_volatility_range: List[int] = Field(
+        default=[20, 60],
+        description="Rolling volatility features to use for the time series.",
+    )
     keep_datetime: bool = Field(
         default=False,
         description="Whether to keep datetime features in the dataset.",

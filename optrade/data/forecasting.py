@@ -338,6 +338,8 @@ def get_forecasting_dataset(
     core_feats: List[str] = ["option_returns"],
     tte_feats: Optional[List[str]] = None,
     datetime_feats: Optional[List[str]] = None,
+    vol_feats: Optional[List[str]] = None,
+    rolling_volatility_range: Optional[List[int]] = None,
     keep_datetime: bool = False,
     target_type: str = "multistep",
     clean_up: bool = False,
@@ -363,6 +365,8 @@ def get_forecasting_dataset(
         core_feats: List of core features to include
         tte_feats: List of time-to-expiration features to include
         datetime_feats: List of datetime features to include
+        vol_feats: List of volatility features to include
+        rolling_volatility_range: List of rolling volatility ranges to include
         keep_datetime: Whether to keep the datetime column in the dataset
         target_type: Type of forecasting target. Options: "multistep" (float), "average" (float), or "average_direction" (binary).
         clean_up: Whether to clean up the data after use
@@ -431,6 +435,8 @@ def get_forecasting_dataset(
                     warning=warning,
                     dev_mode=dev_mode,
                 )
+                if verbose:
+                    ctx.log(f"Sucessfully loaded contract data")
 
                 if not (download_only or validate_contracts):
                     # Select and add features
@@ -439,10 +445,16 @@ def get_forecasting_dataset(
                         core_feats=core_feats,
                         tte_feats=tte_feats,
                         datetime_feats=datetime_feats,
+                        vol_feats=vol_feats,
+                        rolling_volatility_range=rolling_volatility_range,
+                        root=contract.root,
+                        right=contract.right,
                         strike=contract.strike,
                         exp=contract.exp,
                         keep_datetime=keep_datetime,
                     )
+                    if verbose:
+                        ctx.log(f"Sucessfully transformed features")
 
                     # Convert to PyTorch dataset
                     dataset = ForecastingDataset(
@@ -454,6 +466,9 @@ def get_forecasting_dataset(
                         dtype=dtype,
                     )
                     dataset_list.append(dataset)
+
+                    if verbose:
+                        ctx.log(f"Sucessfully created ForecastingDataset")
 
                 # If contract was modified from its original state, add to updated contracts
                 if contract != original_contract:
@@ -514,7 +529,8 @@ def get_forecasting_dataset(
                     ctx.log(
                         f"Unknown error for {contract}: {e}. Moving to next contract."
                     )
-                move_to_next_contract = True
+                raise e
+                # move_to_next_contract = True
 
     # Find removed contracts (in initial but not in validated)
     removed_contracts = [c for c in initial_contracts if c not in validated_contracts]
@@ -745,6 +761,8 @@ def get_forecasting_loaders(
     core_feats: List[str] = ["option_returns"],
     tte_feats: Optional[List[str]] = None,
     datetime_feats: Optional[List[str]] = None,
+    vol_feats: Optional[List[str]] = None,
+    rolling_volatility_range: Optional[List[int]] = None,
     keep_datetime: bool = False,
     target_channels: Optional[List[str]] = None,
     target_type: str = "multistep",
@@ -814,6 +832,8 @@ def get_forecasting_loaders(
         pred_len=pred_len,
         core_feats=core_feats,
         tte_feats=tte_feats,
+        vol_feats=vol_feats,
+        rolling_volatility_range=rolling_volatility_range,
         datetime_feats=datetime_feats,
         keep_datetime=keep_datetime,
         target_type=target_type,
@@ -837,6 +857,8 @@ def get_forecasting_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        vol_feats=vol_feats,
+        rolling_volatility_range=rolling_volatility_range,
         keep_datetime=keep_datetime,
         target_type=target_type,
         clean_up=clean_up,
@@ -858,6 +880,8 @@ def get_forecasting_loaders(
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
+        vol_feats=vol_feats,
+        rolling_volatility_range=rolling_volatility_range,
         keep_datetime=keep_datetime,
         target_type=target_type,
         clean_up=clean_up,
