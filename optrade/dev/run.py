@@ -16,6 +16,9 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
         candidate_roots will be included in the universe, and each root will be categorized according to the selected market metrics.
         Otherwise, if "filter", only the stocks that pass the filters according to the market metrics will be included in the universe."""
 
+    if args.exp.model_id.startswith("sklearn_"):
+        args.exp.sklearn = True
+
     exp = Experiment(
         log_dir=args.exp.log_dir,
         logging="neptune" if args.exp.neptune else "offline",
@@ -30,7 +33,7 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
     # Initialize device
     exp.init_device(mps=args.exp.mps, gpu_id=args.exp.gpu_id)
 
-    # Step 2: Initialize data loaders with specified configuration
+    # Initialize data loaders. Optional: download data only and return
     exp.init_loaders(
         root=args.contracts.root,
         start_date=args.contracts.start_date,
@@ -100,16 +103,14 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
         exp.train_sklearn(
             model=model,
             param_dict=param_dict,
-            tuning_method=args._sklearn.tuning_method,
-            cv=args._sklearn.cv,
-            verbose=args._sklearn.verbose,
-            n_jobs=args._sklearn.n_jobs,
-            n_iter=args._sklearn.n_iter,
-            to_numpy=True,
+            tuning_method=args.sklearn.tuning_method,
+            n_splits=args.sklearn.n_splits,
+            verbose=args.sklearn.verbose,
+            n_jobs=args.sklearn.n_jobs,
+            n_iter=args.sklearn.n_iter,
             target_type= args.feats.target_type,
         )
 
-        # TODO: Implement flattening of last two dimensions as optional input for train_sklearn when calling convert_to_numpy
         exp.test_sklearn(metrics=args.eval.metrics, target_type=args.feats.target_type)
 
     #<--------PyTorch------->
@@ -142,6 +143,7 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
             early_stopping=args.train.early_stopping,
             patience=args.train.early_stopping_patience,
             metrics=args.eval.metrics,
+            best_model_metric=args.eval.best_model_metric,
         )
 
         # Step 5: Evaluate model on test set
