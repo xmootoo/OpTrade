@@ -16,6 +16,7 @@ from optrade.utils.error_handlers import (
     DataValidationError,
     INCOMPATIBLE_START_DATE,
     INCOMPATIBLE_END_DATE,
+    NAN_FEATURES,
 )
 
 # Features
@@ -51,12 +52,28 @@ class ForecastingDataset(Dataset):
             None
         """
 
+        # Numeric data conversion (remove datetime strings from direct features)
         self.has_datetime = "datetime" in data.columns
         if self.has_datetime:
             self.datetime = data["datetime"].values  # Store as numpy array
             data_numeric = data.drop(columns=["datetime"]).to_numpy()
         else:
             data_numeric = data.to_numpy()
+
+        # Check for NaNs using the original DataFrame (with column names)
+        columns = data.drop(columns=["datetime"]).columns if self.has_datetime else data.columns
+        nan_counts = data[columns].isna().sum()
+
+        if nan_counts.any():
+            bad_feats = nan_counts[nan_counts > 0]
+            message = (
+                f"[ForecastingDataset] Found NaNs in {len(bad_feats)} feature(s):\n"
+                f"{bad_feats.to_string()}\n"
+                "This is often caused by illiquid instruments (e.g., no volume or quote data) "
+                "or unstable features like LOB imbalance or spread when interval_min is too low.\n"
+                "Consider dropping these features or resampling to a longer interval by increasing interval_min parmaeter."
+            )
+            raise DataValidationError(message=message, error_code=NAN_FEATURES, verbose=True, warning=False)
 
         self.torch_dtype = eval("torch." + dtype)
         self.np_dtype = eval("np." + dtype)
@@ -461,6 +478,8 @@ def get_forecasting_dataset(
                         if verbose:
                             ctx.log(f"Contract timespan ({time_span.days} days) is too short. Moving to next contract.")
                         move_to_next_contract = True
+                elif e.error_code == NAN_FEATURES:
+                    raise e # Raise the error to be handled outside
                 else:
                     if verbose:
                         ctx.log(f"DataValidationError for {contract}: {e}. Moving to next contract.")
@@ -484,7 +503,7 @@ def get_forecasting_dataset(
 
         # Create a table for removed contracts
         if removed_contracts:
-            removed_table = Table(title="Removed Contracts", show_header=True)
+            removed_table = Table(title="Invalid Contracts", show_header=True)
             removed_table.add_column("Root", style="cyan")
             removed_table.add_column("Start Date", style="cyan")
             removed_table.add_column("Expiration", style="cyan")
@@ -504,7 +523,7 @@ def get_forecasting_dataset(
 
         # Create a table for updated/new contracts
         if updated_contracts:
-            updated_table = Table(title="Updated/New Contracts", show_header=True)
+            updated_table = Table(title="Updated (New Contracts", show_header=True)
             updated_table.add_column("Root", style="cyan")
             updated_table.add_column("Start Date", style="cyan")
             updated_table.add_column("Expiration", style="cyan")
