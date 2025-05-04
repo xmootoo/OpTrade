@@ -43,12 +43,21 @@ class ForecastingDataset(Dataset):
         Initializes the ForecastingDataset class.
 
         Args:
-            data (pd.DataFrame): DataFrame containing the data.
-            seq_len (int): Length of the lookback window.
-            pred_len (int): Length of the forecast window.
-            target_channels (Optional[List[str]]): List of target channels to include in the target tensor. If None, all channels will be included.
-            target_type (str): Type of forecasting target. Options: "multistep" (float), "average" (float), or "average_direction" (binary).
-            dtype (str): Data type for the PyTorch tensors. Default is "float32".
+            data (pd.DataFrame):
+                Input DataFrame containing the time series data.
+            seq_len (int):
+                Length of the lookback window for each sample.
+            pred_len (int):
+                Length of the forecast window (number of steps ahead to predict).
+            target_channels (Optional[List[str]]):
+                List of column names to include as target channels. If None, all columns are used.
+            target_type (str):
+                Type of target to predict. Must be one of:
+                - "multistep": Predicts the full future sequence (regression).
+                - "average": Predicts the average value over the forecast window (regression).
+                - "average_direction": Predicts the sign of the average change (binary classification).
+            dtype (str):
+                Data type for the internal PyTorch tensors (e.g., "float32", "float64"). Default is "float32".
 
         Returns:
             None
@@ -354,7 +363,7 @@ def get_forecasting_dataset(
     verbose: bool = False,
     warning: bool = True,
     dev_mode: bool = False,
-) -> Union[ContractDataset, Tuple[Dataset, ContractDataset]]:
+) -> Union[ContractDataset, Tuple[ConcatDataset, ContractDataset]]:
     """
     Creates a PyTorch dataset object composed of multiple ForecastingDatasets, each representing
     different option contracts.
@@ -435,8 +444,6 @@ def get_forecasting_dataset(
                     warning=warning,
                     dev_mode=dev_mode,
                 )
-                if verbose:
-                    ctx.log(f"Sucessfully loaded contract data")
 
                 if not (download_only or validate_contracts):
                     # Select and add features
@@ -453,8 +460,6 @@ def get_forecasting_dataset(
                         exp=contract.exp,
                         keep_datetime=keep_datetime,
                     )
-                    if verbose:
-                        ctx.log(f"Sucessfully transformed features")
 
                     # Convert to PyTorch dataset
                     dataset = ForecastingDataset(
@@ -466,9 +471,6 @@ def get_forecasting_dataset(
                         dtype=dtype,
                     )
                     dataset_list.append(dataset)
-
-                    if verbose:
-                        ctx.log(f"Sucessfully created ForecastingDataset")
 
                 # If contract was modified from its original state, add to updated contracts
                 if contract != original_contract:
