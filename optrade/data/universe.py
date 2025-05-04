@@ -298,6 +298,11 @@ class Universe:
                     self.roots.remove(root)
 
     def get_factor_exposures(self, remove_roots: bool = False) -> None:
+        """
+        Computes and categorizes Fama-French factor exposures for each stock in the universe,
+        using Kenneth French's data library and fitting the specified factor mode (ff3, c4, or ff5)
+        with linear regression.
+        """
 
         # Assert that roots is an attribute of self and is not empty
         assert (
@@ -506,10 +511,12 @@ class Universe:
         # Fama French factors
         if self.factor_mode is not None:
             if self.verbose:
-                self.ctx.log(
-                    f"Computing factor exposures using {self.factor_mode} factors."
-                )
-            self.get_factor_exposures()
+                with self.ctx.status(
+                    f"Computing factor exposures using {self.factor_mode} factors..."
+                ):
+                    self.get_factor_exposures()
+            else:
+                self.get_factor_exposures()
 
             # Define a function for direct FF categorical filtering
             def filter_direct(metric, desired_category):
