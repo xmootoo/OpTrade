@@ -13,3 +13,4 @@ dist/
 requirements.in
 docs/_build/
 venv/
+poetry.toml
