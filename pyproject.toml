@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "optrade"
-version = "0.0.10"
+version = "0.0.11"
 description = "Options Forecasting and Trading Framework for Quantitative Research"
 authors = ["Xavier Mootoo"]
 license = "MIT"
@@ -26,7 +26,6 @@ exclude = [
     "**/.DS_Store",
 ]
 
-
 [tool.poetry.group.docs]
 optional = true
 [tool.poetry.group.docs.dependencies]
@@ -35,25 +34,25 @@ sphinx-rtd-theme = "^2.0.0"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
-numpy = "<=2.2.3"
-pandas = "^2.2.3"
+torch = "^2.7.0"
+pandas = "^2.1.0"
+py-vollib = "^1.0.1"
+numpy = "^1.24.0"
 httpx = "^0.28.1"
-rich = "^13.9.4"
-pydantic = "^2.10.6"
-PyYAML = "^6.0"
-neptune = "1.13.0"
-matplotlib = "3.10.0"
-yfinance = "^0.2.54"
-pandas-market-calendars = "^4.6.1"
+rich = "^14.0.0"
+pydantic = "^2.11.4"
+pyyaml = "^6.0.2"
+neptune = "^1.14.0"
+matplotlib = "^3.7.0"
+yfinance = "^0.2.58"
+pandas-market-calendars = "^5.1.0"
 scikit-learn = "^1.6.1"
-torch = "^2.6.0"
 pandas-datareader = "^0.10.0"
 statsmodels = "^0.14.4"
 mambapy = "^1.2.0"
 sktime = "^0.37.0"
 catboost = "^1.2.8"
 xgboost = "^3.0.0"
-py-vollib = "^1.0.1"
 
 [tool.poetry.group.dev]
 optional = true
@@ -86,5 +85,5 @@ max-line-length = 88
 extend-ignore = "E203"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
