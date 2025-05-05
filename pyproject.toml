@@ -53,6 +53,7 @@ mambapy = "^1.2.0"
 sktime = "^0.37.0"
 catboost = "^1.2.8"
 xgboost = "^3.0.0"
+py-vollib = "^1.0.1"
 
 [tool.poetry.group.dev]
 optional = true
