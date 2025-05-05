@@ -4,7 +4,7 @@ from typing import Optional, List
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
-from optrade.utils.volatility import get_historical_vol, get_rolling_volatility
+from optrade.utils.volatility import get_rolling_volatility
 from py_vollib.black_scholes.implied_volatility import implied_volatility
 from py_vollib.black_scholes.greeks.analytical import delta, gamma, vega, theta, rho
 
