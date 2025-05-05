@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader, Dataset, ConcatDataset
 from datetime import datetime, timedelta
 import pandas_market_calendars as mcal
 
-
 # Datasets
 from optrade.data.thetadata import find_optimal_strike, get_expirations
 from optrade.data.contracts import Contract, ContractDataset
@@ -38,6 +37,7 @@ class ForecastingDataset(Dataset):
         target_channels: Optional[List[str]] = None,
         target_type: str = "multistep",
         dtype: str = "float32",
+        normalize_target: bool = False,
     ) -> None:
         """
         Initializes the ForecastingDataset class.
@@ -58,6 +58,7 @@ class ForecastingDataset(Dataset):
                 - "average_direction": Predicts the sign of the average change (binary classification).
             dtype (str):
                 Data type for the internal PyTorch tensors (e.g., "float32", "float64"). Default is "float32".
+            normalize_target (bool): Whether to apply normalization to the target variable(s).
 
         Returns:
             None
@@ -98,7 +99,11 @@ class ForecastingDataset(Dataset):
         self.seq_len = seq_len
         self.pred_len = pred_len
         self.target_type = target_type
+        self.normalize_target = normalize_target
 
+
+        # Target data
+        self.target_data = self.data.clone()
         if target_channels is not None and len(target_channels) > 0:
             feature_names = data.columns.to_list()
             self.target_channels_idx = [
@@ -113,7 +118,7 @@ class ForecastingDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
-        Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray],
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
     ]:
         """Get a sample from the dataset.
 
@@ -141,12 +146,12 @@ class ForecastingDataset(Dataset):
         input = self.data[idx : idx + self.seq_len]
 
         if hasattr(self, "target_channels_idx"):
-            target = self.data[
+            target = self.target_data[
                 idx + self.seq_len : idx + self.seq_len + self.pred_len,
                 self.target_channels_idx,
             ]
         else:
-            target = self.data[idx + self.seq_len : idx + self.seq_len + self.pred_len]
+            target = self.target_data[idx + self.seq_len : idx + self.seq_len + self.pred_len]
 
         input_tensor = input.transpose(0, 1)
         target_tensor = target.transpose(0, 1)
@@ -155,6 +160,8 @@ class ForecastingDataset(Dataset):
             target_tensor = target_tensor.mean(dim=0).unsqueeze(0)
         elif self.target_type == "average_direction":
             target_tensor = (target_tensor.mean(dim=0) > 0).unsqueeze(0).float()
+        elif self.target_type == "triple_barrier":
+            raise NotImplementedError
         elif self.target_type == "multistep":
             pass
         else:
@@ -295,6 +302,11 @@ def normalize_concat_dataset(
         # Replace data with normalized version
         dataset.data = torch.tensor(normalized_data, dtype=dataset.torch_dtype)
 
+        if dataset.normalize_target:
+            target_data = dataset.target_data.numpy()
+            normalized_target_data = scaler.transform(target_data)
+            dataset.target_data = torch.tensor(normalized_target_data, dtype=dataset.torch_dtype)
+
 
 def normalize_datasets(
     train_dataset: ConcatDataset,
@@ -356,6 +368,7 @@ def get_forecasting_dataset(
     intraday: bool = False,
     target_channels: Optional[List[str]] = None,
     dtype: str = "float32",
+    normalize_target: bool = False,
     save_dir: Optional[str] = None,
     download_only: bool = False,
     validate_contracts: bool = False,
@@ -385,6 +398,7 @@ def get_forecasting_dataset(
         seq_len: Sequence length of lookback window (input)
         pred_len: Prediction length of forecast window (target)
         dtype: Data type for the PyTorch tensors
+        normalize_target: Whether to normalize the target variable(s)
         save_dir: Save directory
         download_only: Whether to download data only (used mainly for Universe class)
         validate_contracts: Whether to validate contracts by requesting data from ThetaData API and adjustintg start and end dates if necessary.
@@ -469,6 +483,7 @@ def get_forecasting_dataset(
                         target_channels=target_channels,
                         target_type=target_type,
                         dtype=dtype,
+                        normalize_target=normalize_target,
                     )
                     dataset_list.append(dataset)
 
@@ -567,7 +582,7 @@ def get_forecasting_dataset(
 
         # Create a table for updated/new contracts
         if updated_contracts:
-            updated_table = Table(title="Updated (New Contracts", show_header=True)
+            updated_table = Table(title="Updated (New Contracts)", show_header=True)
             updated_table.add_column("Root", style="cyan")
             updated_table.add_column("Start Date", style="cyan")
             updated_table.add_column("Expiration", style="cyan")
@@ -782,6 +797,7 @@ def get_forecasting_loaders(
     scaling: bool = False,
     intraday: bool = False,
     dtype: str = "float32",
+    normalize_target: bool = False,
     modify_contracts: bool = False,
     warning: bool = True,
     dev_mode: bool = False,
@@ -819,7 +835,9 @@ def get_forecasting_loaders(
         intraday: Whether to use intraday data
         target_channels: List of target channels for forecasting
         dtype: Data type for tensors
+        normalize_target: Whether to normalize the target variable(s)
         warning: Whether to show warnings
+        dev_mode: Whether to run in development mode
 
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader]: Train, validation, and test data loaders if scaling=False.
@@ -844,6 +862,7 @@ def get_forecasting_loaders(
         intraday=intraday,
         target_channels=target_channels,
         dtype=dtype,
+        normalize_target=normalize_target,
         modify_contracts=modify_contracts,
         save_dir=save_dir,
         verbose=verbose,
@@ -868,6 +887,7 @@ def get_forecasting_loaders(
         intraday=intraday,
         target_channels=target_channels,
         dtype=dtype,
+        normalize_target=normalize_target,
         modify_contracts=modify_contracts,
         save_dir=save_dir,
         verbose=verbose,
@@ -891,6 +911,7 @@ def get_forecasting_loaders(
         intraday=intraday,
         target_channels=target_channels,
         dtype=dtype,
+        normalize_target=normalize_target,
         modify_contracts=modify_contracts,
         save_dir=save_dir,
         verbose=verbose,
@@ -1042,6 +1063,7 @@ if __name__ == "__main__":
     volatility_scalar = 0.01
     volatility_type = "period"
     strike_band = 0.05
+    normalize_target = True
 
     # TTE features
     tte_feats = ["sqrt", "exp_decay"]
@@ -1062,8 +1084,8 @@ if __name__ == "__main__":
         "stock_returns",
         "distance_to_strike",
         "moneyness",
-        "option_lob_imbalance",
-        "option_quote_spread",
+        # "option_lob_imbalance",
+        # "option_quote_spread",
         "stock_lob_imbalance",
         "stock_quote_spread",
         "option_mid_price",
@@ -1103,6 +1125,7 @@ if __name__ == "__main__":
         train_split=0.5,
         val_split=0.25,
         dev_mode=True,
+        offline=True
     )
 
     output = get_forecasting_loaders(
@@ -1114,10 +1137,12 @@ if __name__ == "__main__":
         target_type="average",
         seq_len=100,
         pred_len=10,
+        normalize_target=normalize_target,
         core_feats=core_feats,
         tte_feats=tte_feats,
         datetime_feats=datetime_feats,
         batch_size=32,
+        modify_contracts=True,
         clean_up=False,
         offline=True,
         save_dir=None,
