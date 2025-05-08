@@ -64,8 +64,15 @@ class ForecastingDataset(Dataset):
             None
         """
 
-        # Numeric data conversion (remove datetime strings from direct features)
+        # Get features names from the DataFrame
         self.has_datetime = "datetime" in data.columns
+        self.feature_names = (
+            data.drop(columns=["datetime"]).columns.to_list()
+            if self.has_datetime
+            else data.columns.to_list()
+        )
+
+        # Numeric data conversion (remove datetime strings from direct features)
         if self.has_datetime:
             self.datetime = data["datetime"].values  # Store as numpy array
             data_numeric = data.drop(columns=["datetime"]).to_numpy()
@@ -102,12 +109,11 @@ class ForecastingDataset(Dataset):
         self.normalize_target = normalize_target
 
 
-        # Target data
+        # Clone target data and get indices for target channels if provided
         self.target_data = self.data.clone()
         if target_channels is not None and len(target_channels) > 0:
-            feature_names = data.columns.to_list()
             self.target_channels_idx = [
-                feature_names.index(channel) for channel in target_channels
+                self.feature_names.index(channel) for channel in target_channels
             ]
 
     def __len__(self) -> int:
