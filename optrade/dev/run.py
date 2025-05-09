@@ -151,6 +151,8 @@ def run_forecasting_experiment(
         )
 
         exp.test_sklearn(
+            train_x=train_x,
+            train_y=train_y,
             test_x=test_x,
             test_y=test_y,
             metrics=args.eval.metrics,
