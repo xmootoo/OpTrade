@@ -163,9 +163,9 @@ class ForecastingDataset(Dataset):
         target_tensor = target.transpose(0, 1)
 
         if self.target_type == "average":
-            target_tensor = target_tensor.mean(dim=0).unsqueeze(0)
+            target_tensor = target_tensor.mean(dim=1).unsqueeze(0)
         elif self.target_type == "average_direction":
-            target_tensor = (target_tensor.mean(dim=0) > 0).unsqueeze(0).float()
+            target_tensor = (target_tensor.mean(dim=1) > 0).unsqueeze(0).float()
         elif self.target_type == "triple_barrier":
             raise NotImplementedError
         elif self.target_type == "multistep":
@@ -207,15 +207,20 @@ class ForecastingDataset(Dataset):
                 - input_datetimes: NumPy array of shape (num_samples, seq_len).
                 - target_datetimes: NumPy array of shape (num_samples, pred_len).
         """
+
+        num_target_features = len(self.target_channels_idx) if hasattr(self, "target_channels_idx") else self.data.shape[1]
+
         if self.target_type == "multistep":
-            num_target_features = self.data.shape[1]
             target_dtype = self.np_dtype
+            target_shape = (len(self), self.pred_len, num_target_features)
         elif self.target_type == "average":
-            num_target_features = 1
             target_dtype = self.np_dtype
+            target_shape = (len(self), 1, num_target_features)
         elif self.target_type == "average_direction":
-            num_target_features = 1
             target_dtype = np.float32
+            target_shape = (len(self), 1, num_target_features)
+        elif self.target_type == "triple_barrier":
+            raise NotImplementedError
         else:
             raise ValueError(
                 "Invalid target_type. Options: 'multistep', 'average', or 'average_direction'."
@@ -223,9 +228,8 @@ class ForecastingDataset(Dataset):
         inputs = np.empty(
             (len(self), self.seq_len, self.data.shape[1]), dtype=self.np_dtype
         )
-        targets = np.empty(
-            (len(self), self.pred_len, num_target_features), dtype=target_dtype
-        )
+        targets = np.empty(target_shape, dtype=target_dtype)
+
 
         if self.has_datetime:
             # Specify the unit here to match what tensor_to_datetime uses
