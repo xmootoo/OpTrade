@@ -596,6 +596,8 @@ class Experiment:
         self,
         metrics: List[str],
         target_type: str = "multistep",
+        train_x: Optional[np.ndarray] = None,
+        train_y: Optional[np.ndarray] = None,
         test_x: Optional[np.ndarray] = None,
         test_y: Optional[np.ndarray] = None,
         best_model: Optional[BaseEstimator] = None,
@@ -605,10 +607,13 @@ class Experiment:
             best_model = joblib.load(self.best_model_path)
 
         # Evaluate best model on the test set
-        if all(v is None for v in [test_x, test_y]):
+        if all(v is None for v in [train_x, train_y, test_x, test_y]):
+            train_x = self.sklearn_data["train_x"]
+            train_y = self.sklearn_data["train_y"]
             test_x = self.sklearn_data["test_x"]
             test_y = self.sklearn_data["test_y"]
         else:
+            assert train_x is not None and train_y is not None, "train_x and train_y must be provided if not using in-house dataloaders."
             assert test_x is not None and test_y is not None, "test_x and test_y must be provided if not using in-house dataloaders."
 
         test_preds = best_model.predict(X=test_x)
@@ -618,9 +623,9 @@ class Experiment:
             metrics=metrics,
             target_type=target_type,
         )
-        train_preds = best_model.predict(X=self.sklearn_data["train_x"])
+        train_preds = best_model.predict(X=train_x)
         train_metrics, _ = get_metrics(
-            target=self.sklearn_data["train_y"],
+            target=train_y,
             output=train_preds,
             metrics=metrics,
             target_type=target_type,
