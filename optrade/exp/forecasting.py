@@ -530,6 +530,8 @@ class Experiment:
 
             if np.isnan(train_x).any() or np.isnan(train_y).any():
                 raise ValueError("train_x or train_y contains NaN values.")
+        else:
+            assert train_x is not None and train_y is not None, "train_x and train_y must be provided if not using in-house dataloaders."
 
         if target_type in ["multistep", "average"]:
             scoring = "neg_root_mean_squared_error"
@@ -606,6 +608,8 @@ class Experiment:
         if all(v is None for v in [test_x, test_y]):
             test_x = self.sklearn_data["test_x"]
             test_y = self.sklearn_data["test_y"]
+        else:
+            assert test_x is not None and test_y is not None, "test_x and test_y must be provided if not using in-house dataloaders."
 
         test_preds = best_model.predict(X=test_x)
         test_metrics, metric_keys = get_metrics(
