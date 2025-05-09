@@ -1,5 +1,8 @@
 import yaml
 from pathlib import Path
+from typing import Optional
+import numpy as np
+from torch.utils.data import DataLoader
 from optrade.config.config import Global
 from optrade.exp.forecasting import Experiment
 from optrade.dev.utils.models import (
@@ -10,11 +13,41 @@ from optrade.dev.utils.models import (
 )
 from optrade.models.classical._sklearn import get_sklearn_model
 from optrade.dev.utils.ablations import load_ablation_config
+from optrade.dev.utils.logger import log_pydantic
 
-def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) -> None:
-    """selection_mode (str): How to select stocks in the candidate_roots. Options: "label", "filter". If "label", all roots in
-        candidate_roots will be included in the universe, and each root will be categorized according to the selected market metrics.
-        Otherwise, if "filter", only the stocks that pass the filters according to the market metrics will be included in the universe."""
+def run_forecasting_experiment(
+    args: Global,
+    ablation_id: int,
+    job_dir: Path,
+    train_loader: Optional[DataLoader] = None,
+    val_loader: Optional[DataLoader] = None,
+    test_loader: Optional[DataLoader] = None,
+    train_x: Optional[np.ndarray] = None,
+    train_y: Optional[np.ndarray] = None,
+    test_x: Optional[np.ndarray] = None,
+    test_y: Optional[np.ndarray] = None
+) -> None:
+    """
+    Run a forecasting experiment using the specified arguments through PyDantic base model Global,
+    contain all possible experimental configurations. The function initializes the experiment,
+    sets up the data loaders, and trains the model. It also handles both Scikit-Learn and PyTorch
+    models based on the provided configuration.
+
+    Args:
+        args (Global): Global configuration object containing all the arguments.
+        ablation_id (int): ID of the ablation experiment.
+        job_dir (Path): Directory where the experiment logs will be saved.
+        train_loader (Optional[DataLoader]): DataLoader for the training set.
+        val_loader (Optional[DataLoader]): DataLoader for the validation set.
+        test_loader (Optional[DataLoader]): DataLoader for the test set.
+        train_x (Optional[np.ndarray]): Input features for the training set.
+        train_y (Optional[np.ndarray]): Target values for the training set.
+        test_x (Optional[np.ndarray]): Input features for the test set.
+        test_y (Optional[np.ndarray]): Target values for the test set.
+
+    Returns:
+        None
+    """
 
     if args.exp.model_id.startswith("sklearn_"):
         args.exp.sklearn = True
@@ -34,50 +67,52 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
     exp.init_device(mps=args.exp.mps, gpu_id=args.exp.gpu_id)
 
     # Initialize data loaders. Optional: download data only and return
-    exp.init_loaders(
-        root=args.contracts.root,
-        start_date=args.contracts.start_date,
-        end_date=args.contracts.end_date,
-        contract_stride=args.contracts.stride,
-        interval_min=args.contracts.interval_min,
-        right=args.contracts.right,
-        target_tte=args.contracts.target_tte,
-        tte_tolerance=args.contracts.tte_tolerance,
-        moneyness=args.contracts.moneyness,
-        train_split=args.data.train_split,
-        val_split=args.data.val_split,
-        seq_len=args.data.seq_len,
-        pred_len=args.data.pred_len,
-        scaling=args.feats.scaling,
-        dtype=args.data.dtype,
-        core_feats=args.feats.core,
-        tte_feats=args.feats.tte,
-        datetime_feats=args.feats.datetime,
-        vol_feats=args.feats.vol,
-        rolling_volatility_range=args.feats.rolling_volatility_range,
-        keep_datetime=args.feats.keep_datetime,
-        target_channels=args.feats.target_channels,
-        target_type=args.feats.target_type,
-        strike_band=args.contracts.strike_band,
-        volatility_type=args.contracts.volatility_type,
-        volatility_scaled=args.contracts.volatility_scaled,
-        volatility_scalar=args.contracts.volatility_scalar,
-        batch_size=args.data.batch_size,
-        shuffle=args.data.shuffle,
-        drop_last=args.data.drop_last,
-        num_workers=args.data.num_workers,
-        prefetch_factor=args.data.prefetch_factor,
-        pin_memory=args.data.pin_memory,
-        persistent_workers=args.data.persistent_workers,
-        clean_up=args.data.clean_up,
-        offline=args.data.offline,
-        save_dir=args.data.save_dir,
-        verbose=args.data.verbose,
-        validate_contracts=args.contracts.validate,
-        modify_contracts=args.contracts.modify,
-        dev_mode=args.data.dev_mode,
-        download_only=args.data.download_only,
-    )
+
+    if all(x is None for x in (train_loader, val_loader, test_loader, train_x, train_y, test_x, test_y)):
+        exp.init_loaders(
+            root=args.contracts.root,
+            start_date=args.contracts.start_date,
+            end_date=args.contracts.end_date,
+            contract_stride=args.contracts.stride,
+            interval_min=args.contracts.interval_min,
+            right=args.contracts.right,
+            target_tte=args.contracts.target_tte,
+            tte_tolerance=args.contracts.tte_tolerance,
+            moneyness=args.contracts.moneyness,
+            train_split=args.data.train_split,
+            val_split=args.data.val_split,
+            seq_len=args.data.seq_len,
+            pred_len=args.data.pred_len,
+            scaling=args.feats.scaling,
+            dtype=args.data.dtype,
+            core_feats=args.feats.core,
+            tte_feats=args.feats.tte,
+            datetime_feats=args.feats.datetime,
+            vol_feats=args.feats.vol,
+            rolling_volatility_range=args.feats.rolling_volatility_range,
+            keep_datetime=args.feats.keep_datetime,
+            target_channels=args.feats.target_channels,
+            target_type=args.feats.target_type,
+            strike_band=args.contracts.strike_band,
+            volatility_type=args.contracts.volatility_type,
+            volatility_scaled=args.contracts.volatility_scaled,
+            volatility_scalar=args.contracts.volatility_scalar,
+            batch_size=args.data.batch_size,
+            shuffle=args.data.shuffle,
+            drop_last=args.data.drop_last,
+            num_workers=args.data.num_workers,
+            prefetch_factor=args.data.prefetch_factor,
+            pin_memory=args.data.pin_memory,
+            persistent_workers=args.data.persistent_workers,
+            clean_up=args.data.clean_up,
+            offline=args.data.offline,
+            save_dir=args.data.save_dir,
+            verbose=args.data.verbose,
+            validate_contracts=args.contracts.validate,
+            modify_contracts=args.contracts.modify,
+            dev_mode=args.data.dev_mode,
+            download_only=args.data.download_only,
+        )
 
     if args.data.download_only:
         return
@@ -104,16 +139,22 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
 
         exp.train_sklearn(
             model=model,
+            train_x=train_x,
+            train_y=train_y,
             param_dict=param_dict,
             tuning_method=args.sklearn.tuning_method,
             n_splits=args.sklearn.n_splits,
             verbose=args.sklearn.verbose,
             n_jobs=args.sklearn.n_jobs,
             n_iter=args.sklearn.n_iter,
-            target_type= args.feats.target_type,
+            target_type=args.feats.target_type,
         )
 
-        exp.test_sklearn(metrics=args.eval.metrics, target_type=args.feats.target_type)
+        exp.test_sklearn(
+            test_x=test_x,
+            test_y=test_y,
+            metrics=args.eval.metrics,
+            target_type=args.feats.target_type)
 
     #<--------PyTorch------->
     else:
@@ -137,6 +178,8 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
         else:
             scheduler = None
         model = exp.train_torch(
+            train_loader=train_loader,
+            val_loader=val_loader,
             model=model,
             optimizer=optimizer,
             criterion=criterion,
@@ -150,6 +193,7 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
 
         # Step 5: Evaluate model on test set
         exp.test_torch(
+            test_loader=test_loader,
             model=model,
             criterion=criterion,
             metrics=args.eval.metrics,  # Metrics to compute
@@ -157,6 +201,7 @@ def run_forecasting_experiment(args: Global, ablation_id: int, job_dir: Path) ->
         )
 
     # Step 6: Save model and logs
+    log_pydantic(exp.logger, args, key="parameters") # Save Global args to logs
     exp.save_logs()  # Save experiment logs to disk or neptune
 
 
