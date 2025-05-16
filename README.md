@@ -1,9 +1,10 @@
 # OpTrade
-
+![Downloads](https://static.pepy.tech/personalized-badge/optrade?period=total&units=international_system&left_color=grey&right_color=orange&left_text=Downloads)
 [![Documentation Status](https://readthedocs.org/projects/optrade/badge/?version=latest)](https://optrade.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue.svg)](https://www.python.org)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 
 <div align="center">
   <h3>
