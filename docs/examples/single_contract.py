@@ -19,7 +19,7 @@ ctx.log(f"Optimal contract found: {contract}")
 
 # Step 2: Load market data (NBBO quotes and OHLCV)
 ctx.log("Loading market data from ThetaData API...")
-df = contract.load_data(offline=True)
+df = contract.load_data()
 print(df.head())
 
 # Step 3: Transform raw data into ML-ready features
