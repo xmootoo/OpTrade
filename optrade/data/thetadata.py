@@ -1408,91 +1408,91 @@ if __name__ == "__main__":
     console.log(df2)
     console.log(df3)
 
-    # Test: find_optimal_exp
-    try:
-        optimal_exp, optimal_tte = find_optimal_exp(
-            root="AAPL", start_date="20241107", tte_tolerance=(20, 40), target_tte=37
-        )
-        print(f"Found valid TTE: {optimal_tte}")
-        print(f"Expiration date: {optimal_exp}")
-    except ValueError as e:
-        print(f"Error: {e}")
+    # # Test: find_optimal_exp
+    # try:
+    #     optimal_exp, optimal_tte = find_optimal_exp(
+    #         root="AAPL", start_date="20241107", tte_tolerance=(20, 40), target_tte=37
+    #     )
+    #     print(f"Found valid TTE: {optimal_tte}")
+    #     print(f"Expiration date: {optimal_exp}")
+    # except ValueError as e:
+    #     print(f"Error: {e}")
 
-    # Test: find_optimal_strike
-    optimal_strike = find_optimal_strike(
-        root="AAPL",
-        # start_date="20241107",
-        # exp="20241206",
-        start_date="20230113",
-        exp="20230209",
-        right="C",
-        interval_min=1,
-        moneyness="ITM",
-        strike_band=0.10,
-        hist_vol=0.20,
-        volatility_scaled=True,
-        volatility_scalar=2.0,
-        clean_up=True,
-        offline=False,
-        dev_mode=True,
-    )
+    # # Test: find_optimal_strike
+    # optimal_strike = find_optimal_strike(
+    #     root="AAPL",
+    #     # start_date="20241107",
+    #     # exp="20241206",
+    #     start_date="20230113",
+    #     exp="20230209",
+    #     right="C",
+    #     interval_min=1,
+    #     moneyness="ITM",
+    #     strike_band=0.10,
+    #     hist_vol=0.20,
+    #     volatility_scaled=True,
+    #     volatility_scalar=2.0,
+    #     clean_up=True,
+    #     offline=False,
+    #     dev_mode=True,
+    # )
 
-    # 20230113 and expiration: 20230209
+    # # 20230113 and expiration: 20230209
 
 
 
-    from rich.console import Console
+    # from rich.console import Console
 
-    console = Console()
-    console.log(
-        f"Optimal strike of {optimal_strike} found successfully!", style="bold green"
-    )
+    # console = Console()
+    # console.log(
+    #     f"Optimal strike of {optimal_strike} found successfully!", style="bold green"
+    # )
 
-    # Test: load_stock_data
-    df = load_stock_data(
-        root="AAPL",
-        start_date="20230101",
-        end_date="20230231",
-        clean_up=False,
-        offline=False,
-        dev_mode=True,
-    )
-    print(df.head())
-    df = load_stock_data_eod(
-        root="BALL",
-        start_date="20230101",
-        end_date="20230231",
-        clean_up=False,
-        offline=False,
-        dev_mode=True,
-    )
-    print(df)
+    # # Test: load_stock_data
+    # df = load_stock_data(
+    #     root="AAPL",
+    #     start_date="20230101",
+    #     end_date="20230231",
+    #     clean_up=False,
+    #     offline=False,
+    #     dev_mode=True,
+    # )
+    # print(df.head())
+    # df = load_stock_data_eod(
+    #     root="BALL",
+    #     start_date="20230101",
+    #     end_date="20230231",
+    #     clean_up=False,
+    #     offline=False,
+    #     dev_mode=True,
+    # )
+    # print(df)
 
-    # Test: load_option_data
-    df = load_option_data(
-        root="MSFT",
-        start_date="20240105",
-        end_date="20240205",
-        right="C",
-        exp="20240419",
-        strike=400,
-        interval_min=1,
-        clean_up=False,
-        offline=False,
-        dev_mode=True,
-    )
-    print(df.head())
+    # # Test: load_option_data
+    # df = load_option_data(
+    #     root="MSFT",
+    #     start_date="20240105",
+    #     end_date="20240205",
+    #     right="C",
+    #     exp="20240419",
+    #     strike=400,
+    #     interval_min=1,
+    #     clean_up=False,
+    #     offline=False,
+    #     dev_mode=True,
+    # )
+    # print(df.head())
 
-    # Test: load_all_data
-    df = load_all_data(
-        root="AAPL",
-        start_date="20241107",
-        exp="20250117",
-        interval_min=1,
-        right="C",
-        strike=225,
-        clean_up=False,
-        offline=False,
-        dev_mode=True,
-    )
-    print(df.head())
+    # # Test: load_all_data
+    # df = load_all_data(
+    #     root="AAPL",
+    #     start_date="20241107",
+    #     exp="20250117",
+    #     interval_min=1,
+    #     right="C",
+    #     strike=225,
+    #     clean_up=False,
+    #     offline=False,
+    #     dev_mode=True,
+    # )
+    # print(df.head())
