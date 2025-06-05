@@ -33,7 +33,7 @@ sphinx = "^7.2.6"
 sphinx-rtd-theme = "^2.0.0"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.14"
+python = ">=3.9,<3.14"
 torch = "^2.7.0"
 pandas = "^2.1.0"
 py-vollib = "^1.0.1"
