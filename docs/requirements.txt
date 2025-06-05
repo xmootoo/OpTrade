@@ -1,5 +1,5 @@
 setuptools<58.0.0
 poetry>=1.6.0
 sphinx>=7.2.6
-optrade==0.0.15
+optrade==0.0.16
 sphinx-rtd-theme>=2.0.0

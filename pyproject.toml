@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "optrade"
-version = "0.0.15"
+version = "0.0.16"
 description = "Options Forecasting and Trading Framework for Quantitative Research"
 authors = ["Xavier Mootoo"]
 license = "MIT"
